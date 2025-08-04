@@ -84,7 +84,7 @@ export function getHTMLTemplate(
         </div>
         <div class="dropdown-menu" id="dropdown-menu" role="menu">
           <div class="dropdown-content">
-            <button id="about" title="" onclick="window.topoViewerEditorEngine.viewportPanels.panelAbout();" class="dropdown-item is-small">
+            <button id="about" title="" onclick="window.topoViewerEngine.viewportPanels.panelAbout();" class="dropdown-item is-small">
               About
             </button>
             <!-- 
@@ -120,7 +120,7 @@ export function getHTMLTemplate(
       <div class="is-flex is-flex-direction-column is-justify-content-space-evenly">
         <p class="control p-0">
           <button id="viewport-zoom-to-fit" title="Fit to Viewport"
-            onclick="window.topoViewerEditorEngine.zoomToFitManager.viewportButtonsZoomToFit(window.topoViewerEditorEngine.cy); return false;"
+            onclick="window.topoViewerEngine.zoomToFitManager.viewportButtonsZoomToFit(window.topoViewerEngine.cy); return false;"
             class="button px-4 py-4 is-smallest-element" style="outline: none;">
             <span class="icon is-small">
               <i class="fas fa-expand"></i>
@@ -130,7 +130,7 @@ export function getHTMLTemplate(
 
         <p class="control p-0">
           <button id="viewport-add-clab-node" title="Add Containerlab Node"
-            onclick="window.topoViewerEditorEngine.addNodeManager.viewportButtonsAddContainerlabNode(window.topoViewerEditorEngine.cy, event); return false;"
+            onclick="window.topoViewerEngine.addNodeManager.viewportButtonsAddContainerlabNode(window.topoViewerEngine.cy, event); return false;"
             class="button px-4 py-4 is-smallest-element" style="outline: none;">
             <span class="icon is-small">
               <i class="fa-solid fa-plus"></i>
@@ -162,7 +162,7 @@ export function getHTMLTemplate(
         
         <p class="control p-0">
           <button id="viewport-label-endpoint" title="Toggle Endpoint Label"
-            onclick="window.topoViewerEditorEngine.labelEndpointManager.viewportButtonsLabelEndpoint(window.topoViewerEditorEngine.cy); return false;"
+            onclick="window.topoViewerEngine.labelEndpointManager.viewportButtonsLabelEndpoint(window.topoViewerEngine.cy); return false;"
             class="button px-4 py-4 is-smallest-element" style="outline: none;">
             <span class="icon is-small">
               <i class="fas fa-tag"></i>
@@ -207,7 +207,7 @@ export function getHTMLTemplate(
 
         <p class="control p-0">
           <button id="viewport-add-group" title="Add Group" 
-            onclick="window.topoViewerEditorEngine.groupManager.createNewParent(window.topoViewerEditorEngine.cy, {createDummyChild: true}); return false;"
+            onclick="window.topoViewerEngine.groupManager.createNewParent(window.topoViewerEngine.cy, {createDummyChild: true}); return false;"
             class="button px-4 py-4 is-smallest-element" style="outline: none;">
             <span class="icon is-small">
               <i class="fa-solid fa-notes-medical"></i>
@@ -226,7 +226,7 @@ export function getHTMLTemplate(
 
         <p class="control p-0">
           <button id="viewport-reload-topo" title="Reload TopoViewer"
-            onclick="window.topoViewerEditorEngine.reloadTopoManager.viewportButtonsReloadTopo(window.topoViewerEditorEngine.cy); return false;"
+            onclick="window.topoViewerEngine.reloadTopoManager.viewportButtonsReloadTopo(window.topoViewerEngine.cy); return false;"
             class="button px-4 py-4 is-smallest-element" style="outline: none;">
             <span class="icon is-small">
               <i class="fa-solid fa-arrow-rotate-right"></i>
@@ -236,7 +236,7 @@ export function getHTMLTemplate(
 
         <p class="control p-0">
           <button id="viewport-save-topo" title="Save TopoViewer"
-            onclick="window.topoViewerEditorEngine.saveManager.viewportButtonsSaveTopo(window.topoViewerEditorEngine.cy); return false;"
+            onclick="window.topoViewerEngine.saveManager.viewportButtonsSaveTopo(window.topoViewerEngine.cy); return false;"
             class="button px-4 py-4 is-smallest-element" style="outline: none;">
             <span class="icon is-small">
               <i class="fa-solid fa-floppy-disk"></i>
@@ -921,7 +921,7 @@ export function getHTMLTemplate(
                       <div class="dropdown-trigger">
                         <button class="button is-size-7 is-fullwidth" aria-haspopup="true"
                           aria-controls="panel-node-editor-parent-label-dropdown-menu"
-                          onclick="window.topoViewerEditorEngine.groupManager.panelNodeEditorParentToggleDropdown()"
+                          onclick="window.topoViewerEngine.groupManager.panelNodeEditorParentToggleDropdown()"
                           <span id="panel-node-editor-parent-label-dropdown-button-text">Select Position</span>
                           <span class="icon is-small">
                             <i class="fas fa-angle-down" aria-hidden="true"></i>
@@ -999,13 +999,13 @@ export function getHTMLTemplate(
                       <div class="control">
                         <input type="file" id="panel-clab-editor-file-input" class="file-input">
                         <button class="button is-link is-outlined is-small" id="panel-node-editor-parent-delete-button"
-                          onclick="window.topoViewerEditorEngine.groupManager.nodeParentRemoval(window.topoViewerEditorEngine.cy)">Remove 
+                          onclick="window.topoViewerEngine.groupManager.nodeParentRemoval(window.topoViewerEngine.cy)">Remove 
                         </button>
                         <button class="button is-link is-outlined is-small" id="panel-node-editor-parent-close-button"
                           onclick="viewportButtonsAddGroup.nodeParentPropertiesUpdateClose()">Close
                         </button>
                         <button class="button is-link is-outlined is-small"
-                          onclick="window.topoViewerEditorEngine.groupManager.nodeParentPropertiesUpdate(window.topoViewerEditorEngine.cy)">Update 
+                          onclick="window.topoViewerEngine.groupManager.nodeParentPropertiesUpdate(window.topoViewerEngine.cy)">Update 
                         </button>
                       </div>
                     </div>
@@ -1022,7 +1022,7 @@ export function getHTMLTemplate(
                       </div>
                       <div class="control">
                         <button type="button" class="button is-link is-outlined is-small" id="panel-node-editor-parent-close-update-button"
-                          onclick="window.topoViewerEditorEngine.groupManager.nodeParentPropertiesUpdate(window.topoViewerEditorEngine.cy)"> 
+                          onclick="window.topoViewerEngine.groupManager.nodeParentPropertiesUpdate(window.topoViewerEngine.cy)"> 
                           Save
                         </button>
                       </div>
@@ -1030,7 +1030,7 @@ export function getHTMLTemplate(
                      
                       <div class="control">
                         <button type="button" class="button is-link is-outlined is-small" id="panel-node-editor-parent-remove-button"
-                          onclick="window.topoViewerEditorEngine.groupManager.nodeParentRemoval(window.topoViewerEditorEngine.cy)">
+                          onclick="window.topoViewerEngine.groupManager.nodeParentRemoval(window.topoViewerEngine.cy)">
                           Delete
                         </button>
                       </div>
@@ -1999,7 +1999,7 @@ export function getHTMLTemplate(
     <script> window.defaultKind = "${defaultKind}"; </script>
     <script> window.defaultType = "${defaultType}"; </script>
 
-    <script src="${jsOutDir}/topoViewerEditorEngine.js?ver=1"></script>
+    <script src="${jsOutDir}/topoViewerEngine.js?ver=1"></script>
 
     <!-- 
     <script src="${jsUri}/common.js?ver=1"></script>

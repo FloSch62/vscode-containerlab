@@ -72,7 +72,7 @@ export class ManagerAddContainerlabNode {
 
     cy.add({ group: 'nodes', data: newNodeData, position });
 
-    const layoutMgr = (window as any).topoViewerEditorEngine?.layoutAlgoManager;
+    const layoutMgr = (window as any).topoViewerEngine?.layoutAlgoManager;
     if (layoutMgr?.isGeoMapInitialized && layoutMgr.cytoscapeLeafletMap) {
       const latlng = layoutMgr.cytoscapeLeafletMap.containerPointToLatLng({
         x: position.x,

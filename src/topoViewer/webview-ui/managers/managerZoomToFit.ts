@@ -14,7 +14,7 @@ export class ManagerZoomToFit {
     const currentZoom = cy.zoom();
     console.info(`And now the zoom level is "${currentZoom}".`);
 
-    const layoutMgr = (window as any).topoViewerEditorEngine?.layoutAlgoManager;
+    const layoutMgr = (window as any).topoViewerEngine?.layoutAlgoManager;
     layoutMgr?.cytoscapeLeafletLeaf?.fit();
   }
 }

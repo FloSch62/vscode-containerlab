@@ -12,15 +12,18 @@ module.exports = {
   experiments: {
     outputModule: true
   },
-  module: {
-    rules: [
-      {
-        test: /\.ts$/,
-        use: 'ts-loader',
-        exclude: /node_modules/
-      }
-    ]
-  },
+    module: {
+      rules: [
+        {
+          test: /\.ts$/,
+          use: {
+            loader: 'ts-loader',
+            options: { transpileOnly: true }
+          },
+          exclude: /node_modules/
+        }
+      ]
+    },
   resolve: {
     extensions: ['.ts', '.js']
   },

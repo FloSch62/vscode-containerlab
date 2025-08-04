@@ -2,8 +2,7 @@
 
 import cytoscape from 'cytoscape';
 import { ManagerSaveTopo } from './managerSaveTopo';
-import { extractNodeIcons } from './managerCytoscapeStyle';
-import { VscodeMessageSender } from './managerVscodeWebview';
+import type { ManagerVscodeWebview } from './managerVscodeWebview';
 
 
 /**
@@ -13,7 +12,7 @@ import { VscodeMessageSender } from './managerVscodeWebview';
 export class ManagerViewportPanels {
   private saveManager: ManagerSaveTopo;
   private cy: cytoscape.Core;
-  private messageSender: VscodeMessageSender;
+  private messageSender: ManagerVscodeWebview;
   private isPanel01Cy = false;
   public nodeClicked: boolean = false;
   public edgeClicked: boolean = false;
@@ -32,7 +31,7 @@ export class ManagerViewportPanels {
   constructor(
     saveManager: ManagerSaveTopo,
     cy: cytoscape.Core,
-    messageSender: VscodeMessageSender
+    messageSender: ManagerVscodeWebview
   ) {
     this.saveManager = saveManager;
     this.cy = cy;
@@ -172,11 +171,7 @@ export class ManagerViewportPanels {
       const typeOptions = this.panelNodeEditorGetTypeEnumsByKindPattern(jsonData, `(${this.panelNodeEditorKind})`);
       this.panelNodeEditorSetupTypeField(typeOptions);
 
-      // Then call the function:
-      const nodeIcons = extractNodeIcons();
-      console.log("Extracted node icons:", nodeIcons);
-
-      this.panelNodeEditorPopulateTopoViewerRoleDropdown(nodeIcons);
+      this.panelNodeEditorPopulateTopoViewerRoleDropdown([]);
 
 
 

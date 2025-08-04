@@ -1,7 +1,7 @@
 // file: managerVscodeWebview.ts
 // Manager for handling VS Code webview communication
 
-import { VsCodeApi, MessageType } from '../core/common';
+import { VsCodeApi, MessageType } from '../common';
 
 export class ManagerVscodeWebview {
   private vscode: VsCodeApi | null;
@@ -142,6 +142,10 @@ export class ManagerVscodeWebview {
    */
   public setState(state: any): void {
     this.vscode?.setState(state);
+  }
+
+  public async sendMessageToVscodeEndpointPost(endpointName: string, payload: any): Promise<any> {
+    return await this.sendRequest(endpointName, payload);
   }
 
   /**

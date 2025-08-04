@@ -1,7 +1,6 @@
 // file: managerSaveTopo.ts
 
 import cytoscape from 'cytoscape';
-import loadCytoStyle from './managerCytoscapeStyle';
 import { ManagerVscodeWebview } from './managerVscodeWebview';
 
 /**
@@ -29,7 +28,7 @@ export class ManagerSaveTopo {
     try {
       console.log('viewportButtonsSaveTopo triggered');
 
-      const layoutMgr = (window as any).topoViewerEditorEngine?.layoutAlgoManager;
+      const layoutMgr = (window as any).topoViewerEngine?.layoutAlgoManager;
       const updatedNodes = cy.nodes().map((node: cytoscape.NodeSingular) => {
         const nodeJson: any = node.json();
 
@@ -128,9 +127,9 @@ export class ManagerSaveTopo {
       }, [] as any[]);
 
       if (!suppressNotification) {
-        loadCytoStyle(cy);
+        // reapply style if needed
       } else {
-        const lm = (window as any).topoViewerEditorEngine?.layoutAlgoManager;
+        const lm = (window as any).topoViewerEngine?.layoutAlgoManager;
         if (lm?.isGeoMapInitialized) {
           const factor = lm.calculateGeoScale();
           lm.applyGeoScale(true, factor);

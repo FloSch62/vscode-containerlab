@@ -6,5 +6,5 @@
     "resolveJsonModule": true
   },
   "include": ["**/*.ts"],
-  "exclude": []
+  "exclude": ["../src/topoViewer/webview-ui"]
 }
