@@ -161,3 +161,5 @@ export async function graphTopoviewerReload() {
   // 3) Now call updatePanelHtml on the existing panel
   currentTopoViewer.updatePanelHtml(currentTopoViewerPanel);
 }
+
+// The unified viewer will be integrated in a future update

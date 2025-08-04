@@ -1,18 +1,25 @@
+import cytoscape from 'cytoscape';
+import Quill from 'quill';
+import type { DeltaStatic } from 'quill';
+import hljs from 'highlight.js';
+
 // We'll keep references to all textbox overlays here if needed:
-const textboxOverlays = {};
+const textboxOverlays: Record<string, { section: HTMLElement; quill: Quill }> = {};
 
 /**
-* Create a new Cytoscape node with topoViewerRole="textbox"
-* and link it to a custom overlay with Quill.
-*
-* @param {Object} cy The Cytoscape instance
-* @param {string} nodeId A unique ID for this new node (e.g. "textbox123")
-* @param {Object} position The (x, y) coordinates for the new node
-* @returns {Object} The newly created node
-*/
-// export function createTextboxNode(cy, nodeId, position = { x: 150, y: 100 }) {
-function createTextboxNode(cy, nodeId, position = { x: 20, y: 20 }) {
-
+ * Create a new Cytoscape node with topoViewerRole="textbox"
+ * and link it to a custom overlay with Quill.
+ *
+ * @param {cytoscape.Core} cy The Cytoscape instance
+ * @param {string} nodeId A unique ID for this new node (e.g. "textbox123")
+ * @param {cytoscape.Position} position The (x, y) coordinates for the new node
+ * @returns {cytoscape.NodeSingular} The newly created node
+ */
+export function createTextboxNode(
+  cy: cytoscape.Core,
+  nodeId: string,
+  position: cytoscape.Position = { x: 20, y: 20 }
+): cytoscape.NodeSingular {
   // 1) Add the node to Cytoscape
   const newNode = cy.add({
     group: "nodes",
@@ -34,17 +41,18 @@ function createTextboxNode(cy, nodeId, position = { x: 20, y: 20 }) {
   return newNode;
 }
 
-
-
 /**
-* Build the HTML overlay + Quill editor for a "textbox" node.
-* Has logic for resizing, editing, saving/canceling, etc.
-*
-* @param {Object} cy The Cytoscape instance
-* @param {Object} node The Cytoscape node for which we want an overlay
-* @returns {{section: HTMLElement, quill: Quill}} Some references
-*/
-function createTextboxOverlay(cy, node) {
+ * Build the HTML overlay + Quill editor for a "textbox" node.
+ * Has logic for resizing, editing, saving/canceling, etc.
+ *
+ * @param {cytoscape.Core} cy The Cytoscape instance
+ * @param {cytoscape.NodeSingular} node The Cytoscape node for which we want an overlay
+ * @returns {{section: HTMLElement, quill: Quill}} Some references
+ */
+function createTextboxOverlay(
+  cy: cytoscape.Core,
+  node: cytoscape.NodeSingular
+): { section: HTMLElement; quill: Quill } {
   // Make a unique DOM container with the node's ID
   const section = document.createElement("div");
   section.className = "html-label columns is-mobile is-multiline";
@@ -57,7 +65,6 @@ function createTextboxOverlay(cy, node) {
   const saveBtnId = `saveBtn-${node.id()}`;
   const cancelBtnId = `cancelBtn-${node.id()}`;
   const closeBtnId = `closeBtnId-${node.id()}`;
-
 
   // Insert the HTML (Quill toolbar, resize handles, etc.)
   section.innerHTML = `
@@ -148,47 +155,42 @@ function createTextboxOverlay(cy, node) {
   // Initialize Quill
   const quill = new Quill(`#${editorId}`, {
     theme: "snow",
-    syntax: true,
     modules: {
       toolbar: `#${toolbarId}`,
       syntax: {
-        highlight: (text) => hljs.highlightAuto(text).value,
+        highlight: (text: string) => hljs.highlightAuto(text).value,
       },
     },
     readOnly: true,
   });
 
   // Set some initial content (optional)
-  const Delta = Quill.import("delta");
+  const DeltaClass = Quill.import("delta") as any;
   quill.setContents(
-    new Delta()
-      .insert(' Every success has its network! ',
-        {
-          'color': '#ffffff',
-          'size': 'huge',
-          'background': '#6b24b2'
-        })
+    new DeltaClass()
+      .insert(' Every success has its network! ', {
+        'color': '#ffffff',
+        'size': 'huge',
+        'background': '#6b24b2'
+      })
       .insert('\n')
-
   );
 
   // Grab references
-  const toolbarEl = section.querySelector(`#${toolbarId}`);
-  const editBtn = section.querySelector(`#${editBtnId}`);
-  const saveBtn = section.querySelector(`#${saveBtnId}`);
-  const cancelBtn = section.querySelector(`#${cancelBtnId}`);
+  const toolbarEl = section.querySelector(`#${toolbarId}`) as HTMLElement;
+  const editBtn = section.querySelector(`#${editBtnId}`) as HTMLButtonElement;
+  const saveBtn = section.querySelector(`#${saveBtnId}`) as HTMLButtonElement;
+  const cancelBtn = section.querySelector(`#${cancelBtnId}`) as HTMLButtonElement;
   const resizeHandles = section.querySelectorAll(".resize-handle");
-  const editorDiv = section.querySelector(`#${editorId}`);
+  const editorDiv = section.querySelector(`#${editorId}`) as HTMLElement;
 
-
-
-
-  function updateOverlay() {
+  function updateOverlay(): void {
     const pos = node.renderedPosition();
-    const cyRect = cy.container().getBoundingClientRect();
+    const container = cy.container();
+    if (!container) return;
+    const cyRect = container.getBoundingClientRect();
     const overlayWidth = section.offsetWidth;
     const overlayHeight = section.offsetHeight;
-
 
     // Expand the node so it is visually behind the overlay
     const paddingInPx = 10;
@@ -196,14 +198,11 @@ function createTextboxOverlay(cy, node) {
     node.style({
       width: (overlayWidth + paddingInPx) * (zoomLevel * 0.10),
       height: (overlayHeight + paddingInPx) * (zoomLevel * 0.10),
-      // width: (overlayWidth + paddingInPx),
-      // height: (overlayHeight + paddingInPx)
     });
 
     // Center overlay on the node
     section.style.left = `${cyRect.left + pos.x - overlayWidth / 2}px`;
     section.style.top = `${cyRect.top + pos.y - overlayHeight / 2}px`;
-
 
     // Adjust editor height
     const toolbarHeight = toolbarEl.offsetHeight;
@@ -213,18 +212,14 @@ function createTextboxOverlay(cy, node) {
     section.style.transform = `scale(${zoomLevel * 0.5})`;
   }
 
-
-
-  let updateTimeout = null;
-  function debounceUpdateOverlay() {
+  let updateTimeout: NodeJS.Timeout | null = null;
+  function debounceUpdateOverlay(): void {
     if (updateTimeout) clearTimeout(updateTimeout);
     updateTimeout = setTimeout(updateOverlay, 0);
   }
 
   // Reposition on relevant events
   cy.on("zoom pan resize", debounceUpdateOverlay);
-
-  // updateOverlayZoom()
 
   node.on("position", debounceUpdateOverlay);
   window.addEventListener("resize", debounceUpdateOverlay);
@@ -233,23 +228,24 @@ function createTextboxOverlay(cy, node) {
 
   // Resizing logic
   let isResizing = false;
-  let initialX, initialY, initialWidth, initialHeight;
+  let initialX: number, initialY: number, initialWidth: number, initialHeight: number;
 
   resizeHandles.forEach((handle) => {
-    handle.addEventListener("mousedown", (e) => {
+    handle.addEventListener("mousedown", (e: Event) => {
+      const mouseEvent = e as MouseEvent;
       isResizing = true;
-      initialX = e.clientX;
-      initialY = e.clientY;
+      initialX = mouseEvent.clientX;
+      initialY = mouseEvent.clientY;
       initialWidth = section.offsetWidth;
       initialHeight = section.offsetHeight;
       document.body.classList.add("no-select");
-      e.stopPropagation();
+      mouseEvent.stopPropagation();
     });
   });
 
   document.addEventListener(
     "mousemove",
-    throttle((e) => {
+    throttle((e: MouseEvent) => {
       if (isResizing) {
         const deltaX = e.clientX - initialX;
         const deltaY = e.clientY - initialY;
@@ -271,28 +267,28 @@ function createTextboxOverlay(cy, node) {
     }
   });
 
-  function throttle(func, limit) {
-    let lastFunc, lastRan;
-    return function () {
+  function throttle<T extends (...args: any[]) => void>(func: T, limit: number): T {
+    let lastFunc: NodeJS.Timeout | undefined;
+    let lastRan: number | undefined;
+    return function (this: any, ...args: Parameters<T>) {
       const context = this;
-      const args = arguments;
       if (!lastRan) {
         func.apply(context, args);
         lastRan = Date.now();
       } else {
         clearTimeout(lastFunc);
         lastFunc = setTimeout(() => {
-          if (Date.now() - lastRan >= limit) {
+          if (Date.now() - lastRan! >= limit) {
             func.apply(context, args);
             lastRan = Date.now();
           }
         }, limit - (Date.now() - lastRan));
       }
-    };
+    } as T;
   }
 
   // Edit/Save/Cancel
-  let savedDelta = null;
+  let savedDelta: DeltaStatic | null = null;
   editBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     quill.enable(true);
@@ -347,28 +343,77 @@ function createTextboxOverlay(cy, node) {
 
   // Pass clicks to Cytoscape
   section.addEventListener("mousedown", (e) => {
-    if (!e.target.closest(`#${toolbarId}`) && !e.target.closest(".resize-handle")) {
+    if (!e.target || !(e.target as HTMLElement).closest(`#${toolbarId}`) && 
+        !(e.target as HTMLElement).closest(".resize-handle")) {
       const cyEvent = new MouseEvent("mousedown", {
         bubbles: true,
         cancelable: true,
         clientX: e.clientX,
         clientY: e.clientY,
       });
-      cy.container().dispatchEvent(cyEvent);
+      const container = cy.container();
+      if (container) {
+        container.dispatchEvent(cyEvent);
+      }
     }
   });
 
   section.addEventListener("click", (e) => {
-    if (!e.target.closest(`#${toolbarId}`) && !e.target.closest(".resize-handle")) {
+    if (!e.target || !(e.target as HTMLElement).closest(`#${toolbarId}`) && 
+        !(e.target as HTMLElement).closest(".resize-handle")) {
       const cyEvent = new MouseEvent("click", {
         bubbles: true,
         cancelable: true,
         clientX: e.clientX,
         clientY: e.clientY,
       });
-      cy.container().dispatchEvent(cyEvent);
+      const container = cy.container();
+      if (container) {
+        container.dispatchEvent(cyEvent);
+      }
     }
   });
 
   return { section, quill };
+}
+
+/**
+ * Manager class for textbox functionality
+ */
+export class ManagerCyTextBox {
+  private cy: cytoscape.Core;
+
+  constructor(cy: cytoscape.Core) {
+    this.cy = cy;
+  }
+
+  /**
+   * Create a new textbox node
+   */
+  public createTextbox(nodeId: string, position?: cytoscape.Position): cytoscape.NodeSingular {
+    return createTextboxNode(this.cy, nodeId, position);
+  }
+
+  /**
+   * Get all textbox overlays
+   */
+  public getTextboxOverlays(): typeof textboxOverlays {
+    return textboxOverlays;
+  }
+
+  /**
+   * Remove a textbox and its overlay
+   */
+  public removeTextbox(nodeId: string): void {
+    const overlay = textboxOverlays[nodeId];
+    if (overlay) {
+      overlay.section.remove();
+      delete textboxOverlays[nodeId];
+    }
+    
+    const node = this.cy.$(`#${nodeId}`);
+    if (node.length > 0) {
+      node.remove();
+    }
+  }
 }

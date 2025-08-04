@@ -1,12 +1,18 @@
 // file: managerAddContainerlabNode.ts
 
 import cytoscape from 'cytoscape';
-import { NodeData } from './topoViewerEditorEngine';
+import { NodeData } from '../topoViewerEngine';
 
 /**
  * Adds new Containerlab nodes into the Cytoscape canvas.
  */
 export class ManagerAddContainerlabNode {
+  private cy: cytoscape.Core;
+
+  constructor(cy: cytoscape.Core) {
+    this.cy = cy;
+  }
+
   public viewportButtonsAddContainerlabNode(
     cy: cytoscape.Core,
     event: cytoscape.EventObject

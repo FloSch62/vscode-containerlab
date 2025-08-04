@@ -1,47 +1,61 @@
-"use strict";
+import cytoscape from 'cytoscape';
+import { io } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
+
 // -----------------------------------------------------------
 // Global State Variables
 // -----------------------------------------------------------
-var isPanel01Cy = false;
-var nodeClicked = false;
-var edgeClicked = false;
-var cy;
-var globalSelectedNode;
-var globalSelectedEdge;
-var globalLinkEndpointVisibility = true;
-var globalNodeContainerStatusVisibility = false;
-var globalShellUrl = "/js/cloudshell";
-let deploymentType;
-var globalLabName;
-var globalPrefixName
-var multiLayerViewPortState = false;
+export let isPanel01Cy = false;
+export let nodeClicked = false;
+export let edgeClicked = false;
+export let cy: cytoscape.Core;
+export let globalSelectedNode: cytoscape.NodeSingular | null;
+export let globalSelectedEdge: cytoscape.EdgeSingular | null;
+export let globalLinkEndpointVisibility = true;
+export let globalNodeContainerStatusVisibility = false;
+export let globalShellUrl = "/js/cloudshell";
+export let deploymentType: string;
+export let globalLabName: string;
+export let globalPrefixName: string;
+export let multiLayerViewPortState = false;
 
 // Cytoscape-Leaflet variables
-var globalIsGeoMapInitialized = false;
-var globalCytoscapeLeafletMap;
-var globalCytoscapeLeafletLeaf;
+export let globalIsGeoMapInitialized = false;
+export let globalCytoscapeLeafletMap: any;
+export let globalCytoscapeLeafletLeaf: any;
 
 // The determined whether preset layout is enabled automatically during initialization
-var globalIsPresetLayout;
+export let globalIsPresetLayout: boolean;
 
 // Detect if running inside VS Code webview
-var isVscodeDeployment = Boolean(window.isVscodeDeployment);
-var vsCode;
+export let isVscodeDeployment = Boolean((window as any).isVscodeDeployment);
+export let vsCode: any;
 if (isVscodeDeployment) {
   // VS Code webview API for communication with the extension
-  vsCode = acquireVsCodeApi();
+  vsCode = (window as any).acquireVsCodeApi();
 }
 
 // JSON file URL for environment data
-var jsonFileUrlDataCytoMarshall;
+export let jsonFileUrlDataCytoMarshall: string;
 
 // Double-click tracking variables
-var globalDblclickLastClick = { time: 0, id: null };
-var globalDblClickThreshold = 300; // Threshold in milliseconds
+export let globalDblclickLastClick = { time: 0, id: null as string | null };
+export let globalDblClickThreshold = 300; // Threshold in milliseconds
 
 // var globalAllowedhostname = 'nsp-clab1.nice.nokia.net'
+export let globalAllowedhostname: string;
 
+// Socket.io instance
+export let socket: Socket;
 
+// Dynamic styles cache
+export const dynamicCytoStyles = new Map<string, any>();
+
+// Monitor configs (will be defined elsewhere)
+export let monitorConfigs: any[];
+
+// Toggle for onChange style binding
+export let globalToggleOnChangeCytoStyle = true;
 
 // -----------------------------------------------------------
 // Expose a Promise to load environment variables
@@ -51,7 +65,7 @@ var globalDblClickThreshold = 300; // Threshold in milliseconds
  * A globally accessible promise that completes after environment variables
  * have been fetched and assigned to globalLabName, globalAllowedhostname, etc.
  */
-window.envLoadPromise = initEnv();
+export const envLoadPromise = initEnv();
 
 
 
@@ -60,7 +74,7 @@ window.envLoadPromise = initEnv();
  * Initializes environment variables by fetching deployment settings.
  * aarafat-tag: this need to be reworked, so that via initiEnv the environement will be only loaded once.
  */
-async function initEnv() {
+export async function initEnv(): Promise<void> {
   try {
     let environments = await getEnvironments();
     if (!environments) {
@@ -98,12 +112,12 @@ async function initEnv() {
  *
  * @returns {Promise<object|null>} Updated environment object or null on failure.
  */
-async function getEnvironments() {
+export async function getEnvironments(): Promise<any> {
   try {
     let environments;
 
     if (isVscodeDeployment) {
-      const response = await fetch(window.jsonFileUrlDataEnvironment);
+      const response = await fetch((window as any).jsonFileUrlDataEnvironment);
       if (!response.ok) {
         throw new Error(`Failed to fetch environment JSON: ${response.statusText}`);
       }
@@ -156,7 +170,7 @@ async function getEnvironments() {
 /**
  * Helper function to send a GET request to an endpoint.
  */
-async function sendRequestToEndpointGetV2(endpointName) {
+export async function sendRequestToEndpointGetV2(endpointName: string): Promise<any> {
   try {
     const response = await fetch(endpointName, {
       method: "GET",
@@ -175,7 +189,7 @@ async function sendRequestToEndpointGetV2(endpointName) {
 /**
  * Calls a Go backend function with provided parameters.
  */
-async function callGoFunction(goFunctionName, arg01, arg02, arg03) {
+export async function callGoFunction(goFunctionName: string, arg01: any, arg02: any, arg03: any): Promise<any> {
   console.log(`callGoFunction Called with ${goFunctionName}`);
   console.log(`Parameter01: ${arg01}`);
   console.log(`Parameter02: ${arg02}`);
@@ -200,7 +214,7 @@ async function callGoFunction(goFunctionName, arg01, arg02, arg03) {
 /**
  * Posts a request to the Python backend to execute a command list.
  */
-async function postPythonAction(event, commandList) {
+export async function postPythonAction(event: any, commandList: any[]): Promise<any> {
   try {
     showLoadingSpinnerGlobal();
     const response = await sendRequestToEndpointPost("/python-action", commandList);
@@ -222,10 +236,10 @@ async function postPythonAction(event, commandList) {
 /**
  * Sends a POST request to the specified endpoint.
  */
-async function sendRequestToEndpointPost(endpointName, argsList = []) {
+export async function sendRequestToEndpointPost(endpointName: string, argsList: any[] = []): Promise<any> {
   console.log(`sendRequestToEndpointPost Called with ${endpointName}`, argsList);
 
-  const data = {};
+  const data: any = {};
   argsList.forEach((arg, index) => {
     data[`param${index + 1}`] = arg;
   });
@@ -250,28 +264,28 @@ async function sendRequestToEndpointPost(endpointName, argsList = []) {
 /**
  * Finds a Cytoscape element by its ID.
  */
-function findCytoElementById(jsonArray, id) {
-  return jsonArray.find(obj => obj.data.id === id) || null;
+export function findCytoElementById(jsonArray: any[], id: string): any {
+  return jsonArray.find((obj: any) => obj.data.id === id) || null;
 }
 
 /**
  * Finds a Cytoscape element by its name.
  */
-function findCytoElementByName(jsonArray, name) {
-  return jsonArray.find(obj => obj.data.name === name) || null;
+export function findCytoElementByName(jsonArray: any[], name: string): any {
+  return jsonArray.find((obj: any) => obj.data.name === name) || null;
 }
 
 /**
  * Finds a Cytoscape element by its long name.
  */
-function findCytoElementByLongname(jsonArray, longname) {
-  return jsonArray.find(obj => obj.data?.extraData?.longname === longname) || null;
+export function findCytoElementByLongname(jsonArray: any[], longname: string): any {
+  return jsonArray.find((obj: any) => obj.data?.extraData?.longname === longname) || null;
 }
 
 /**
  * Detects user's preferred color scheme and applies the theme.
  */
-function detectColorScheme() {
+export function detectColorScheme(): string {
   const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
   applyTheme(darkMode ? 'dark' : 'light');
   return darkMode ? 'dark' : 'light';
@@ -280,7 +294,7 @@ function detectColorScheme() {
 /**
  * Applies a theme to the root element.
  */
-function applyTheme(theme) {
+export function applyTheme(theme: string): void {
   const rootElement = document.getElementById('root');
   if (rootElement) {
     rootElement.setAttribute('data-theme', theme);
@@ -293,7 +307,7 @@ function applyTheme(theme) {
 /**
  * Displays a global loading spinner.
  */
-function showLoadingSpinnerGlobal() {
+export function showLoadingSpinnerGlobal(): void {
   const spinner = document.getElementById('loading-spinner-global');
   if (spinner) {
     spinner.style.display = 'block';
@@ -305,7 +319,7 @@ function showLoadingSpinnerGlobal() {
 /**
  * Hides the global loading spinner.
  */
-function hideLoadingSpinnerGlobal() {
+export function hideLoadingSpinnerGlobal(): void {
   const spinner = document.getElementById('loading-spinner-global');
   if (spinner) {
     spinner.style.display = 'none';
@@ -314,21 +328,21 @@ function hideLoadingSpinnerGlobal() {
   }
 }
 
+// Initialize socket.io connection
+export function initializeSocket(): void {
+  // Initiate socket port as number, to be used in socket creation
+  const globalSocketAssignedPort = (window as any).socketAssignedPort;
+  globalAllowedhostname = (window as any).allowedHostname;
+  console.log(`window.allowedHostname: ${(window as any).allowedHostname}`);
+  console.log('allowedHostname', globalAllowedhostname);
 
+  // aarafat-tag: vscode socket.io
+  const socketIoServerAddress = `${globalAllowedhostname}:${globalSocketAssignedPort}`;
+  console.log(`socketIoServerAddress: ${socketIoServerAddress}`);
+  console.log('socketIoServerAddress:', socketIoServerAddress);
 
-// // Initiate socket port as number, to be used in socket creation
-var globalSocketAssignedPort = window.socketAssignedPort
-var globalAllowedhostname = window.allowedHostname
-console.log(`window.allowedHostname: ${window.allowedHostname}`)
-console.log('allowedHostname', globalAllowedhostname)
-
-// // aarafat-tag: vscode socket.io
-const socketIoServerAddress = `${globalAllowedhostname}:${globalSocketAssignedPort}`
-console.log(`socketIoServerAddress: ${socketIoServerAddress}`)
-console.log('socketIoServerAddress:', socketIoServerAddress)
-
-
-const socket = io(`http://${socketIoServerAddress}`);
+  socket = io(`http://${socketIoServerAddress}`);
+}
 
 // // -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 // // SOCKET BINDING CONTROL // aarafat-tag: this is the main function to bind the socket // entry point for managerOnChangeEvent.js, managerSocketDataEnrichment.js
@@ -339,17 +353,17 @@ const socket = io(`http://${socketIoServerAddress}`);
  * Unbinds any previous listener for "clab-tree-provider-data" and, if the global toggle is enabled,
  * binds an inline listener that processes the lab data using the generic state monitor engine.
  */
-function updateSocketBinding() {
+export function updateSocketBinding(): void {
   // Unbind previous "clab-tree-provider-data" listeners.
   socket.off('clab-tree-provider-data');
 
   if (globalToggleOnChangeCytoStyle) {
-    socket.on('clab-tree-provider-data', (labData) => {
+    socket.on('clab-tree-provider-data', (labData: any) => {
       console.log("Received clab-tree-provider-data - globalToggleOnChangeCytoStyl:", labData);
-      // Use the global monitorConfigs defined below.
-      stateMonitorEngine(labData, monitorConfigs);
-      socketDataEncrichmentLink(labData);
-      socketDataEncrichmentNode(labData)
+      // These functions will be imported from their respective modules
+      // stateMonitorEngine(labData, monitorConfigs);
+      // socketDataEncrichmentLink(labData);
+      // socketDataEncrichmentNode(labData);
 
     });
     console.log("Socket 'clab-tree-provider-data' event bound.");
@@ -362,35 +376,16 @@ function updateSocketBinding() {
 // -----------------------------------------------------------------------------
 //             type: 'clab-tree-provider-data-native-vscode-postMessage'
 // -----------------------------------------------------------------------------
-// Listen for messages sent from the extension.
-// window.addEventListener('message', event => {
-//   const message = event.data; // The JSON data sent by the extension.
-//   if (message.type === 'clab-tree-provider-data-native-vscode-message-stream') {
-//     const labData = message.data;
-//     console.log("Received clab-tree-provider-data-native-vscode-message-stream via postMessage:", labData);
-
-//     // if (globalToggleOnChangeCytoStyle) {
-//     //   // console.log("Received clab-tree-provider-data-native-vscode-postMessage via postMessage:", labData);
-//     //   // Process the lab data using your existing functions.
-//     //   stateMonitorEngine(labData, monitorConfigs);
-//     //   socketDataEncrichmentLink(labData);
-//     //   socketDataEncrichmentNode(labData);
-//     // } else {
-//     //   console.log("Lab data received but toggle is off.");
-//     // }
-//   }
-// });
-
 /**
  * updateMessageStreamBinding()
  *
  * Updates the postMessage event listener for "clab-tree-provider-data" messages.
  * Uses a persistent event handler stored as a property on the function.
  */
-function updateMessageStreamBinding() {
+export function updateMessageStreamBinding(): void {
   // Create the event handler once and store it as a property if it doesn't exist.
-  if (!updateMessageStreamBinding.handler) {
-    updateMessageStreamBinding.handler = function (event) {
+  if (!(updateMessageStreamBinding as any).handler) {
+    (updateMessageStreamBinding as any).handler = function (event: MessageEvent) {
       try {
         const message = event.data;
         if (message && message.type === 'clab-tree-provider-data-native-vscode-message-stream') {
@@ -398,9 +393,10 @@ function updateMessageStreamBinding() {
           console.log("[PostMessage] Received 'clab-tree-provider-data-native-vscode-message-stream':", labData);
           // Process the lab data only if the global toggle is enabled.
           if (globalToggleOnChangeCytoStyle) {
-            stateMonitorEngine(labData, monitorConfigs);
-            socketDataEncrichmentLink(labData);
-            socketDataEncrichmentNode(labData);
+            // These functions will be imported from their respective modules
+            // stateMonitorEngine(labData, monitorConfigs);
+            // socketDataEncrichmentLink(labData);
+            // socketDataEncrichmentNode(labData);
           }
         }
       } catch (error) {
@@ -410,11 +406,11 @@ function updateMessageStreamBinding() {
   }
 
   // Always remove the previously bound listener to avoid duplicates.
-  window.removeEventListener('message', updateMessageStreamBinding.handler);
+  window.removeEventListener('message', (updateMessageStreamBinding as any).handler);
 
   // If enabled, add the event listener.
   if (globalToggleOnChangeCytoStyle) {
-    window.addEventListener('message', updateMessageStreamBinding.handler);
+    window.addEventListener('message', (updateMessageStreamBinding as any).handler);
     console.log("[PostMessage] 'clab-tree-provider-data' event listener bound.");
   } else {
     console.log("[PostMessage] 'clab-tree-provider-data' event listener unbound.");
@@ -434,12 +430,12 @@ function updateMessageStreamBinding() {
  * @param {string} styleProp - The style property to update (e.g. "text-background-color").
  * @param {string|number} value - The new value for the style property.
  */
-function updateEdgeDynamicStyle(edgeId, styleProp, value) {
+export function updateEdgeDynamicStyle(edgeId: string, styleProp: string, value: any): void {
   const edge = cy.$(`#${edgeId}`);
   if (edge.length > 0) {
     edge.style(styleProp, value);
     const cacheKey = `edge:${edgeId}:${styleProp}`;
-    window.dynamicCytoStyles.set(cacheKey, value);
+    dynamicCytoStyles.set(cacheKey, value);
   }
 }
 
@@ -450,20 +446,20 @@ function updateEdgeDynamicStyle(edgeId, styleProp, value) {
  * @param {string} styleProp - The style property to update (e.g. "background-color").
  * @param {string|number} value - The new value for the style property.
  */
-function updateNodeDynamicStyle(nodeId, styleProp, value) {
+export function updateNodeDynamicStyle(nodeId: string, styleProp: string, value: any): void {
   const node = cy.$(`#${nodeId}`);
   if (node.length > 0) {
     node.style(styleProp, value);
     const cacheKey = `node:${nodeId}:${styleProp}`;
-    window.dynamicCytoStyles.set(cacheKey, value);
+    dynamicCytoStyles.set(cacheKey, value);
   }
 }
 
 /**
  * Iterates over the dynamic style cache and re-applies the stored styles.
  */
-function restoreDynamicStyles() {
-  window.dynamicCytoStyles.forEach((value, key) => {
+export function restoreDynamicStyles(): void {
+  dynamicCytoStyles.forEach((value, key) => {
     const parts = key.split(":"); // e.g. ["edge", "Clab-Link0", "text-background-color"]
     if (parts.length !== 3) return;
     const [type, id, styleProp] = parts;
@@ -481,4 +477,17 @@ function restoreDynamicStyles() {
   });
 }
 
+// Export function to set cy instance
+export function setCy(cytoscapeInstance: cytoscape.Core): void {
+  cy = cytoscapeInstance;
+}
 
+// Export function to set global selected node
+export function setGlobalSelectedNode(node: cytoscape.NodeSingular | null): void {
+  globalSelectedNode = node;
+}
+
+// Export function to set global selected edge
+export function setGlobalSelectedEdge(edge: cytoscape.EdgeSingular | null): void {
+  globalSelectedEdge = edge;
+}

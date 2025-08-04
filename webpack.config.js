@@ -3,10 +3,10 @@ const path = require('path');
 module.exports = {
   mode: 'production', // or 'development' for debugging
   target: 'web',
-  entry: './src/topoViewerEditor/webview-ui/topoViewerEditorEngine.ts',
+  entry: './src/topoViewer/webview-ui/index.ts',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'topoViewerEditorEngine.js',
+    filename: 'topoViewerEngine.js',
     libraryTarget: 'module'
   },
   experiments: {

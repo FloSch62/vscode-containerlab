@@ -2,16 +2,18 @@
 
 import cytoscape from 'cytoscape';
 import loadCytoStyle from './managerCytoscapeStyle';
-import { VscodeMessageSender } from './managerVscodeWebview';
+import { ManagerVscodeWebview } from './managerVscodeWebview';
 
 /**
  * Handles saving topology data from the Cytoscape viewport.
  */
 export class ManagerSaveTopo {
-  private messageSender: VscodeMessageSender;
+  private cy: cytoscape.Core;
+  private vscode: any;
 
-  constructor(messageSender: VscodeMessageSender) {
-    this.messageSender = messageSender;
+  constructor(cy: cytoscape.Core, vscode: any) {
+    this.cy = cy;
+    this.vscode = vscode;
   }
 
   /**
@@ -140,7 +142,7 @@ export class ManagerSaveTopo {
 
       if (!suppressNotification) {
         console.log('Not Suppressing notification for save action.');
-        const response = await this.messageSender.sendMessageToVscodeEndpointPost(
+        const response = await new ManagerVscodeWebview(this.vscode).sendMessageToVscodeEndpointPost(
           'topo-editor-viewport-save-suppress-notification',
           updatedElements
         );
@@ -151,7 +153,7 @@ export class ManagerSaveTopo {
           : 'topo-editor-viewport-save';
 
         console.log('Suppressing notification for save action.');
-        const response = await this.messageSender.sendMessageToVscodeEndpointPost(
+        const response = await new ManagerVscodeWebview(this.vscode).sendMessageToVscodeEndpointPost(
           endpoint,
           updatedElements
         );

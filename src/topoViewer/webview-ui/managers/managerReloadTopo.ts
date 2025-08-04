@@ -2,16 +2,18 @@
 
 import cytoscape from 'cytoscape';
 import { fetchAndLoadData } from './managerCytoscapeFetchAndLoad';
-import { VscodeMessageSender } from './managerVscodeWebview';
+import { ManagerVscodeWebview } from './managerVscodeWebview';
 
 /**
  * Handles reloading the topology data from the backend.
  */
 export class ManagerReloadTopo {
-  private messageSender: VscodeMessageSender;
+  private cy: cytoscape.Core;
+  private vscode: any;
 
-  constructor(messageSender: VscodeMessageSender) {
-    this.messageSender = messageSender;
+  constructor(cy: cytoscape.Core, vscode: any) {
+    this.cy = cy;
+    this.vscode = vscode;
   }
 
   public async viewportButtonsReloadTopo(
@@ -19,13 +21,13 @@ export class ManagerReloadTopo {
     delayMs = 1000
   ): Promise<void> {
     try {
-      const response = await this.messageSender.sendMessageToVscodeEndpointPost(
+      const response = await new ManagerVscodeWebview(this.vscode).sendMessageToVscodeEndpointPost(
         'topo-editor-reload-viewport',
         'Empty Payload'
       );
       console.log('############### response from backend:', response);
       await this.sleep(delayMs);
-      fetchAndLoadData(cy, this.messageSender);
+      fetchAndLoadData(cy, new ManagerVscodeWebview(this.vscode));
     } catch (err) {
       console.error('############### Backend call failed:', err);
     }

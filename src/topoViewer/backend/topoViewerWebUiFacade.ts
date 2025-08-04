@@ -9,7 +9,7 @@ import { log } from './logger';
 import { ClabLabTreeNode, ClabInterfaceTreeNode } from '../../treeView/common';
 import { RunningLabTreeDataProvider } from '../../treeView/runningLabsProvider';
 
-import { getHTMLTemplate } from '../webview-ui/html-static/template/vscodeHtmlTemplate';
+import { getHTMLTemplate } from '../webview-ui/template/vscodeHtmlTemplate';
 // import { Server as SocketIOServer } from 'socket.io';
 import {
   getHostname,
@@ -763,7 +763,11 @@ export class TopoViewer {
       jsOutDir,
       allowedhostname,
       useSocket,
-      socketAssignedPort
+      socketAssignedPort,
+      {}, // imageMapping - TODO: implement
+      {}, // ifacePatternMapping - TODO: implement
+      'nokia_srlinux', // defaultKind - TODO: make configurable
+      'ixrd1' // defaultType - TODO: make configurable
     );
   }
 

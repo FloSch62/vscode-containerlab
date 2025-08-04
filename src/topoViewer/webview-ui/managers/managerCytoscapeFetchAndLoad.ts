@@ -1,6 +1,6 @@
 // file: managerCytoscapeFetchAndLoad.ts
 import cytoscape from 'cytoscape';
-import { VscodeMessageSender } from './managerVscodeWebview';
+import { ManagerVscodeWebview } from './managerVscodeWebview';
 
 
 /**
@@ -22,7 +22,7 @@ export interface DataItem {
  *
  * @param cy - The Cytoscape instance to update.
  */
-export async function fetchAndLoadData(cy: cytoscape.Core, messageSender: VscodeMessageSender): Promise<void> {
+export async function fetchAndLoadData(cy: cytoscape.Core, messageSender: ManagerVscodeWebview): Promise<void> {
 
   // // Create an instance of VscodeMessageSender
   // let messageSender: VscodeMessageSender | undefined;
