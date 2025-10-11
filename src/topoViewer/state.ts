@@ -20,6 +20,7 @@ export const topoViewerState: TopoViewerState = {
   cytoscapeLeafletMap: null,
   cytoscapeLeafletLeaf: null,
   editorEngine: null,
+  partyModeActive: false,
 };
 
 export function resetState(): void {
@@ -37,6 +38,7 @@ export function resetState(): void {
   topoViewerState.cytoscapeLeafletMap = null;
   topoViewerState.cytoscapeLeafletLeaf = null;
   topoViewerState.editorEngine = null;
+  topoViewerState.partyModeActive = false;
 }
 
 export default topoViewerState;

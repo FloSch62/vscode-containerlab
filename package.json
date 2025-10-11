@@ -194,6 +194,11 @@
         "category": "Containerlab"
       },
       {
+        "command": "containerlab.lab.graph.topoViewerPartyMode",
+        "title": "Toggle TopoViewer Party Mode",
+        "category": "Containerlab"
+      },
+      {
         "command": "containerlab.editor.topoViewerEditor",
         "title": "New topology file",
         "icon": "$(new-file)",

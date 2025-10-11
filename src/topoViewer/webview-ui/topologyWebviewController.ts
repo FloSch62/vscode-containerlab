@@ -23,6 +23,7 @@ import { ManagerGroupStyle } from './managerGroupStyle';
 import { CopyPasteManager } from './managerCopyPaste';
 import { ManagerLabSettings } from './managerLabSettings';
 import { viewportButtonsCaptureViewportAsSvg } from './uiHandlers';
+import { PartyModeController } from './managerPartyMode';
 import type { ManagerGroupManagement } from './managerGroupManagement';
 import type { ManagerLayoutAlgo } from './managerLayoutAlgo';
 import type { ManagerZoomToFit } from './managerZoomToFit';
@@ -103,6 +104,8 @@ class TopologyWebviewController {
   private viewerGroupMenu: any;
   private activeGroupMenuTarget?: cytoscape.NodeSingular;
   private suppressViewerCanvasClose = false;
+  private readonly partyModeController = new PartyModeController();
+  private partyModeBanner: HTMLDivElement | null = null;
   // eslint-disable-next-line no-unused-vars
   private keyHandlers: Record<string, (event: KeyboardEvent) => void> = {
     delete: (event) => {
@@ -152,6 +155,7 @@ class TopologyWebviewController {
     perfMeasure('cytoscape_style', 'cytoscape_style_start');
     perfMark('fetch_data_start');
     await fetchAndLoadData(this.cy, this.messageSender);
+    this.partyModeController.handleTopologyReload();
     perfMeasure('fetch_data', 'fetch_data_start');
     perfMeasure('topoViewer_init_total', 'topoViewer_init_start');
 
@@ -348,6 +352,7 @@ class TopologyWebviewController {
   private initializeCytoscape(container: HTMLElement, theme: string): void {
     perfMark('cytoscape_create_start');
     this.cy = createConfiguredCytoscape(container);
+    this.partyModeController.attachCy(this.cy);
     perfMeasure('cytoscape_create', 'cytoscape_create_start');
     this.cy.viewport({
       zoom: 1,
@@ -381,6 +386,9 @@ class TopologyWebviewController {
     this.registerDoubleClickHandlers();
     this.exposeWindowFunctions();
     this.registerMessageListener();
+    if (topoViewerState.partyModeActive) {
+      this.togglePartyMode(true);
+    }
     document.getElementById('cy')?.focus();
   }
 
@@ -501,7 +509,8 @@ class TopologyWebviewController {
       const handlers: Record<string, (data: any) => void> = {
         'yaml-saved': () => fetchAndLoadData(this.cy, this.messageSender),
         'updateTopology': (data) => this.updateTopology(data),
-        'copiedElements': (data) => this.handleCopiedElements(data)
+        'copiedElements': (data) => this.handleCopiedElements(data),
+        'topo-party-mode': (data) => this.togglePartyMode(Boolean(data?.enabled))
       };
       const handler = handlers[msg.type];
       if (handler) {
@@ -538,8 +547,58 @@ class TopologyWebviewController {
           loadCytoStyle(this.cy);
         }
       }
+      this.partyModeController.handleTopologyReload();
     } catch (error) {
       log.error(`Error processing updateTopology message: ${error}`);
+    }
+  }
+
+  private togglePartyMode(enabled: boolean): void {
+    topoViewerState.partyModeActive = enabled;
+    this.applyPartyModeUi(enabled);
+    if (!this.cy) {
+      if (enabled) {
+        this.partyModeController.start();
+        log.warn('Party mode toggle received before Cytoscape was ready.');
+      } else {
+        this.partyModeController.stop();
+      }
+      return;
+    }
+    if (enabled) {
+      this.partyModeController.start(this.cy);
+    } else {
+      this.partyModeController.stop();
+    }
+  }
+
+  private applyPartyModeUi(enabled: boolean): void {
+    const root = document.documentElement;
+    const body = document.body;
+    const cyContainer = document.getElementById('cy');
+    const className = 'party-mode';
+    if (root) {
+      root.classList.toggle(className, enabled);
+    }
+    if (body) {
+      body.classList.toggle(className, enabled);
+    }
+    if (cyContainer) {
+      cyContainer.classList.toggle('party-mode-active', enabled);
+    }
+    if (enabled) {
+      if (!this.partyModeBanner) {
+        const banner = document.createElement('div');
+        banner.className = 'party-mode-banner';
+        banner.textContent = 'Party Mode: ON 🎉';
+        banner.setAttribute('role', 'status');
+        banner.setAttribute('aria-live', 'polite');
+        document.body?.appendChild(banner);
+        this.partyModeBanner = banner;
+      }
+    } else if (this.partyModeBanner) {
+      this.partyModeBanner.remove();
+      this.partyModeBanner = null;
     }
   }
 
@@ -1859,9 +1918,12 @@ class TopologyWebviewController {
 
   /**
    * Dispose of resources held by the engine.
-   */
+  */
   public dispose(): void {
     this.messageSender.dispose();
+    this.partyModeController.dispose();
+    this.applyPartyModeUi(false);
+    topoViewerState.partyModeActive = false;
   }
 }
 

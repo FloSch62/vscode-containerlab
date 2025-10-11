@@ -992,6 +992,114 @@
   .cxtmenu-item:hover {
     background-color: var(--vscode-list-hoverBackground);
   }
+
+  .party-mode .navbar,
+  .party-mode .panel,
+  .party-mode .panel-overlay,
+  .party-mode .dropdown-menu,
+  .party-mode .ViewPortDrawer,
+  .party-mode .viewport-drawer,
+  .party-mode .floating-panel,
+  .party-mode .viewer-toolbar,
+  .party-mode .tippy-box {
+    background-image: linear-gradient(
+      125deg,
+      #ff0080 0%,
+      #ff8c00 17%,
+      #f9f871 34%,
+      #00f5d4 51%,
+      #00bbf0 68%,
+      #8e2de2 85%,
+      #ff0080 100%
+    );
+    background-size: 400% 400%;
+    animation: partyGradient 7s ease-in-out infinite, partyGlow 3s ease-in-out infinite;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow:
+      0 0 22px rgba(255, 0, 128, 0.25),
+      0 0 36px rgba(14, 165, 233, 0.25);
+  }
+
+  .party-mode .navbar a,
+  .party-mode .navbar button,
+  .party-mode .dropdown-menu a,
+  .party-mode .dropdown-menu button {
+    color: #ffffff !important;
+    text-shadow:
+      0 0 6px rgba(0, 0, 0, 0.35),
+      0 0 12px rgba(0, 0, 0, 0.15);
+  }
+
+  body.party-mode,
+  html.party-mode {
+    position: relative;
+    animation: partyHue 12s linear infinite;
+  }
+
+  body.party-mode::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 20% 25%, rgba(255, 255, 255, 0.22) 0, rgba(255, 255, 255, 0) 60%),
+      radial-gradient(circle at 80% 15%, rgba(255, 0, 128, 0.24) 0, rgba(255, 0, 128, 0) 55%),
+      radial-gradient(circle at 35% 75%, rgba(0, 255, 200, 0.22) 0, rgba(0, 255, 200, 0) 65%),
+      radial-gradient(circle at 75% 70%, rgba(14, 165, 233, 0.2) 0, rgba(14, 165, 233, 0) 65%);
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    animation: partySpeckles 18s linear infinite;
+    z-index: 0;
+  }
+
+  #cy.party-mode-active {
+    box-shadow: inset 0 0 45px rgba(255, 255, 255, 0.12);
+  }
+
+  .party-mode #cy {
+    box-shadow: inset 0 0 40px rgba(255, 0, 128, 0.18);
+  }
+
+  .party-mode .party-mode-banner {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 1.1rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background-image: linear-gradient(
+      125deg,
+      #ff8c00 0%,
+      #ff0080 20%,
+      #8e2de2 40%,
+      #00f5d4 60%,
+      #00bbf0 80%,
+      #ff8c00 100%
+    );
+    background-size: 400% 400%;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow:
+      0 0 18px rgba(255, 0, 128, 0.45),
+      0 0 28px rgba(14, 165, 233, 0.3);
+    animation: partyGradient 5s ease-in-out infinite, partyBounce 1.1s ease-in-out infinite;
+    z-index: 100000;
+  }
+
+  .party-mode-banner::before {
+    content: '🎧';
+    font-size: 1rem;
+  }
+
+  .party-mode-banner::after {
+    content: '🎶';
+    font-size: 1rem;
+  }
 }
 
 /* Custom utility classes */
@@ -1111,6 +1219,66 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes partyGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes partyGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 16px rgba(255, 0, 128, 0.2),
+      0 0 28px rgba(14, 165, 233, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 32px rgba(255, 0, 128, 0.45),
+      0 0 46px rgba(14, 165, 233, 0.35);
+  }
+}
+
+@keyframes partyHue {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes partySpeckles {
+  0% {
+    opacity: 0.45;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.05) translate3d(0, -1.5%, 0);
+  }
+  100% {
+    opacity: 0.45;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes partyBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
   }
 }
 

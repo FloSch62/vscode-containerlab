@@ -317,6 +317,7 @@ function registerCommands(context: vscode.ExtensionContext) {
     ['containerlab.lab.graph.drawio.vertical', cmd.graphDrawIOVertical],
     ['containerlab.lab.graph.drawio.interactive', cmd.graphDrawIOInteractive],
     ['containerlab.lab.graph.topoViewerReload', cmd.graphTopoviewerReload],
+    ['containerlab.lab.graph.topoViewerPartyMode', cmd.graphTopoviewerTogglePartyMode],
     ['containerlab.node.start', cmd.startNode],
     ['containerlab.node.stop', cmd.stopNode],
     ['containerlab.node.save', cmd.saveNode],

@@ -18,4 +18,5 @@ export interface TopoViewerState {
   cytoscapeLeafletMap: any;
   cytoscapeLeafletLeaf: any;
   editorEngine?: any;
+  partyModeActive: boolean;
 }

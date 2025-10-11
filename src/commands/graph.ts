@@ -79,6 +79,8 @@ export async function graphDrawIOInteractive(node?: ClabLabTreeNode) {
 let currentTopoViewer: TopoViewer | undefined;
 let currentTopoViewerPanel: vscode.WebviewPanel | undefined;
 const activeTopoViewers: Set<TopoViewer> = new Set();
+const TOPOVIEWER_PARTY_MODE_CONTEXT = 'containerlab.topoViewerPartyModeActive';
+let isPartyModeActive = false;
 
 function resolveLabInfo(node?: ClabLabTreeNode): { labPath: string; isViewMode: boolean } | undefined {
   if (node && node.contextValue &&
@@ -203,7 +205,46 @@ export function getCurrentTopoViewer(): TopoViewer | undefined {
   return currentTopoViewer;
 }
 
+export async function graphTopoviewerTogglePartyMode(): Promise<void> {
+  if (!currentTopoViewerPanel) {
+    vscode.window.showErrorMessage('No active TopoViewer panel to toggle party mode.');
+    return;
+  }
+
+  const targetState = !isPartyModeActive;
+
+  try {
+    const result = await currentTopoViewerPanel.webview.postMessage({
+      type: 'topo-party-mode',
+      data: { enabled: targetState }
+    });
+
+    if (result === false) {
+      throw new Error('Webview rejected party mode toggle.');
+    }
+
+    isPartyModeActive = targetState;
+    void vscode.commands.executeCommand('setContext', TOPOVIEWER_PARTY_MODE_CONTEXT, isPartyModeActive);
+
+    const message = targetState
+      ? 'TopoViewer party mode activated. 🎉'
+      : 'TopoViewer party mode stopped.';
+    void vscode.window.showInformationMessage(message);
+  } catch (error) {
+    console.error('Failed to toggle TopoViewer party mode', error);
+    void vscode.window.showErrorMessage('Failed to toggle TopoViewer party mode. Check logs for details.');
+  }
+}
+
 export function setCurrentTopoViewer(viewer: TopoViewer | undefined) {
+  if (viewer !== currentTopoViewer && currentTopoViewerPanel && isPartyModeActive) {
+    void currentTopoViewerPanel.webview.postMessage({
+      type: 'topo-party-mode',
+      data: { enabled: false }
+    });
+    isPartyModeActive = false;
+    void vscode.commands.executeCommand('setContext', TOPOVIEWER_PARTY_MODE_CONTEXT, false);
+  }
   currentTopoViewer = viewer;
   if (viewer) {
     currentTopoViewerPanel = (viewer as any).currentPanel;
@@ -217,7 +258,10 @@ export function setCurrentTopoViewer(viewer: TopoViewer | undefined) {
     }
   } else {
     currentTopoViewerPanel = undefined;
+    isPartyModeActive = false;
+    void vscode.commands.executeCommand('setContext', TOPOVIEWER_PARTY_MODE_CONTEXT, false);
   }
+  void vscode.commands.executeCommand('setContext', TOPOVIEWER_PARTY_MODE_CONTEXT, isPartyModeActive);
 }
 
 /**
