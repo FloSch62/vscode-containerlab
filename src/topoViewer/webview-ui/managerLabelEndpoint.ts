@@ -21,6 +21,7 @@ const LINK_RATE_BASE_FONT_SIZE_PX = 8.8;
 const LINK_RATE_BASE_PADDING_X_PX = 3;
 const LINK_RATE_BASE_PADDING_Y_PX = 1;
 const LINK_RATE_BASE_OFFSET_PX = 16;
+const LINK_RATE_PARALLEL_SPACING_PX = 14;
 const LINK_RATE_BACKGROUND_RGBA = 'rgba(202, 203, 204, 0.6)';
 
 interface LineRateTooltipEntry {
@@ -413,14 +414,87 @@ export class ManagerLabelEndpoint {
     return smoothed;
   }
 
+  private computeLineRateNormalOffset(edge: cytoscape.EdgeSingular): { x: number; y: number } {
+    const parallelEdges = this.getParallelEdges(edge);
+    if (parallelEdges.length <= 1) {
+      return { x: 0, y: 0 };
+    }
+
+    const index = parallelEdges.findIndex(candidate => candidate.id() === edge.id());
+    if (index === -1) {
+      return { x: 0, y: 0 };
+    }
+
+    const offsetIndex = index - (parallelEdges.length - 1) / 2;
+    if (Math.abs(offsetIndex) < 1e-6) {
+      return { x: 0, y: 0 };
+    }
+
+    const scale = this.computeLineRateScale(this.cy?.zoom() ?? 1);
+    const distance = LINK_RATE_PARALLEL_SPACING_PX * scale * offsetIndex;
+
+    const source = edge.source();
+    const target = edge.target();
+    if (!source || !target) {
+      return { x: 0, y: 0 };
+    }
+    const sourcePos = source.renderedPosition();
+    const targetPos = target.renderedPosition();
+    const dx = targetPos.x - sourcePos.x;
+    const dy = targetPos.y - sourcePos.y;
+    const length = Math.hypot(dx, dy);
+    if (!Number.isFinite(length) || length < 1e-3) {
+      return { x: 0, y: 0 };
+    }
+
+    let nx = dy / length;
+    let ny = -dx / length;
+    if (ny > 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+
+    return { x: nx * distance, y: ny * distance };
+  }
+
+  private getParallelEdges(edge: cytoscape.EdgeSingular): cytoscape.EdgeSingular[] {
+    const cy = this.cy;
+    if (!cy) {
+      return [edge];
+    }
+
+    const sourceId = edge.source()?.id();
+    const targetId = edge.target()?.id();
+    if (!sourceId || !targetId) {
+      return [edge];
+    }
+
+    const result: cytoscape.EdgeSingular[] = [];
+    cy.edges().forEach(candidate => {
+      const candidateSource = candidate.source()?.id();
+      const candidateTarget = candidate.target()?.id();
+      if (!candidateSource || !candidateTarget) {
+        return;
+      }
+      const sameDirection = candidateSource === sourceId && candidateTarget === targetId;
+      const oppositeDirection = candidateSource === targetId && candidateTarget === sourceId;
+      if (sameDirection || oppositeDirection) {
+        result.push(candidate);
+      }
+    });
+
+    return result.sort((a, b) => a.id().localeCompare(b.id()));
+  }
+
   private createVirtualReference(edge: cytoscape.EdgeSingular): VirtualElement {
     return {
       getBoundingClientRect: () => {
         const container = this.cy?.container();
         const rect = container?.getBoundingClientRect();
         const midpoint = edge.renderedMidpoint();
-        const left = (rect?.left ?? 0) + midpoint.x;
-        const top = (rect?.top ?? 0) + midpoint.y;
+        const offset = this.computeLineRateNormalOffset(edge);
+        const left = (rect?.left ?? 0) + midpoint.x + offset.x;
+        const top = (rect?.top ?? 0) + midpoint.y + offset.y;
         return new DOMRect(left, top, 0, 0);
       },
       contextElement: this.cy?.container() ?? document.body,
