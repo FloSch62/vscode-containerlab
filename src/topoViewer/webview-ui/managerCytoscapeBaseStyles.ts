@@ -522,7 +522,7 @@ export function getCytoscapeStyles(theme: 'light' | 'dark') {
   const edgeStyle = styles.find((s: any) => s.selector === 'edge');
   if (edgeStyle) {
     const mode = topoViewerState.linkLabelMode;
-    if (mode === 'show-all') {
+    if (mode === 'show-all' || mode === 'show-all-rate') {
       edgeStyle.style['text-opacity'] = 1;
       edgeStyle.style['text-background-opacity'] = 0.7;
     } else {

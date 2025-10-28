@@ -72,19 +72,19 @@ export class ManagerLabelEndpoint {
   };
 
   private readonly viewportChangeHandler = (): void => {
-    if (this.currentMode === 'show-rate') {
+    if (this.modeShowsRates()) {
       this.updateLineRateTooltipPositions();
     }
   };
 
   private readonly positionChangeHandler = (): void => {
-    if (this.currentMode === 'show-rate') {
+    if (this.modeShowsRates()) {
       this.updateLineRateTooltipPositions();
     }
   };
 
   private readonly edgeDataChangeHandler: cytoscape.EventHandler = (event: cytoscape.EventObject) => {
-    if (this.currentMode !== 'show-rate') {
+    if (!this.modeShowsRates()) {
       return;
     }
     const edge = event.target as cytoscape.EdgeSingular | undefined;
@@ -101,7 +101,7 @@ export class ManagerLabelEndpoint {
   };
 
   private readonly edgeAdditionHandler: cytoscape.EventHandler = (event: cytoscape.EventObject) => {
-    if (this.currentMode !== 'show-rate') {
+    if (!this.modeShowsRates()) {
       return;
     }
     const edge = event.target as cytoscape.EdgeSingular | undefined;
@@ -197,7 +197,7 @@ export class ManagerLabelEndpoint {
     cy.nodes().removeClass(NODE_HIGHLIGHT_CLASS);
     cy.edges().removeClass(EDGE_HIGHLIGHT_CLASS);
 
-    if (mode !== 'show-rate') {
+    if (!this.modeShowsRates(mode)) {
       this.destroyAllLineRateTooltips();
     }
 
@@ -213,6 +213,15 @@ export class ManagerLabelEndpoint {
       cy.edges().forEach(edge => {
         edge.style(STYLE_TEXT_OPACITY, 0);
         edge.style(STYLE_TEXT_BACKGROUND_OPACITY, 0);
+      });
+      this.updateLineRateTooltips();
+      return;
+    }
+
+    if (mode === 'show-all-rate') {
+      cy.edges().forEach(edge => {
+        edge.style(STYLE_TEXT_OPACITY, 1);
+        edge.style(STYLE_TEXT_BACKGROUND_OPACITY, 0.7);
       });
       this.updateLineRateTooltips();
       return;
@@ -250,7 +259,7 @@ export class ManagerLabelEndpoint {
 
   private updateLineRateTooltips(): void {
     const cy = this.cy;
-    if (!cy || this.currentMode !== 'show-rate') {
+    if (!cy || !this.modeShowsRates()) {
       return;
     }
 
@@ -271,7 +280,7 @@ export class ManagerLabelEndpoint {
   }
 
   private updateLineRateTooltipForEdge(edge: cytoscape.EdgeSingular): void {
-    if (this.currentMode !== 'show-rate') {
+    if (!this.modeShowsRates()) {
       return;
     }
 
@@ -297,7 +306,7 @@ export class ManagerLabelEndpoint {
   }
 
   private updateLineRateTooltipPositions(): void {
-    if (this.currentMode !== 'show-rate' || this.lineRateTooltips.size === 0) {
+    if (!this.modeShowsRates() || this.lineRateTooltips.size === 0) {
       return;
     }
 
@@ -412,6 +421,10 @@ export class ManagerLabelEndpoint {
     const smoothed = smoother.push(value);
     this.lineRateSmoothers.set(edgeId, smoother);
     return smoothed;
+  }
+
+  private modeShowsRates(mode: LinkLabelMode = this.currentMode): boolean {
+    return mode === 'show-rate' || mode === 'show-all-rate';
   }
 
   private computeLineRateNormalOffset(edge: cytoscape.EdgeSingular): { x: number; y: number } {
