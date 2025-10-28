@@ -23,10 +23,25 @@ const LINK_RATE_BASE_PADDING_Y_PX = 1;
 const LINK_RATE_BASE_OFFSET_PX = 16;
 const LINK_RATE_PARALLEL_SPACING_PX = 14;
 const LINK_RATE_BACKGROUND_RGBA = 'rgba(202, 203, 204, 0.6)';
+const RX_SERIES_ID = 'rx';
+const TX_SERIES_ID = 'tx';
+const RATE_SERIES = [RX_SERIES_ID, TX_SERIES_ID] as const;
 
 interface LineRateTooltipEntry {
   instance: TippyInstance;
   reference: VirtualElement;
+}
+
+interface RateSeriesState {
+  smoother: RollingWindowRateSmoother;
+}
+
+type RateSeriesMap = Map<string, RateSeriesState>;
+
+interface LinkRateSeriesData {
+  rx?: number;
+  tx?: number;
+  fallback?: LineRateValue;
 }
 
 class RollingWindowRateSmoother {
@@ -112,7 +127,7 @@ export class ManagerLabelEndpoint {
   };
 
   private lineRateTooltips: Map<string, LineRateTooltipEntry> = new Map();
-  private readonly lineRateSmoothers: Map<string, RollingWindowRateSmoother> = new Map();
+  private readonly rateSeries: Map<string, RateSeriesMap> = new Map();
 
   /**
    * Bind the manager to a Cytoscape instance.
@@ -285,24 +300,46 @@ export class ManagerLabelEndpoint {
     }
 
     const edgeId = edge.id();
-    const raw = this.getLineRateValue(edge);
-    const smoothed = this.applyLineRateSmoothing(edgeId, raw);
-    const formatted = smoothed !== undefined ? this.formatLineRate(smoothed) : null;
+    const series = this.extractLineRateSeries(edge);
+    if (!series) {
+      this.destroyLineRateTooltip(edgeId);
+      return;
+    }
 
-    if (!formatted) {
+    const rxValue = this.applyLineRateSmoothing(edgeId, RX_SERIES_ID, series.rx);
+    const txValue = this.applyLineRateSmoothing(edgeId, TX_SERIES_ID, series.tx);
+
+    const lines: string[] = [];
+    const rxLine = this.formatRateSeriesLine('RX', rxValue);
+    if (rxLine) {
+      lines.push(rxLine);
+    }
+    const txLine = this.formatRateSeriesLine('TX', txValue);
+    if (txLine) {
+      lines.push(txLine);
+    }
+
+    let content: string | null = null;
+    if (lines.length > 0) {
+      content = lines.join('\n');
+    } else if (series.fallback !== undefined) {
+      content = this.formatLineRate(series.fallback);
+    }
+
+    if (!content) {
       this.destroyLineRateTooltip(edgeId);
       return;
     }
 
     const existing = this.lineRateTooltips.get(edgeId);
     if (existing) {
-      existing.instance.setContent(formatted);
+      existing.instance.setContent(content);
       this.syncLineRateTooltipAppearance(existing.instance);
       existing.instance.popperInstance?.update();
       return;
     }
 
-    this.createLineRateTooltip(edge, formatted);
+    this.createLineRateTooltip(edge, content);
   }
 
   private updateLineRateTooltipPositions(): void {
@@ -341,12 +378,15 @@ export class ManagerLabelEndpoint {
 
   private destroyLineRateTooltip(edgeId: string): void {
     const entry = this.lineRateTooltips.get(edgeId);
-    if (!entry) {
-      return;
+    if (entry) {
+      entry.instance.destroy();
+      this.lineRateTooltips.delete(edgeId);
     }
-    entry.instance.destroy();
-    this.lineRateTooltips.delete(edgeId);
-    this.lineRateSmoothers.delete(edgeId);
+
+    const seriesMap = this.rateSeries.get(edgeId);
+    if (seriesMap) {
+      this.rateSeries.delete(edgeId);
+    }
   }
 
   private destroyAllLineRateTooltips(): void {
@@ -355,7 +395,7 @@ export class ManagerLabelEndpoint {
     }
     this.lineRateTooltips.forEach(({ instance }) => instance.destroy());
     this.lineRateTooltips.clear();
-    this.lineRateSmoothers.clear();
+    this.rateSeries.clear();
   }
 
   private syncLineRateTooltipAppearance(instance: TippyInstance): void {
@@ -405,21 +445,115 @@ export class ManagerLabelEndpoint {
     return Math.max(0.8, Math.min(2.5, padding));
   }
 
-  // eslint-disable-next-line sonarjs/function-return-type
-  private applyLineRateSmoothing(edgeId: string, value: LineRateValue | undefined): LineRateValue | undefined {
+  private extractLineRateSeries(edge: cytoscape.EdgeSingular): LinkRateSeriesData | undefined {
+    const data = edge.data() as Record<string, unknown>;
+    const extraData = (data.extraData as Record<string, unknown> | undefined) ?? undefined;
+
+    const statsCandidates: Array<Record<string, unknown> | undefined> = [];
+    if (extraData && typeof extraData === 'object') {
+      statsCandidates.push(extraData.clabSourceStats as Record<string, unknown> | undefined);
+      statsCandidates.push(extraData.clabTargetStats as Record<string, unknown> | undefined);
+    }
+
+    const rxValues: number[] = [];
+    const txValues: number[] = [];
+
+    for (const stats of statsCandidates) {
+      if (!stats || typeof stats !== 'object') {
+        continue;
+      }
+      const rx = this.toFiniteNumber((stats as any).rxBps);
+      if (rx !== undefined) {
+        rxValues.push(rx);
+      }
+      const tx = this.toFiniteNumber((stats as any).txBps);
+      if (tx !== undefined) {
+        txValues.push(tx);
+      }
+    }
+
+    const result: LinkRateSeriesData = {};
+    const rx = this.averageSeriesValue(rxValues);
+    if (rx !== undefined) {
+      result.rx = rx;
+    }
+    const tx = this.averageSeriesValue(txValues);
+    if (tx !== undefined) {
+      result.tx = tx;
+    }
+
+    const fallback = this.getLineRateValue(edge);
+    if (fallback !== undefined) {
+      result.fallback = fallback;
+    }
+
+    if (result.rx === undefined && result.tx === undefined && result.fallback === undefined) {
+      return undefined;
+    }
+
+    return result;
+  }
+
+  private formatRateSeriesLine(label: string, value: LineRateValue | undefined): string | null {
     if (value === undefined) {
-      this.lineRateSmoothers.delete(edgeId);
+      return null;
+    }
+    const formatted = this.formatLineRate(value);
+    return formatted ? `${label} ${formatted}` : null;
+  }
+
+  private toFiniteNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  }
+
+  private averageSeriesValue(values: number[]): number | undefined {
+    if (values.length === 0) {
+      return undefined;
+    }
+    const total = values.reduce((sum, current) => sum + current, 0);
+    return total / values.length;
+  }
+
+  // eslint-disable-next-line sonarjs/function-return-type
+  private applyLineRateSmoothing(
+    edgeId: string,
+    seriesId: typeof RATE_SERIES[number],
+    value: LineRateValue | undefined
+  ): LineRateValue | undefined {
+    if (value === undefined) {
+      const seriesMap = this.rateSeries.get(edgeId);
+      seriesMap?.delete(seriesId);
+      if (seriesMap && seriesMap.size === 0) {
+        this.rateSeries.delete(edgeId);
+      }
       return undefined;
     }
 
     if (typeof value !== 'number') {
-      this.lineRateSmoothers.delete(edgeId);
+      const seriesMap = this.rateSeries.get(edgeId);
+      seriesMap?.delete(seriesId);
+      if (seriesMap && seriesMap.size === 0) {
+        this.rateSeries.delete(edgeId);
+      }
       return value;
     }
 
-    const smoother = this.lineRateSmoothers.get(edgeId) ?? new RollingWindowRateSmoother(LINE_RATE_SMOOTHING_WINDOW_MS);
-    const smoothed = smoother.push(value);
-    this.lineRateSmoothers.set(edgeId, smoother);
+    const seriesMap = this.rateSeries.get(edgeId) ?? new Map<string, RateSeriesState>();
+    let state = seriesMap.get(seriesId);
+    if (!state) {
+      state = { smoother: new RollingWindowRateSmoother(LINE_RATE_SMOOTHING_WINDOW_MS) };
+      seriesMap.set(seriesId, state);
+      this.rateSeries.set(edgeId, seriesMap);
+    }
+
+    const smoothed = state.smoother.push(value);
     return smoothed;
   }
 

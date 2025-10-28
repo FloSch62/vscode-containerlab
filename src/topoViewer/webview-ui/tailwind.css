@@ -307,6 +307,10 @@
     transition: font-size 0.12s ease, padding 0.12s ease;
   }
 
+  .tippy-box[data-theme~='link-rate'] .tippy-content {
+    white-space: pre;
+  }
+
   .tippy-box[data-theme~='link-rate'] .tippy-arrow {
     display: none;
   }
