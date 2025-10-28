@@ -16,8 +16,8 @@ const LINK_LABEL_BUTTON_ID = 'viewport-link-label-button';
 const LINK_LABEL_MENU_ID = 'viewport-link-label-menu';
 const LINK_RATE_TOOLTIP_THEME = 'link-rate';
 const LINK_RATE_MIN_SCALE = 0.55;
-const LINK_RATE_MAX_SCALE = 1.1;
-const LINK_RATE_BASE_FONT_SIZE_PX = 8;
+const LINK_RATE_MAX_SCALE = 1.15;
+const LINK_RATE_BASE_FONT_SIZE_PX = 8.8;
 const LINK_RATE_BASE_PADDING_X_PX = 3;
 const LINK_RATE_BASE_PADDING_Y_PX = 1;
 const LINK_RATE_BASE_OFFSET_PX = 16;
@@ -27,6 +27,36 @@ interface LineRateTooltipEntry {
   instance: TippyInstance;
   reference: VirtualElement;
 }
+
+class RollingWindowRateSmoother {
+  private readonly samples: Array<{ value: number; timestamp: number }> = [];
+  private readonly windowMs: number;
+
+  constructor(windowMs: number) {
+    this.windowMs = windowMs;
+  }
+
+  public push(value: number, timestamp: number = Date.now()): number {
+    this.samples.push({ value, timestamp });
+    const cutoff = timestamp - this.windowMs;
+    while (this.samples.length > 0 && this.samples[0].timestamp < cutoff) {
+      this.samples.shift();
+    }
+
+    if (this.samples.length === 0) {
+      return value;
+    }
+
+    const total = this.samples.reduce((sum, sample) => sum + sample.value, 0);
+    return total / this.samples.length;
+  }
+
+  public reset(): void {
+    this.samples.length = 0;
+  }
+}
+
+const LINE_RATE_SMOOTHING_WINDOW_MS = 3500;
 
 /**
  * Manages link label visibility and highlighting behaviour for edges.
@@ -81,6 +111,7 @@ export class ManagerLabelEndpoint {
   };
 
   private lineRateTooltips: Map<string, LineRateTooltipEntry> = new Map();
+  private readonly lineRateSmoothers: Map<string, RollingWindowRateSmoother> = new Map();
 
   /**
    * Bind the manager to a Cytoscape instance.
@@ -243,9 +274,10 @@ export class ManagerLabelEndpoint {
       return;
     }
 
-    const raw = this.getLineRateValue(edge);
-    const formatted = raw !== undefined ? this.formatLineRate(raw) : null;
     const edgeId = edge.id();
+    const raw = this.getLineRateValue(edge);
+    const smoothed = this.applyLineRateSmoothing(edgeId, raw);
+    const formatted = smoothed !== undefined ? this.formatLineRate(smoothed) : null;
 
     if (!formatted) {
       this.destroyLineRateTooltip(edgeId);
@@ -304,6 +336,7 @@ export class ManagerLabelEndpoint {
     }
     entry.instance.destroy();
     this.lineRateTooltips.delete(edgeId);
+    this.lineRateSmoothers.delete(edgeId);
   }
 
   private destroyAllLineRateTooltips(): void {
@@ -312,6 +345,7 @@ export class ManagerLabelEndpoint {
     }
     this.lineRateTooltips.forEach(({ instance }) => instance.destroy());
     this.lineRateTooltips.clear();
+    this.lineRateSmoothers.clear();
   }
 
   private syncLineRateTooltipAppearance(instance: TippyInstance): void {
@@ -348,7 +382,7 @@ export class ManagerLabelEndpoint {
 
   private computeLineRateFontSize(scale: number): number {
     const size = LINK_RATE_BASE_FONT_SIZE_PX * scale;
-    return Math.max(7, Math.min(10, size));
+    return Math.max(7.5, Math.min(10.5, size));
   }
 
   private computeLineRatePaddingX(scale: number): number {
@@ -359,6 +393,24 @@ export class ManagerLabelEndpoint {
   private computeLineRatePaddingY(scale: number): number {
     const padding = LINK_RATE_BASE_PADDING_Y_PX * scale;
     return Math.max(0.8, Math.min(2.5, padding));
+  }
+
+  // eslint-disable-next-line sonarjs/function-return-type
+  private applyLineRateSmoothing(edgeId: string, value: LineRateValue | undefined): LineRateValue | undefined {
+    if (value === undefined) {
+      this.lineRateSmoothers.delete(edgeId);
+      return undefined;
+    }
+
+    if (typeof value !== 'number') {
+      this.lineRateSmoothers.delete(edgeId);
+      return value;
+    }
+
+    const smoother = this.lineRateSmoothers.get(edgeId) ?? new RollingWindowRateSmoother(LINE_RATE_SMOOTHING_WINDOW_MS);
+    const smoothed = smoother.push(value);
+    this.lineRateSmoothers.set(edgeId, smoother);
+    return smoothed;
   }
 
   private createVirtualReference(edge: cytoscape.EdgeSingular): VirtualElement {
