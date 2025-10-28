@@ -1,9 +1,12 @@
 // file: managerLabelEndpoint.ts
 
 import cytoscape from 'cytoscape';
+import type { VirtualElement } from '@popperjs/core';
+import tippy, { type Instance as TippyInstance } from 'tippy.js';
 import { log } from '../logging/logger';
 import topoViewerState from '../state';
 import { normalizeLinkLabelMode, type LinkLabelMode, linkLabelModeLabel } from '../types/linkLabelMode';
+import { extractLineRateValue as extractLineRateCandidate, type LineRateValue } from '../utilities/linkRateUtils';
 
 const EDGE_HIGHLIGHT_CLASS = 'link-label-highlight-edge';
 const NODE_HIGHLIGHT_CLASS = 'link-label-highlight-node';
@@ -11,6 +14,19 @@ const STYLE_TEXT_OPACITY = 'text-opacity';
 const STYLE_TEXT_BACKGROUND_OPACITY = 'text-background-opacity';
 const LINK_LABEL_BUTTON_ID = 'viewport-link-label-button';
 const LINK_LABEL_MENU_ID = 'viewport-link-label-menu';
+const LINK_RATE_TOOLTIP_THEME = 'link-rate';
+const LINK_RATE_MIN_SCALE = 0.55;
+const LINK_RATE_MAX_SCALE = 1.1;
+const LINK_RATE_BASE_FONT_SIZE_PX = 8;
+const LINK_RATE_BASE_PADDING_X_PX = 3;
+const LINK_RATE_BASE_PADDING_Y_PX = 1;
+const LINK_RATE_BASE_OFFSET_PX = 16;
+const LINK_RATE_BACKGROUND_RGBA = 'rgba(202, 203, 204, 0.6)';
+
+interface LineRateTooltipEntry {
+  instance: TippyInstance;
+  reference: VirtualElement;
+}
 
 /**
  * Manages link label visibility and highlighting behaviour for edges.
@@ -18,15 +34,53 @@ const LINK_LABEL_MENU_ID = 'viewport-link-label-menu';
 export class ManagerLabelEndpoint {
   private cy: cytoscape.Core | null = null;
   private currentMode: LinkLabelMode = topoViewerState.linkLabelMode;
-  private readonly selectionHandler: () => void;
+  private readonly selectionHandler = (): void => {
+    if (this.currentMode === 'on-select') {
+      this.applyMode(this.currentMode);
+    }
+  };
 
-  public constructor() {
-    this.selectionHandler = () => {
-      if (this.currentMode === 'on-select') {
-        this.applyMode(this.currentMode);
-      }
-    };
-  }
+  private readonly viewportChangeHandler = (): void => {
+    if (this.currentMode === 'show-rate') {
+      this.updateLineRateTooltipPositions();
+    }
+  };
+
+  private readonly positionChangeHandler = (): void => {
+    if (this.currentMode === 'show-rate') {
+      this.updateLineRateTooltipPositions();
+    }
+  };
+
+  private readonly edgeDataChangeHandler: cytoscape.EventHandler = (event: cytoscape.EventObject) => {
+    if (this.currentMode !== 'show-rate') {
+      return;
+    }
+    const edge = event.target as cytoscape.EdgeSingular | undefined;
+    if (edge && edge.isEdge && edge.isEdge()) {
+      this.updateLineRateTooltipForEdge(edge);
+    }
+  };
+
+  private readonly edgeRemovalHandler: cytoscape.EventHandler = (event: cytoscape.EventObject) => {
+    const edge = event.target as cytoscape.EdgeSingular | undefined;
+    if (edge && edge.isEdge && edge.isEdge()) {
+      this.destroyLineRateTooltip(edge.id());
+    }
+  };
+
+  private readonly edgeAdditionHandler: cytoscape.EventHandler = (event: cytoscape.EventObject) => {
+    if (this.currentMode !== 'show-rate') {
+      return;
+    }
+    const edge = event.target as cytoscape.EdgeSingular | undefined;
+    if (edge && edge.isEdge && edge.isEdge()) {
+      this.updateLineRateTooltipForEdge(edge);
+      this.updateLineRateTooltipPositions();
+    }
+  };
+
+  private lineRateTooltips: Map<string, LineRateTooltipEntry> = new Map();
 
   /**
    * Bind the manager to a Cytoscape instance.
@@ -84,11 +138,22 @@ export class ManagerLabelEndpoint {
   private attachEventHandlers(cy: cytoscape.Core): void {
     cy.on('select', 'node,edge', this.selectionHandler);
     cy.on('unselect', 'node,edge', this.selectionHandler);
+    cy.on('pan zoom viewport', this.viewportChangeHandler);
+    cy.on('position', 'node,edge', this.positionChangeHandler);
+    cy.on('data', 'edge', this.edgeDataChangeHandler);
+    cy.on('add', 'edge', this.edgeAdditionHandler);
+    cy.on('remove', 'edge', this.edgeRemovalHandler);
   }
 
   private detachEventHandlers(cy: cytoscape.Core): void {
     cy.off('select', 'node,edge', this.selectionHandler);
     cy.off('unselect', 'node,edge', this.selectionHandler);
+    cy.off('pan zoom viewport', this.viewportChangeHandler as any);
+    cy.off('position', 'node,edge', this.positionChangeHandler);
+    cy.off('data', 'edge', this.edgeDataChangeHandler);
+    cy.off('add', 'edge', this.edgeAdditionHandler);
+    cy.off('remove', 'edge', this.edgeRemovalHandler);
+    this.destroyAllLineRateTooltips();
   }
 
   private applyMode(mode: LinkLabelMode): void {
@@ -100,11 +165,24 @@ export class ManagerLabelEndpoint {
     cy.nodes().removeClass(NODE_HIGHLIGHT_CLASS);
     cy.edges().removeClass(EDGE_HIGHLIGHT_CLASS);
 
+    if (mode !== 'show-rate') {
+      this.destroyAllLineRateTooltips();
+    }
+
     if (mode === 'hide') {
       cy.edges().forEach(edge => {
         edge.style(STYLE_TEXT_OPACITY, 0);
         edge.style(STYLE_TEXT_BACKGROUND_OPACITY, 0);
       });
+      return;
+    }
+
+    if (mode === 'show-rate') {
+      cy.edges().forEach(edge => {
+        edge.style(STYLE_TEXT_OPACITY, 0);
+        edge.style(STYLE_TEXT_BACKGROUND_OPACITY, 0);
+      });
+      this.updateLineRateTooltips();
       return;
     }
 
@@ -136,6 +214,225 @@ export class ManagerLabelEndpoint {
     nodesToHighlight.forEach(node => {
       node.addClass(NODE_HIGHLIGHT_CLASS);
     });
+  }
+
+  private updateLineRateTooltips(): void {
+    const cy = this.cy;
+    if (!cy || this.currentMode !== 'show-rate') {
+      return;
+    }
+
+    const seen = new Set<string>();
+    cy.edges().forEach(edge => {
+      const edgeId = edge.id();
+      seen.add(edgeId);
+      this.updateLineRateTooltipForEdge(edge);
+    });
+
+    for (const edgeId of Array.from(this.lineRateTooltips.keys())) {
+      if (!seen.has(edgeId)) {
+        this.destroyLineRateTooltip(edgeId);
+      }
+    }
+
+    this.updateLineRateTooltipPositions();
+  }
+
+  private updateLineRateTooltipForEdge(edge: cytoscape.EdgeSingular): void {
+    if (this.currentMode !== 'show-rate') {
+      return;
+    }
+
+    const raw = this.getLineRateValue(edge);
+    const formatted = raw !== undefined ? this.formatLineRate(raw) : null;
+    const edgeId = edge.id();
+
+    if (!formatted) {
+      this.destroyLineRateTooltip(edgeId);
+      return;
+    }
+
+    const existing = this.lineRateTooltips.get(edgeId);
+    if (existing) {
+      existing.instance.setContent(formatted);
+      this.syncLineRateTooltipAppearance(existing.instance);
+      existing.instance.popperInstance?.update();
+      return;
+    }
+
+    this.createLineRateTooltip(edge, formatted);
+  }
+
+  private updateLineRateTooltipPositions(): void {
+    if (this.currentMode !== 'show-rate' || this.lineRateTooltips.size === 0) {
+      return;
+    }
+
+    this.lineRateTooltips.forEach(({ instance }) => {
+      this.syncLineRateTooltipAppearance(instance);
+      instance.popperInstance?.update();
+    });
+  }
+
+  private createLineRateTooltip(edge: cytoscape.EdgeSingular, label: string): void {
+    const reference = this.createVirtualReference(edge);
+    const anchor = document.createElement('div');
+    const scale = this.computeLineRateScale(this.cy?.zoom() ?? 1);
+    const instance = tippy(anchor, {
+      content: label,
+      allowHTML: false,
+      trigger: 'manual',
+      interactive: false,
+      placement: 'top',
+      theme: LINK_RATE_TOOLTIP_THEME,
+      offset: [0, this.computeLineRateOffset(scale)],
+      hideOnClick: false,
+      arrow: false,
+      appendTo: () => this.cy?.container() ?? document.body,
+      getReferenceClientRect: reference.getBoundingClientRect,
+    });
+    instance.show();
+    this.syncLineRateTooltipAppearance(instance);
+    instance.popperInstance?.update();
+    this.lineRateTooltips.set(edge.id(), { instance, reference });
+  }
+
+  private destroyLineRateTooltip(edgeId: string): void {
+    const entry = this.lineRateTooltips.get(edgeId);
+    if (!entry) {
+      return;
+    }
+    entry.instance.destroy();
+    this.lineRateTooltips.delete(edgeId);
+  }
+
+  private destroyAllLineRateTooltips(): void {
+    if (this.lineRateTooltips.size === 0) {
+      return;
+    }
+    this.lineRateTooltips.forEach(({ instance }) => instance.destroy());
+    this.lineRateTooltips.clear();
+  }
+
+  private syncLineRateTooltipAppearance(instance: TippyInstance): void {
+    const zoom = this.cy?.zoom() ?? 1;
+    const scale = this.computeLineRateScale(zoom);
+    const offset = this.computeLineRateOffset(scale);
+
+    instance.setProps({ offset: [0, offset], hideOnClick: false, arrow: false });
+
+    const box = instance.popper.querySelector('.tippy-box') as HTMLElement | null;
+    if (!box) {
+      return;
+    }
+
+    const fontSize = this.computeLineRateFontSize(scale);
+    const paddingX = this.computeLineRatePaddingX(scale);
+    const paddingY = this.computeLineRatePaddingY(scale);
+
+    box.style.fontSize = `${fontSize}px`;
+    box.style.padding = `${paddingY}px ${paddingX}px`;
+    box.style.backgroundColor = LINK_RATE_BACKGROUND_RGBA;
+    box.style.lineHeight = '1';
+  }
+
+  private computeLineRateScale(zoom: number): number {
+    const clamped = Math.min(LINK_RATE_MAX_SCALE, Math.max(LINK_RATE_MIN_SCALE, zoom));
+    return Number(clamped.toFixed(3));
+  }
+
+  private computeLineRateOffset(scale: number = 1): number {
+    const offset = LINK_RATE_BASE_OFFSET_PX + (scale - 1) * 10;
+    return Math.max(10, Math.min(24, offset));
+  }
+
+  private computeLineRateFontSize(scale: number): number {
+    const size = LINK_RATE_BASE_FONT_SIZE_PX * scale;
+    return Math.max(7, Math.min(10, size));
+  }
+
+  private computeLineRatePaddingX(scale: number): number {
+    const padding = LINK_RATE_BASE_PADDING_X_PX * scale;
+    return Math.max(1.5, Math.min(5, padding));
+  }
+
+  private computeLineRatePaddingY(scale: number): number {
+    const padding = LINK_RATE_BASE_PADDING_Y_PX * scale;
+    return Math.max(0.8, Math.min(2.5, padding));
+  }
+
+  private createVirtualReference(edge: cytoscape.EdgeSingular): VirtualElement {
+    return {
+      getBoundingClientRect: () => {
+        const container = this.cy?.container();
+        const rect = container?.getBoundingClientRect();
+        const midpoint = edge.renderedMidpoint();
+        const left = (rect?.left ?? 0) + midpoint.x;
+        const top = (rect?.top ?? 0) + midpoint.y;
+        return new DOMRect(left, top, 0, 0);
+      },
+      contextElement: this.cy?.container() ?? document.body,
+    };
+  }
+
+  // eslint-disable-next-line sonarjs/function-return-type
+  private getLineRateValue(edge: cytoscape.EdgeSingular): LineRateValue | undefined {
+    const data = edge.data() as Record<string, unknown>;
+    let result: LineRateValue | undefined;
+
+    const directCandidates: unknown[] = [
+      data.lineRate,
+      (data as any).linerate,
+      (data as any)['line-rate'],
+      (data as any)['line_rate'],
+      (data.extraData as Record<string, unknown> | undefined)?.extLineRate,
+    ];
+
+    for (const candidate of directCandidates) {
+      const normalized = extractLineRateCandidate(candidate);
+      if (normalized !== undefined) {
+        result = normalized;
+        break;
+      }
+    }
+
+    if (result === undefined) {
+      result = extractLineRateCandidate(data.extraData);
+    }
+
+    if (result === undefined) {
+      result = extractLineRateCandidate(data);
+    }
+
+    return result;
+  }
+
+  private formatLineRate(value: LineRateValue): string | null {
+    if (typeof value === 'number') {
+      return this.formatNumericLineRate(value);
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private formatNumericLineRate(value: number): string {
+    const abs = Math.abs(value);
+    const units: Array<{ threshold: number; suffix: string; divisor: number }> = [
+      { threshold: 1e12, suffix: 'Tbps', divisor: 1e12 },
+      { threshold: 1e9, suffix: 'Gbps', divisor: 1e9 },
+      { threshold: 1e6, suffix: 'Mbps', divisor: 1e6 },
+      { threshold: 1e3, suffix: 'Kbps', divisor: 1e3 },
+    ];
+
+    for (const { threshold, suffix, divisor } of units) {
+      if (abs >= threshold) {
+        const scaled = value / divisor;
+        const digits = Math.abs(scaled) >= 10 ? 0 : 2;
+        return `${scaled.toFixed(digits)} ${suffix}`;
+      }
+    }
+
+    return `${value.toFixed(0)} bps`;
   }
 
   private syncMenu(): void {

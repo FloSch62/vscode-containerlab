@@ -14,6 +14,7 @@ import { version as topoViewerVersion } from '../../../package.json';
 
 import { ClabLabTreeNode, ClabContainerTreeNode, ClabInterfaceTreeNode } from "../../treeView/common";
 import { findContainerNode, findInterfaceNode } from '../utilities/treeUtils';
+import { extractLineRateValue } from '../utilities/linkRateUtils';
 // log.info(ClabTreeDataProvider.)
 
 log.info(`TopoViewer Version: ${topoViewerVersion}`);
@@ -1641,7 +1642,14 @@ export class TopoViewerAdaptorClab {
       ['udp-port']: extUdpPort = '',
     } = linkObj ?? {};
 
-    return { extType, extMtu, extVars, extLabels, extHostInterface, extMode, extRemote, extVni, extUdpPort };
+    const extLineRate = extractLineRateValue(linkObj);
+
+    const lineRateSegment =
+      extLineRate !== undefined
+        ? { extLineRate }
+        : {};
+
+    return { extType, extMtu, extVars, extLabels, extHostInterface, extMode, extRemote, extVni, extUdpPort, ...lineRateSegment };
   }
 
   private extractExtMacs(linkObj: any, endA: any, endB: any): any {

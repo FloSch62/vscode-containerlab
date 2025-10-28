@@ -126,6 +126,7 @@ export interface EdgeData {
   sourceEndpoint?: string;
   targetEndpoint?: string;
   editor?: string;
+  extraData?: Record<string, unknown>;
 }
 
 export interface FreeTextAnnotation {
