@@ -218,10 +218,18 @@ const cytoscapeStylesBase: any[] = [
       'text-outline-width': '0.3px',
       'text-outline-color': '#FFFFFF',
       'text-background-color': '#CACBCC',
+      'source-text-background-color': '#CACBCC',
+      'target-text-background-color': '#CACBCC',
       'text-opacity': 1,
       'text-background-opacity': 1,
+      'source-text-background-opacity': 1,
+      'target-text-background-opacity': 1,
       'text-background-shape': 'roundrectangle',
       'text-background-padding': '1px',
+      'source-text-background-shape': 'roundrectangle',
+      'target-text-background-shape': 'roundrectangle',
+      'source-text-background-padding': '1px',
+      'target-text-background-padding': '1px',
       'curve-style': 'bezier',
       'control-point-step-size': 20,
       opacity: '0.7',
@@ -234,13 +242,21 @@ const cytoscapeStylesBase: any[] = [
   {
     selector: 'edge.link-up',
     style: {
-      'line-color': '#00df2b'
+      'text-background-color': '#00df2b',
+      'source-text-background-color': '#00df2b',
+      'target-text-background-color': '#00df2b',
+      'source-text-background-opacity': 1,
+      'target-text-background-opacity': 1
     }
   },
   {
     selector: 'edge.link-down',
     style: {
-      'line-color': '#df2b00'
+      'text-background-color': '#df2b00',
+      'source-text-background-color': '#df2b00',
+      'target-text-background-color': '#df2b00',
+      'source-text-background-opacity': 1,
+      'target-text-background-opacity': 1
     }
   },
   { selector: 'node.unhighlighted', style: { opacity: '0.2' } },
