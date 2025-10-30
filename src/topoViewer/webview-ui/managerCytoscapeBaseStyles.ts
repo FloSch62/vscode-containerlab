@@ -9,6 +9,7 @@ import topoViewerState from '../state';
 // Common style literals reused several times
 const DATA_NAME = 'data(name)';
 const SELECTOR_GROUP = 'node[topoViewerRole="group"]';
+const EDGE_LABEL_FONT_FAMILY = '"Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, sans-serif';
 const GROUP_NODE_STYLE = {
   shape: 'rectangle',
   'border-width': '0.5px',
@@ -208,28 +209,29 @@ const cytoscapeStylesBase: any[] = [
     selector: 'edge',
     style: {
       targetArrowShape: 'none',
-      'font-size': '0.42em',
+      'font-size': '0.52em',
+      'min-zoomed-font-size': '6px',
+      'font-family': EDGE_LABEL_FONT_FAMILY,
+      'font-weight': '600',
       'source-label': 'data(sourceEndpoint)',
       'target-label': 'data(targetEndpoint)',
       'source-text-offset': 20,
       'target-text-offset': 20,
       'arrow-scale': '0.5',
-      color: '#000000',
-      'text-outline-width': '0.3px',
-      'text-outline-color': '#FFFFFF',
+      color: '#1F232A',
       'text-background-color': '#CACBCC',
       'source-text-background-color': '#CACBCC',
       'target-text-background-color': '#CACBCC',
       'text-opacity': 1,
-      'text-background-opacity': 1,
-      'source-text-background-opacity': 1,
-      'target-text-background-opacity': 1,
+      'text-background-opacity': 0.9,
+      'source-text-background-opacity': 0.9,
+      'target-text-background-opacity': 0.9,
       'text-background-shape': 'roundrectangle',
-      'text-background-padding': '1px',
+      'text-background-padding': '2px',
       'source-text-background-shape': 'roundrectangle',
       'target-text-background-shape': 'roundrectangle',
-      'source-text-background-padding': '1px',
-      'target-text-background-padding': '1px',
+      'source-text-background-padding': '2px',
+      'target-text-background-padding': '2px',
       'curve-style': 'bezier',
       'control-point-step-size': 20,
       opacity: '0.7',
@@ -466,72 +468,185 @@ const freeTextStyles = [
 const insertIndex = cytoscapeStylesBase.findIndex((s: any) => s.selector === 'edge');
 cytoscapeStylesBase.splice(insertIndex, 0, ...roleStyles, ...freeTextStyles);
 
+type CytoscapeStyleMap = Record<string, any>;
+
+interface EdgeLabelPalette {
+  foreground: string;
+  background: string;
+  backgroundOpacity: number;
+  padding: string;
+}
+
+interface EdgeStatusPalette {
+  foreground: string;
+  backgroundOpacity: number;
+}
+
+interface ThemeContext {
+  theme: 'light' | 'dark';
+  selectionColor: string;
+  selectionBoxColor: string;
+  selectionBoxBorderColor: string;
+  edgeLabelPalette: EdgeLabelPalette;
+  linkUpPalette: EdgeStatusPalette;
+  linkDownPalette: EdgeStatusPalette;
+}
+
+function trimCssValue(style: CSSStyleDeclaration, property: string): string {
+  return style.getPropertyValue(property).trim();
+}
+
+function buildThemeContext(theme: 'light' | 'dark', rootStyle: CSSStyleDeclaration): ThemeContext {
+  const selectionColor = trimCssValue(rootStyle, '--vscode-focusBorder');
+  const selectionBoxColor = trimCssValue(rootStyle, '--vscode-list-focusBackground');
+  const selectionBoxBorderColor = trimCssValue(rootStyle, '--vscode-focusBorder');
+  const editorForeground = trimCssValue(rootStyle, '--vscode-editor-foreground');
+  const editorBackground = trimCssValue(rootStyle, '--vscode-editor-background');
+  const panelBackground = trimCssValue(rootStyle, '--vscode-panel-background');
+  const widgetBackground = trimCssValue(rootStyle, '--vscode-editorWidget-background');
+
+  const fallbackForeground = theme === 'dark' ? '#F4F6FB' : '#1F232A';
+  const labelForeground = editorForeground || fallbackForeground;
+  const labelBackground = theme === 'dark'
+    ? widgetBackground || editorBackground || '#2F3339'
+    : panelBackground || editorBackground || '#E4E5E7';
+  const labelBackgroundOpacity = theme === 'dark' ? 0.92 : 0.88;
+
+  return {
+    theme,
+    selectionColor,
+    selectionBoxColor,
+    selectionBoxBorderColor,
+    edgeLabelPalette: {
+      foreground: labelForeground,
+      background: labelBackground,
+      backgroundOpacity: labelBackgroundOpacity,
+      padding: '2px'
+    },
+    linkUpPalette: {
+      foreground: '#FFFFFF',
+      backgroundOpacity: 1
+    },
+    linkDownPalette: {
+      foreground: '#FFFFFF',
+      backgroundOpacity: 1
+    }
+  };
+}
+
+function adjustGroupStyle(style: CytoscapeStyleMap, theme: 'light' | 'dark'): void {
+  if (theme === 'light') {
+    style['background-color'] = '#a6a6a6';
+    style['background-opacity'] = '0.4';
+    style['border-width'] = '0.5px';
+    style['border-color'] = '#aaaaaa';
+  } else {
+    style['background-color'] = '#d9d9d9';
+    style['background-opacity'] = '0.2';
+  }
+}
+
+function applyEdgeLabelPalette(style: CytoscapeStyleMap, palette: EdgeLabelPalette): void {
+  style.color = palette.foreground;
+  style['text-background-color'] = palette.background;
+  style['source-text-background-color'] = palette.background;
+  style['target-text-background-color'] = palette.background;
+  style['text-background-opacity'] = palette.backgroundOpacity;
+  style['source-text-background-opacity'] = palette.backgroundOpacity;
+  style['target-text-background-opacity'] = palette.backgroundOpacity;
+  style['text-background-padding'] = palette.padding;
+  style['source-text-background-padding'] = palette.padding;
+  style['target-text-background-padding'] = palette.padding;
+}
+
+function applyLinkStatusPalette(style: CytoscapeStyleMap, palette: EdgeStatusPalette): void {
+  style.color = palette.foreground;
+  style['text-background-opacity'] = palette.backgroundOpacity;
+  style['source-text-background-opacity'] = palette.backgroundOpacity;
+  style['target-text-background-opacity'] = palette.backgroundOpacity;
+}
+
+function applyNodeSelectedPalette(style: CytoscapeStyleMap, selectionColor: string): void {
+  style['border-color'] = selectionColor;
+  style['overlay-color'] = selectionColor;
+  style['border-width'] = '3px';
+  style['border-opacity'] = '1';
+  style['border-style'] = 'solid';
+  style['overlay-opacity'] = '0.3';
+  style['overlay-padding'] = '3px';
+}
+
+function applyEdgeSelectedPalette(style: CytoscapeStyleMap, selectionColor: string): void {
+  style['line-color'] = selectionColor;
+  style['target-arrow-color'] = selectionColor;
+  style['source-arrow-color'] = selectionColor;
+  style['overlay-color'] = selectionColor;
+  style['overlay-opacity'] = '0.2';
+  style['overlay-padding'] = '6px';
+  style['width'] = '4px';
+  style['opacity'] = '1';
+  style['z-index'] = '10';
+}
+
+function applySelectionBoxPalette(style: CytoscapeStyleMap, selectionBoxColor: string, selectionBoxBorderColor: string): void {
+  style['selection-box-color'] = selectionBoxColor;
+  style['selection-box-border-color'] = selectionBoxBorderColor;
+  style['selection-box-opacity'] = '0.5';
+}
+
+function applyThemeAdjustments(selector: unknown, style: CytoscapeStyleMap, context: ThemeContext): void {
+  if (typeof selector !== 'string') {
+    return;
+  }
+
+  switch (selector) {
+    case SELECTOR_GROUP:
+      adjustGroupStyle(style, context.theme);
+      break;
+    case 'edge':
+      applyEdgeLabelPalette(style, context.edgeLabelPalette);
+      break;
+    case 'edge.link-up':
+      applyLinkStatusPalette(style, context.linkUpPalette);
+      break;
+    case 'edge.link-down':
+      applyLinkStatusPalette(style, context.linkDownPalette);
+      break;
+    case 'node:selected':
+      applyNodeSelectedPalette(style, context.selectionColor);
+      break;
+    case 'edge:selected':
+      applyEdgeSelectedPalette(style, context.selectionColor);
+      break;
+    case '.link-label-highlight-node':
+      style['border-color'] = context.selectionColor;
+      style['overlay-color'] = context.selectionColor;
+      break;
+    case '.link-label-highlight-edge':
+      style['line-color'] = context.selectionColor;
+      style['target-arrow-color'] = context.selectionColor;
+      style['source-arrow-color'] = context.selectionColor;
+      style['overlay-color'] = context.selectionColor;
+      break;
+    case 'core':
+      applySelectionBoxPalette(style, context.selectionBoxColor, context.selectionBoxBorderColor);
+      break;
+    default:
+      break;
+  }
+}
+
 /**
  * Returns a cloned Cytoscape style array adjusted for the given theme.
  * When `theme` is "light" group nodes appear darker with higher opacity.
  */
 export function getCytoscapeStyles(theme: 'light' | 'dark') {
   const rootStyle = window.getComputedStyle(document.documentElement);
-  const selectionColor = rootStyle.getPropertyValue('--vscode-focusBorder').trim();
-  const selectionBoxColor = rootStyle.getPropertyValue('--vscode-list-focusBackground').trim();
-  const selectionBoxBorderColor = rootStyle.getPropertyValue('--vscode-focusBorder').trim();
+  const themeContext = buildThemeContext(theme, rootStyle);
 
   const styles = cytoscapeStylesBase.map((def: any) => {
     const clone: any = { selector: def.selector, style: { ...(def.style || {}) } };
-    if (def.selector === SELECTOR_GROUP) {
-      if (theme === 'light') {
-        clone.style['background-color'] = '#a6a6a6';
-        clone.style['background-opacity'] = '0.4';
-        clone.style['border-width'] = '0.5px';
-        clone.style['border-color'] = '#aaaaaa';
-      } else {
-        clone.style['background-color'] = '#d9d9d9';
-        clone.style['background-opacity'] = '0.2';
-      }
-    }
-
-    // Theme-aware selection styling
-    if (def.selector === 'node:selected') {
-      clone.style['border-color'] = selectionColor;
-      clone.style['overlay-color'] = selectionColor;
-      clone.style['border-width'] = '3px';
-      clone.style['border-opacity'] = '1';
-      clone.style['border-style'] = 'solid';
-      clone.style['overlay-opacity'] = '0.3';
-      clone.style['overlay-padding'] = '3px';
-    }
-
-    if (def.selector === 'edge:selected') {
-      clone.style['line-color'] = selectionColor;
-      clone.style['target-arrow-color'] = selectionColor;
-      clone.style['source-arrow-color'] = selectionColor;
-      clone.style['overlay-color'] = selectionColor;
-      clone.style['overlay-opacity'] = '0.2';
-      clone.style['overlay-padding'] = '6px';
-      clone.style['width'] = '4px';
-      clone.style['opacity'] = '1';
-      clone.style['z-index'] = '10';
-    }
-
-    if (def.selector === '.link-label-highlight-node') {
-      clone.style['border-color'] = selectionColor;
-      clone.style['overlay-color'] = selectionColor;
-    }
-
-    if (def.selector === '.link-label-highlight-edge') {
-      clone.style['line-color'] = selectionColor;
-      clone.style['target-arrow-color'] = selectionColor;
-      clone.style['source-arrow-color'] = selectionColor;
-      clone.style['overlay-color'] = selectionColor;
-    }
-
-    // Theme-aware selection box (for multi-select)
-    if (def.selector === 'core') {
-      clone.style['selection-box-color'] = selectionBoxColor;
-      clone.style['selection-box-border-color'] = selectionBoxBorderColor;
-      clone.style['selection-box-opacity'] = '0.5';
-    }
-
+    applyThemeAdjustments(def.selector, clone.style, themeContext);
     return clone;
   });
 
