@@ -12,7 +12,6 @@ import path from 'path';
 
 const originalResolve = (Module as any)._resolveFilename;
 
-// Helper to clear module cache for all vscode-containerlab modules
 function clearModuleCache() {
   Object.keys(require.cache).forEach(key => {
     if (key.includes('vscode-containerlab') && !key.includes('node_modules')) {
@@ -21,7 +20,6 @@ function clearModuleCache() {
   });
 }
 
-// Helper to resolve stub paths for module interception
 function getStubPath(request: string): string | null {
   if (request === 'vscode') {
     return path.join(__dirname, '..', '..', 'helpers', 'vscode-stub.js');
@@ -32,17 +30,26 @@ function getStubPath(request: string): string | null {
   return null;
 }
 
-// Error message constants
 const ERR_NO_CONTAINER_SELECTED = 'No container node selected.';
 const ERR_NO_CONTAINER_ID = 'No containerId found.';
-const TEST_ERR_NODE_UNDEFINED = 'shows error when node is undefined';
 
-// eslint-disable-next-line aggregate-complexity/aggregate-complexity
+// Table-driven test cases for node actions
+interface NodeActionTestCase {
+  name: string;
+  funcName: string;
+  actionName: string;
+  containerId: string;
+}
+
+const nodeActionTestCases: NodeActionTestCase[] = [
+  { name: 'startNode', funcName: 'startNode', actionName: 'Start', containerId: 'container-123' },
+  { name: 'stopNode', funcName: 'stopNode', actionName: 'Stop', containerId: 'container-456' },
+  { name: 'pauseNode', funcName: 'pauseNode', actionName: 'Pause', containerId: 'container-789' },
+  { name: 'unpauseNode', funcName: 'unpauseNode', actionName: 'Unpause', containerId: 'container-abc' },
+];
+
 describe('nodeActions commands', () => {
-  let startNode: Function;
-  let stopNode: Function;
-  let pauseNode: Function;
-  let unpauseNode: Function;
+  let nodeActionFunctions: Record<string, Function>;
   let utilsStub: any;
   let vscodeStub: any;
 
@@ -60,10 +67,12 @@ describe('nodeActions commands', () => {
     utilsStub = require('../../helpers/utils-stub');
     vscodeStub = require('../../helpers/vscode-stub');
     const nodeActionsModule = require('../../../src/commands/nodeActions');
-    startNode = nodeActionsModule.startNode;
-    stopNode = nodeActionsModule.stopNode;
-    pauseNode = nodeActionsModule.pauseNode;
-    unpauseNode = nodeActionsModule.unpauseNode;
+    nodeActionFunctions = {
+      startNode: nodeActionsModule.startNode,
+      stopNode: nodeActionsModule.stopNode,
+      pauseNode: nodeActionsModule.pauseNode,
+      unpauseNode: nodeActionsModule.unpauseNode,
+    };
   });
 
   after(() => {
@@ -77,104 +86,45 @@ describe('nodeActions commands', () => {
     vscodeStub.window.lastInfoMessage = '';
   });
 
-  describe('startNode()', () => {
-    it('calls runContainerAction with Start action', async () => {
-      const node = { cID: 'container-123', name: 'node1' } as any;
+  // Table-driven tests for common behavior across all node actions
+  nodeActionTestCases.forEach(({ name, funcName, actionName, containerId }) => {
+    describe(`${name}()`, () => {
+      it(`calls runContainerAction with ${actionName} action`, async () => {
+        const node = { cID: containerId, name: 'node1' } as any;
 
-      await startNode(node);
+        await nodeActionFunctions[funcName](node);
 
-      expect(utilsStub.containerActionCalls).to.have.length(1);
-      expect(utilsStub.containerActionCalls[0]).to.deep.equal({
-        containerId: 'container-123',
-        action: utilsStub.ContainerAction.Start
+        expect(utilsStub.containerActionCalls).to.have.length(1);
+        expect(utilsStub.containerActionCalls[0]).to.deep.equal({
+          containerId: containerId,
+          action: utilsStub.ContainerAction[actionName]
+        });
+      });
+
+      it('shows error when node is undefined', async () => {
+        await nodeActionFunctions[funcName](undefined);
+
+        expect(vscodeStub.window.lastErrorMessage).to.equal(ERR_NO_CONTAINER_SELECTED);
+        expect(utilsStub.containerActionCalls).to.have.length(0);
       });
     });
+  });
 
-    it(TEST_ERR_NODE_UNDEFINED, async () => {
-      await startNode(undefined);
-
-      expect(vscodeStub.window.lastErrorMessage).to.equal(ERR_NO_CONTAINER_SELECTED);
-      expect(utilsStub.containerActionCalls).to.have.length(0);
-    });
-
-    it('shows error when containerId is missing', async () => {
+  // Additional tests for containerId validation (only need to test once)
+  describe('containerId validation', () => {
+    it('shows error when containerId is missing on startNode', async () => {
       const node = { name: 'node1' } as any;
-
-      await startNode(node);
+      await nodeActionFunctions.startNode(node);
 
       expect(vscodeStub.window.lastErrorMessage).to.equal(ERR_NO_CONTAINER_ID);
       expect(utilsStub.containerActionCalls).to.have.length(0);
     });
-  });
 
-  describe('stopNode()', () => {
-    it('calls runContainerAction with Stop action', async () => {
-      const node = { cID: 'container-456', name: 'node2' } as any;
-
-      await stopNode(node);
-
-      expect(utilsStub.containerActionCalls).to.have.length(1);
-      expect(utilsStub.containerActionCalls[0]).to.deep.equal({
-        containerId: 'container-456',
-        action: utilsStub.ContainerAction.Stop
-      });
-    });
-
-    it(TEST_ERR_NODE_UNDEFINED, async () => {
-      await stopNode(undefined);
-
-      expect(vscodeStub.window.lastErrorMessage).to.equal(ERR_NO_CONTAINER_SELECTED);
-      expect(utilsStub.containerActionCalls).to.have.length(0);
-    });
-
-    it('shows error when containerId is missing', async () => {
+    it('shows error when containerId is missing on stopNode', async () => {
       const node = { name: 'node2' } as any;
-
-      await stopNode(node);
+      await nodeActionFunctions.stopNode(node);
 
       expect(vscodeStub.window.lastErrorMessage).to.equal(ERR_NO_CONTAINER_ID);
-      expect(utilsStub.containerActionCalls).to.have.length(0);
-    });
-  });
-
-  describe('pauseNode()', () => {
-    it('calls runContainerAction with Pause action', async () => {
-      const node = { cID: 'container-789', name: 'node3' } as any;
-
-      await pauseNode(node);
-
-      expect(utilsStub.containerActionCalls).to.have.length(1);
-      expect(utilsStub.containerActionCalls[0]).to.deep.equal({
-        containerId: 'container-789',
-        action: utilsStub.ContainerAction.Pause
-      });
-    });
-
-    it(TEST_ERR_NODE_UNDEFINED, async () => {
-      await pauseNode(undefined);
-
-      expect(vscodeStub.window.lastErrorMessage).to.equal(ERR_NO_CONTAINER_SELECTED);
-      expect(utilsStub.containerActionCalls).to.have.length(0);
-    });
-  });
-
-  describe('unpauseNode()', () => {
-    it('calls runContainerAction with Unpause action', async () => {
-      const node = { cID: 'container-abc', name: 'node4' } as any;
-
-      await unpauseNode(node);
-
-      expect(utilsStub.containerActionCalls).to.have.length(1);
-      expect(utilsStub.containerActionCalls[0]).to.deep.equal({
-        containerId: 'container-abc',
-        action: utilsStub.ContainerAction.Unpause
-      });
-    });
-
-    it(TEST_ERR_NODE_UNDEFINED, async () => {
-      await unpauseNode(undefined);
-
-      expect(vscodeStub.window.lastErrorMessage).to.equal(ERR_NO_CONTAINER_SELECTED);
       expect(utilsStub.containerActionCalls).to.have.length(0);
     });
   });

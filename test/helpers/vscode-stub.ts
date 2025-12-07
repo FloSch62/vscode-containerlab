@@ -22,6 +22,9 @@ export const window = {
   lastInfoMessage: '',
   lastWarningMessage: '',
   lastWarningSelection: undefined as string | undefined,
+  quickPickResult: undefined as string | undefined,
+  inputBoxResult: undefined as string | undefined,
+  openDialogResult: undefined as { fsPath: string }[] | undefined,
   terminals: createdTerminals as MockTerminal[],
   createOutputChannel(_name: string, options?: { log: boolean } | string) {
     const isLogChannel = typeof options === 'object' && options?.log;
@@ -77,6 +80,15 @@ export const window = {
   ): Promise<T> {
     // Simply execute the task without progress UI
     return task();
+  },
+  showQuickPick(_items: string[], _options?: any): Promise<string | undefined> {
+    return Promise.resolve(this.quickPickResult);
+  },
+  showInputBox(_options?: any): Promise<string | undefined> {
+    return Promise.resolve(this.inputBoxResult);
+  },
+  showOpenDialog(_options?: any): Promise<{ fsPath: string }[] | undefined> {
+    return Promise.resolve(this.openDialogResult);
   },
 };
 
@@ -161,12 +173,19 @@ export const ViewColumn = {
 };
 
 export const env = {
+  remoteName: undefined as string | undefined,
   clipboard: {
     lastText: '',
     writeText(text: string) {
       this.lastText = text;
       return Promise.resolve();
     },
+  },
+  openExternal(_uri: any) {
+    return Promise.resolve(true);
+  },
+  asExternalUri(uri: any) {
+    return Promise.resolve(uri);
   },
 };
 
@@ -221,6 +240,9 @@ export function resetVscodeStub(): void {
   window.lastInfoMessage = '';
   window.lastWarningMessage = '';
   window.lastWarningSelection = undefined;
+  window.quickPickResult = undefined;
+  window.inputBoxResult = undefined;
+  window.openDialogResult = undefined;
   createdTerminals.length = 0;
   commands.executed.length = 0;
   workspace.workspaceFolders.length = 0;
