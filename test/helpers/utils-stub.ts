@@ -128,3 +128,25 @@ export function installContainerlab(): void {
 export function sanitize(input: string): string {
   return input.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
+
+// Container action enum matching the real implementation
+// Using regular enum (not const enum) so it's available at runtime
+export enum ContainerAction {
+  Start = 'start',
+  Stop = 'stop',
+  Pause = 'pause',
+  Unpause = 'unpause',
+}
+
+// Track container action calls for testing
+export const containerActionCalls: { containerId: string; action: ContainerAction }[] = [];
+
+// Mock implementation of runContainerAction
+export async function runContainerAction(containerId: string, action: ContainerAction): Promise<void> {
+  containerActionCalls.push({ containerId, action });
+}
+
+// Reset container action calls
+export function clearContainerActionCalls(): void {
+  containerActionCalls.length = 0;
+}

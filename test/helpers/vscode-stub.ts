@@ -4,9 +4,25 @@ export const ProgressLocation = {
   Window: 3,
 };
 
+// Terminal stub for tracking created terminals
+export interface MockTerminal {
+  name: string;
+  commands: string[];
+  shown: boolean;
+  disposed: boolean;
+  show: () => void;
+  sendText: (text: string) => void;
+  dispose: () => void;
+}
+
+const createdTerminals: MockTerminal[] = [];
+
 export const window = {
   lastErrorMessage: '',
   lastInfoMessage: '',
+  lastWarningMessage: '',
+  lastWarningSelection: undefined as string | undefined,
+  terminals: createdTerminals as MockTerminal[],
   createOutputChannel(_name: string, options?: { log: boolean } | string) {
     const isLogChannel = typeof options === 'object' && options?.log;
     return {
@@ -22,11 +38,38 @@ export const window = {
       }),
     };
   },
+  createTerminal(options: { name: string; shellPath?: string; shellArgs?: string[] }) {
+    const terminal: MockTerminal = {
+      name: options.name,
+      commands: [],
+      shown: false,
+      disposed: false,
+      show() {
+        this.shown = true;
+      },
+      sendText(text: string) {
+        this.commands.push(text);
+      },
+      dispose() {
+        this.disposed = true;
+        const idx = createdTerminals.indexOf(this);
+        if (idx >= 0) {
+          createdTerminals.splice(idx, 1);
+        }
+      }
+    };
+    createdTerminals.push(terminal);
+    return terminal;
+  },
   showErrorMessage(message: string) {
     this.lastErrorMessage = message;
   },
   showInformationMessage(message: string) {
     this.lastInfoMessage = message;
+  },
+  showWarningMessage(message: string, _options?: any, ..._items: string[]): Promise<string | undefined> {
+    this.lastWarningMessage = message;
+    return Promise.resolve(this.lastWarningSelection);
   },
   withProgress<T>(
     _options: { location: number; title: string; cancellable: boolean },
@@ -166,4 +209,20 @@ export class EventEmitter<T> {
   dispose(): void {
     this.listeners = [];
   }
+}
+
+// Reset functions for test cleanup
+export function clearTerminals(): void {
+  createdTerminals.length = 0;
+}
+
+export function resetVscodeStub(): void {
+  window.lastErrorMessage = '';
+  window.lastInfoMessage = '';
+  window.lastWarningMessage = '';
+  window.lastWarningSelection = undefined;
+  createdTerminals.length = 0;
+  commands.executed.length = 0;
+  workspace.workspaceFolders.length = 0;
+  env.clipboard.lastText = '';
 }

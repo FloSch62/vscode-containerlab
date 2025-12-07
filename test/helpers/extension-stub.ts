@@ -1,4 +1,14 @@
+import { globalState, clearGlobalState } from './globalState-stub';
+
 export const execCmdMapping = { nokia_srlinux: 'sr_cli' };
+
+// SSH user mapping (default mapping for node kinds)
+export const sshUserMapping: Record<string, string> = {
+  nokia_srlinux: 'admin',
+  nokia_sros: 'admin',
+  arista_ceos: 'admin',
+  cisco_xrd: 'admin'
+};
 
 // Docker client stub (can be set to a mock dockerode instance)
 export let dockerClient: any = undefined;
@@ -34,6 +44,14 @@ export async function refreshGottySessions(): Promise<void> {
   // no-op in tests
 }
 
+// Extension context with global state for persistence testing
+export const extensionContext = {
+  globalState,
+  subscriptions: [] as { dispose: () => void }[],
+  extensionPath: '/mock/extension',
+  asAbsolutePath: (p: string) => `/mock/extension/${p}`
+};
+
 // Test helpers
 export function setDockerClient(client: any): void {
   dockerClient = client;
@@ -62,4 +80,8 @@ export function resetExtensionStub(): void {
   sshxSessions.clear();
   // eslint-disable-next-line sonarjs/no-empty-collection
   gottySessions.clear();
+  // Clear global state
+  clearGlobalState();
+  // Reset subscriptions
+  extensionContext.subscriptions.length = 0;
 }
