@@ -150,3 +150,52 @@ export async function runContainerAction(containerId: string, action: ContainerA
 export function clearContainerActionCalls(): void {
   containerActionCalls.length = 0;
 }
+
+// Capture.ts related utilities
+let freePortValue = 12345;
+let httpEndpointReady = true;
+let checkAndPullResult = true;
+export const checkAndPullCalls: { image: string; policy: string }[] = [];
+
+export function setFreePort(port: number): void {
+  freePortValue = port;
+}
+
+export function setHttpEndpointReady(ready: boolean): void {
+  httpEndpointReady = ready;
+}
+
+export function setCheckAndPullResult(result: boolean): void {
+  checkAndPullResult = result;
+}
+
+export async function getFreePort(): Promise<number> {
+  return freePortValue;
+}
+
+export async function isHttpEndpointReady(_url: string): Promise<boolean> {
+  return httpEndpointReady;
+}
+
+export async function delay(_ms: number): Promise<void> {
+  // No actual delay in tests
+}
+
+export async function tryPostMessage(panel: any, message: any): Promise<boolean> {
+  if (panel?.webview?.postMessage) {
+    return panel.webview.postMessage(message);
+  }
+  return false;
+}
+
+export async function checkAndPullDockerImage(image: string, policy: string): Promise<boolean> {
+  checkAndPullCalls.push({ image, policy });
+  return checkAndPullResult;
+}
+
+export function clearCaptureUtilsMocks(): void {
+  freePortValue = 12345;
+  httpEndpointReady = true;
+  checkAndPullResult = true;
+  checkAndPullCalls.length = 0;
+}

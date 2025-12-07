@@ -4,6 +4,13 @@ export const ProgressLocation = {
   Window: 3,
 };
 
+export const ColorThemeKind = {
+  Light: 1,
+  Dark: 2,
+  HighContrast: 3,
+  HighContrastLight: 4,
+} as const;
+
 // Terminal stub for tracking created terminals
 export interface MockTerminal {
   name: string;
@@ -17,6 +24,60 @@ export interface MockTerminal {
 
 const createdTerminals: MockTerminal[] = [];
 
+// Webview panel stub
+export class MockWebviewPanel {
+  viewType: string;
+  title: string;
+  webview: {
+    html: string;
+    onDidReceiveMessage: (callback: (message: any) => void) => { dispose: () => void };
+    postMessage: (message: any) => Promise<boolean>;
+  };
+  private disposeCallbacks: (() => void)[] = [];
+  private messageCallbacks: ((message: any) => void)[] = [];
+
+  constructor(viewType: string, title: string) {
+    this.viewType = viewType;
+    this.title = title;
+    this.webview = {
+      html: '',
+      onDidReceiveMessage: (callback: (message: any) => void) => {
+        this.messageCallbacks.push(callback);
+        return {
+          dispose: () => {
+            const idx = this.messageCallbacks.indexOf(callback);
+            if (idx >= 0) this.messageCallbacks.splice(idx, 1);
+          }
+        };
+      },
+      postMessage: async (_message: any) => true
+    };
+  }
+
+  onDidDispose(callback: () => void): { dispose: () => void } {
+    this.disposeCallbacks.push(callback);
+    return {
+      dispose: () => {
+        const idx = this.disposeCallbacks.indexOf(callback);
+        if (idx >= 0) this.disposeCallbacks.splice(idx, 1);
+      }
+    };
+  }
+
+  dispose(): void {
+    for (const cb of this.disposeCallbacks) {
+      cb();
+    }
+  }
+
+  // Helper for tests to simulate receiving a message
+  simulateMessage(message: any): void {
+    for (const cb of this.messageCallbacks) {
+      cb(message);
+    }
+  }
+}
+
 export const window = {
   lastErrorMessage: '',
   lastInfoMessage: '',
@@ -26,6 +87,7 @@ export const window = {
   inputBoxResult: undefined as string | undefined,
   openDialogResult: undefined as { fsPath: string }[] | undefined,
   terminals: createdTerminals as MockTerminal[],
+  activeColorTheme: { kind: ColorThemeKind.Dark } as { kind: number },
   createOutputChannel(_name: string, options?: { log: boolean } | string) {
     const isLogChannel = typeof options === 'object' && options?.log;
     return {
@@ -90,6 +152,15 @@ export const window = {
   showOpenDialog(_options?: any): Promise<{ fsPath: string }[] | undefined> {
     return Promise.resolve(this.openDialogResult);
   },
+  createWebviewPanel(
+    viewType: string,
+    title: string,
+    _showOptions: any,
+    _options?: any
+  ): MockWebviewPanel {
+    const panel = new MockWebviewPanel(viewType, title);
+    return panel;
+  },
 };
 
 export const commands = {
@@ -121,6 +192,12 @@ export const workspace = {
     }
     return { dispose() {} };
   },
+  onDidChangeTextDocument(cb: any) {
+    if (typeof cb === 'function') {
+      // no-op
+    }
+    return { dispose() {} };
+  },
   fs: {
     readFile: async () => new TextEncoder().encode('{}'),
   },
@@ -128,10 +205,14 @@ export const workspace = {
 
 export const Uri = {
   file(p: string) {
-    return { fsPath: p };
+    return { fsPath: p, toString: () => p };
   },
   joinPath(...parts: any[]) {
-    return { fsPath: parts.map(p => (typeof p === 'string' ? p : p.fsPath)).join('/') };
+    const path = parts.map(p => (typeof p === 'string' ? p : p.fsPath)).join('/');
+    return { fsPath: path, toString: () => path };
+  },
+  parse(uri: string) {
+    return { fsPath: uri, toString: () => uri };
   },
 };
 
@@ -202,6 +283,55 @@ export const extensions = {
   },
 };
 
+export const languages = {
+  registerCompletionItemProvider(
+    _selector: any,
+    _provider: any,
+    ..._triggerCharacters: string[]
+  ): { dispose: () => void } {
+    return { dispose: () => {} };
+  },
+};
+
+export const CompletionItemKind = {
+  Value: 12,
+  Text: 0,
+  Method: 1,
+  Function: 2,
+  Constructor: 3,
+  Field: 4,
+  Variable: 5,
+  Class: 6,
+  Interface: 7,
+  Module: 8,
+  Property: 9,
+  Unit: 10,
+  Keyword: 11,
+};
+
+export class CompletionItem {
+  label: string;
+  kind?: number;
+  insertText?: string;
+  detail?: string;
+  sortText?: string;
+
+  constructor(label: string, kind?: number) {
+    this.label = label;
+    this.kind = kind;
+  }
+}
+
+export class CompletionList {
+  items: CompletionItem[];
+  isIncomplete: boolean;
+
+  constructor(items: CompletionItem[], isIncomplete = false) {
+    this.items = items;
+    this.isIncomplete = isIncomplete;
+  }
+}
+
 export class EventEmitter<T> {
   private listeners: Function[] = [];
 
@@ -243,8 +373,10 @@ export function resetVscodeStub(): void {
   window.quickPickResult = undefined;
   window.inputBoxResult = undefined;
   window.openDialogResult = undefined;
+  window.activeColorTheme = { kind: ColorThemeKind.Dark };
   createdTerminals.length = 0;
   commands.executed.length = 0;
   workspace.workspaceFolders.length = 0;
   env.clipboard.lastText = '';
+  env.remoteName = undefined;
 }
