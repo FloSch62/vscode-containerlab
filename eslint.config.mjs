@@ -13,6 +13,7 @@ export default [
       'dist/**',
       'node_modules/**',
       '.vscode-test.mjs',  // VS Code test harness
+      '.vscode-test/**',   // VS Code test runtime
       'legacy-backup/**',   // Legacy backup files
       'labs/**',            // containerlab lab files
       "src/utils/consts.ts"

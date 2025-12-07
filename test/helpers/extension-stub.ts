@@ -35,6 +35,22 @@ export const outputChannel = {
 // Container binary path stub
 export const containerlabBinaryPath = 'containerlab';
 
+// Running labs provider stub
+export const runningLabsProvider = {
+  refreshCalled: false,
+  softRefreshCalled: false,
+  refresh(): void {
+    this.refreshCalled = true;
+  },
+  softRefresh(): void {
+    this.softRefreshCalled = true;
+  },
+  reset(): void {
+    this.refreshCalled = false;
+    this.softRefreshCalled = false;
+  }
+};
+
 // Async refresh stubs
 export async function refreshSshxSessions(): Promise<void> {
   // no-op in tests
@@ -84,4 +100,6 @@ export function resetExtensionStub(): void {
   clearGlobalState();
   // Reset subscriptions
   extensionContext.subscriptions.length = 0;
+  // Reset running labs provider
+  runningLabsProvider.reset();
 }

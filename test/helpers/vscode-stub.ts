@@ -103,9 +103,10 @@ export const window = {
       }),
     };
   },
-  createTerminal(options: { name: string; shellPath?: string; shellArgs?: string[] }) {
+  createTerminal(options: string | { name: string; shellPath?: string; shellArgs?: string[] }) {
+    const terminalName = typeof options === 'string' ? options : options.name;
     const terminal: MockTerminal = {
-      name: options.name,
+      name: terminalName,
       commands: [],
       shown: false,
       disposed: false,
@@ -171,11 +172,32 @@ export const commands = {
   },
 };
 
+// Configuration values that can be set by tests
+export const configValues: Record<string, any> = {};
+
+export function setConfigValue(key: string, value: any): void {
+  configValues[key] = value;
+}
+
+export function clearConfigValues(): void {
+  Object.keys(configValues).forEach(key => delete configValues[key]);
+}
+
 export const workspace = {
   workspaceFolders: [] as { uri: { fsPath: string }; name?: string }[],
-  getConfiguration() {
+  getConfiguration(_section?: string) {
     return {
-      get: <T>(_: string, defaultValue?: T): T | undefined => defaultValue,
+      get: <T>(key: string, defaultValue?: T): T | undefined => {
+        const fullKey = _section ? `${_section}.${key}` : key;
+        if (fullKey in configValues) {
+          return configValues[fullKey] as T;
+        }
+        // Return sensible defaults for common object-type configs
+        if (key.includes('Mapping') || key.includes('mapping')) {
+          return (defaultValue ?? {}) as T;
+        }
+        return defaultValue;
+      },
     };
   },
   updateWorkspaceFolders(
@@ -376,7 +398,13 @@ export function resetVscodeStub(): void {
   window.activeColorTheme = { kind: ColorThemeKind.Dark };
   createdTerminals.length = 0;
   commands.executed.length = 0;
-  workspace.workspaceFolders.length = 0;
+  // Handle case where workspaceFolders might be undefined
+  if (workspace.workspaceFolders) {
+    workspace.workspaceFolders.length = 0;
+  } else {
+    workspace.workspaceFolders = [];
+  }
   env.clipboard.lastText = '';
   env.remoteName = undefined;
+  clearConfigValues();
 }
