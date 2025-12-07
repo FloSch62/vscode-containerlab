@@ -1,0 +1,93 @@
+{
+  "alpha": [
+    {
+      "Names": ["clab-alpha-node1"],
+      "ID": "aaa111bbb222ccc333ddd444eee555fff666aaa111bbb222ccc333ddd444eee5",
+      "ShortID": "aaa111bbb222",
+      "Image": "ghcr.io/nokia/srlinux:latest",
+      "State": "running",
+      "Status": "Up 1 hour",
+      "StartedAt": 1699800000,
+      "Labels": {
+        "clab-node-kind": "nokia_srlinux",
+        "clab-node-name": "node1",
+        "clab-node-longname": "clab-alpha-node1",
+        "clab-node-type": "ixrd2",
+        "clab-node-group": "core",
+        "clab-topo-file": "/home/user/labs/alpha.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-alpha",
+        "clab-owner": "testuser",
+        "containerlab": "alpha"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.30.2",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.30.1"
+      },
+      "Mounts": [],
+      "Ports": [],
+      "Pid": 11111,
+      "NetworkName": "clab"
+    }
+  ],
+  "beta": [
+    {
+      "Names": ["clab-beta-router1"],
+      "ID": "bbb222ccc333ddd444eee555fff666aaa111bbb222ccc333ddd444eee555fff6",
+      "ShortID": "bbb222ccc333",
+      "Image": "vrnetlab/vr-sros:latest",
+      "State": "running",
+      "Status": "Up 30 minutes",
+      "StartedAt": 1699850000,
+      "Labels": {
+        "clab-node-kind": "nokia_sros",
+        "clab-node-name": "router1",
+        "clab-node-longname": "clab-beta-router1",
+        "clab-node-type": "sr-1",
+        "clab-topo-file": "/home/user/labs/beta.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-beta",
+        "clab-owner": "otheruser",
+        "containerlab": "beta"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.40.2",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.40.1"
+      },
+      "Mounts": [],
+      "Ports": [],
+      "Pid": 22222,
+      "NetworkName": "clab"
+    }
+  ],
+  "gamma": [
+    {
+      "Names": ["clab-gamma-sw1"],
+      "ID": "ccc333ddd444eee555fff666aaa111bbb222ccc333ddd444eee555fff666aaa1",
+      "ShortID": "ccc333ddd444",
+      "Image": "ceos:latest",
+      "State": "running",
+      "Status": "Up 5 hours",
+      "StartedAt": 1699700000,
+      "Labels": {
+        "clab-node-kind": "arista_ceos",
+        "clab-node-name": "sw1",
+        "clab-node-longname": "clab-gamma-sw1",
+        "clab-node-type": "ceos",
+        "clab-topo-file": "/home/user/labs/gamma.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-gamma",
+        "clab-owner": "testuser",
+        "containerlab": "gamma"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.50.2",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.50.1"
+      },
+      "Mounts": [],
+      "Ports": [],
+      "Pid": 33333,
+      "NetworkName": "clab"
+    }
+  ]
+}

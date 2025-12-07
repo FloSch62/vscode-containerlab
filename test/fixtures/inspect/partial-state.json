@@ -1,0 +1,88 @@
+{
+  "mixed-state": [
+    {
+      "Names": ["clab-mixed-state-active"],
+      "ID": "run111run222run333run444run555run666run777run888run999run000run1",
+      "ShortID": "run111run222",
+      "Image": "ghcr.io/nokia/srlinux:latest",
+      "State": "running",
+      "Status": "Up 1 hour",
+      "StartedAt": 1699900000,
+      "Labels": {
+        "clab-node-kind": "nokia_srlinux",
+        "clab-node-name": "active",
+        "clab-node-longname": "clab-mixed-state-active",
+        "clab-node-type": "ixrd3",
+        "clab-topo-file": "/home/user/labs/mixed-state.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-mixed-state",
+        "clab-owner": "testuser",
+        "containerlab": "mixed-state"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.60.2",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.60.1"
+      },
+      "Mounts": [],
+      "Ports": [],
+      "Pid": 44444,
+      "NetworkName": "clab"
+    },
+    {
+      "Names": ["clab-mixed-state-stopped"],
+      "ID": "stp111stp222stp333stp444stp555stp666stp777stp888stp999stp000stp1",
+      "ShortID": "stp111stp222",
+      "Image": "ghcr.io/nokia/srlinux:latest",
+      "State": "exited",
+      "Status": "Exited (0) 30 minutes ago",
+      "StartedAt": 1699880000,
+      "Labels": {
+        "clab-node-kind": "nokia_srlinux",
+        "clab-node-name": "stopped",
+        "clab-node-longname": "clab-mixed-state-stopped",
+        "clab-node-type": "ixrd3",
+        "clab-topo-file": "/home/user/labs/mixed-state.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-mixed-state",
+        "clab-owner": "testuser",
+        "containerlab": "mixed-state"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.60.3",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.60.1"
+      },
+      "Mounts": [],
+      "Ports": [],
+      "Pid": 0,
+      "NetworkName": "clab"
+    },
+    {
+      "Names": ["clab-mixed-state-paused"],
+      "ID": "pau111pau222pau333pau444pau555pau666pau777pau888pau999pau000pau1",
+      "ShortID": "pau111pau222",
+      "Image": "ghcr.io/nokia/srlinux:latest",
+      "State": "paused",
+      "Status": "Up 1 hour (Paused)",
+      "StartedAt": 1699890000,
+      "Labels": {
+        "clab-node-kind": "nokia_srlinux",
+        "clab-node-name": "paused",
+        "clab-node-longname": "clab-mixed-state-paused",
+        "clab-node-type": "ixrd3",
+        "clab-topo-file": "/home/user/labs/mixed-state.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-mixed-state",
+        "clab-owner": "testuser",
+        "containerlab": "mixed-state"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.60.4",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.60.1"
+      },
+      "Mounts": [],
+      "Ports": [],
+      "Pid": 55555,
+      "NetworkName": "clab"
+    }
+  ]
+}

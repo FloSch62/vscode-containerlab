@@ -16,3 +16,18 @@ export async function notifyCurrentTopoViewerOfCommandFailure(
     // no-op
   }
 }
+
+// Stub for getCurrentTopoViewer - returns undefined by default (no viewer open)
+let currentTopoViewer: any = undefined;
+
+export function getCurrentTopoViewer(): any {
+  return currentTopoViewer;
+}
+
+export function setCurrentTopoViewer(viewer: any): void {
+  currentTopoViewer = viewer;
+}
+
+export function resetGraphStub(): void {
+  currentTopoViewer = undefined;
+}

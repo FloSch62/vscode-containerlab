@@ -1,3 +1,9 @@
+export const ProgressLocation = {
+  Notification: 1,
+  SourceControl: 2,
+  Window: 3,
+};
+
 export const window = {
   lastErrorMessage: '',
   lastInfoMessage: '',
@@ -21,6 +27,13 @@ export const window = {
   },
   showInformationMessage(message: string) {
     this.lastInfoMessage = message;
+  },
+  withProgress<T>(
+    _options: { location: number; title: string; cancellable: boolean },
+    task: () => Promise<T>
+  ): Promise<T> {
+    // Simply execute the task without progress UI
+    return task();
   },
 };
 

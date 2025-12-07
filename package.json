@@ -1406,6 +1406,7 @@
     "format": "npm run format:html",
     "format:html": "prettier --write \"src/topoViewer/webview/assets/templates/**/*.html\"",
     "test": "npm run test:compile && mocha --extension js --reporter mochawesome \"out/test/**/*.test.js\"",
+    "test:coverage": "npm run test:compile && c8 mocha --extension js \"out/test/**/*.test.js\"",
     "test:compile": "tsc -p test/tsconfig.json"
   },
   "devDependencies": {
@@ -1428,6 +1429,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "autoprefixer": "^10.4.22",
+    "c8": "^10.1.3",
     "chai": "^6.2.1",
     "css-loader": "^7.1.2",
     "cytoscape": "^3.33.1",
