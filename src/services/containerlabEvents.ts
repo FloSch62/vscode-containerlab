@@ -1121,6 +1121,14 @@ export function resetForTests(): void {
     scheduleDataChanged();
 }
 
+/**
+ * Inject a test event line for testing purposes.
+ * This allows tests to simulate events without spawning a containerlab process.
+ */
+export function injectTestEventLine(line: string): void {
+    handleEventLine(line);
+}
+
 export function onDataChanged(listener: DataListener): () => void {
     dataListeners.add(listener);
     return () => {
