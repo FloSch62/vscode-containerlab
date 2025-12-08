@@ -304,13 +304,41 @@ export const workspace = {
     if (typeof cb === 'function') {
       // no-op
     }
-    return { dispose() {} };
+    const disposable = { disposed: false, dispose() { this.disposed = true; } };
+    return disposable;
   },
   onDidChangeTextDocument(cb: any) {
     if (typeof cb === 'function') {
       // no-op
     }
-    return { dispose() {} };
+    const disposable = { disposed: false, dispose() { this.disposed = true; } };
+    return disposable;
+  },
+  createFileSystemWatcher(_globPattern: string) {
+    const watcher = {
+      disposed: false,
+      _onDidChangeCallbacks: [] as ((uri: any) => void)[],
+      onDidChange(cb: (uri: any) => void) {
+        watcher._onDidChangeCallbacks.push(cb);
+        return { dispose() {} };
+      },
+      onDidCreate(_cb: (uri: any) => void) {
+        return { dispose() {} };
+      },
+      onDidDelete(_cb: (uri: any) => void) {
+        return { dispose() {} };
+      },
+      dispose() {
+        watcher.disposed = true;
+      },
+      // Test helper to simulate file change
+      simulateChange(uri: any) {
+        for (const cb of watcher._onDidChangeCallbacks) {
+          cb(uri);
+        }
+      }
+    };
+    return watcher;
   },
   fs: {
     readFile: async () => new TextEncoder().encode('{}'),
