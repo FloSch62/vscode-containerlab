@@ -33,6 +33,7 @@ function getStubPath(request: string): string | null {
 // Constants
 const NO_NODE_ERROR = 'No container node selected.';
 const NO_CID_ERROR = 'No container ID found.';
+const NO_PORTS_MSG = 'No exposed ports';
 const TEST_CONTAINER_ID = 'container123';
 const TEST_CONTAINER_NAME = 'router1';
 
@@ -128,7 +129,7 @@ describe('openBrowser() - no ports exposed', () => {
 
     await openBrowser(node);
 
-    expect(vscodeStub.window.lastInfoMessage).to.include('No exposed ports');
+    expect(vscodeStub.window.lastInfoMessage).to.include(NO_PORTS_MSG);
   });
 
   it('returns empty array when docker client unavailable', async () => {
@@ -142,7 +143,7 @@ describe('openBrowser() - no ports exposed', () => {
     await openBrowser(node);
 
     // Should show no ports message since docker client is not available
-    expect(vscodeStub.window.lastInfoMessage).to.include('No exposed ports');
+    expect(vscodeStub.window.lastInfoMessage).to.include(NO_PORTS_MSG);
   });
 });
 
@@ -157,7 +158,11 @@ describe('openBrowser() - port selection', () => {
     dockerodeStub.setContainer(TEST_CONTAINER_ID, {
       running: true,
       paused: false,
-      name: TEST_CONTAINER_NAME
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '80/tcp': [{ HostPort: '8080' }],
+        '443/tcp': [{ HostPort: '8443' }]
+      }
     });
 
     vscodeStub.window.quickPickResult = undefined;
@@ -171,5 +176,273 @@ describe('openBrowser() - port selection', () => {
 
     // Should not show success message since user cancelled
     expect(vscodeStub.window.lastInfoMessage).to.not.include('Opening port');
+  });
+});
+
+// -----------------------------------------------------------------------------
+// Single Port Tests
+// -----------------------------------------------------------------------------
+
+describe('openBrowser() - single port', () => {
+  setupOpenBrowserTests();
+
+  it('opens browser directly when only one port is exposed', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '80/tcp': [{ HostPort: '8080' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include('Opening port 8080');
+    expect(vscodeStub.env.lastOpenedUrl).to.not.be.undefined;
+  });
+
+  it('opens HTTPS port directly', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '443/tcp': [{ HostPort: '8443' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include('Opening port 8443');
+  });
+});
+
+// -----------------------------------------------------------------------------
+// Port Description Tests
+// -----------------------------------------------------------------------------
+
+describe('openBrowser() - port descriptions', () => {
+  setupOpenBrowserTests();
+
+  it('shows HTTP description for port 80', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '80/tcp': [{ HostPort: '80' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include('HTTP');
+  });
+
+  it('shows Grafana description for port 3000', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '3000/tcp': [{ HostPort: '3000' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include('Grafana');
+  });
+
+  it('shows HTTPS description for port 443', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '443/tcp': [{ HostPort: '443' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include('HTTPS');
+  });
+});
+
+// -----------------------------------------------------------------------------
+// Port Parsing Edge Cases
+// -----------------------------------------------------------------------------
+
+describe('openBrowser() - port parsing', () => {
+  setupOpenBrowserTests();
+
+  it('handles UDP protocol ports', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '53/udp': [{ HostPort: '5353' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include('Opening port 5353');
+  });
+
+  it('skips ports with no host binding', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '80/tcp': undefined
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include(NO_PORTS_MSG);
+  });
+
+  it('skips ports with empty binding array', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '80/tcp': []
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include(NO_PORTS_MSG);
+  });
+
+  it('handles malformed port string gracefully', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        'invalid': [{ HostPort: '8080' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    expect(vscodeStub.window.lastInfoMessage).to.include(NO_PORTS_MSG);
+  });
+
+  it('deduplicates ports mapped to same host port', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    // Same host port mapped to different container ports
+    dockerodeStub.setContainer(TEST_CONTAINER_ID, {
+      running: true,
+      paused: false,
+      name: TEST_CONTAINER_NAME,
+      ports: {
+        '80/tcp': [{ HostPort: '8080' }],
+        '8080/tcp': [{ HostPort: '8080' }]
+      }
+    });
+
+    const node = {
+      name: TEST_CONTAINER_NAME,
+      cID: TEST_CONTAINER_ID
+    };
+
+    await openBrowser(node);
+
+    // Should only get one port since they map to same host port
+    expect(vscodeStub.window.lastInfoMessage).to.include('Opening port 8080');
   });
 });

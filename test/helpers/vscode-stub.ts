@@ -353,12 +353,24 @@ export const extensions = {
   },
 };
 
+// Captured completion providers for testing
+export const capturedCompletionProviders: Array<{
+  selector: any;
+  provider: any;
+  triggerCharacters: string[];
+}> = [];
+
 export const languages = {
   registerCompletionItemProvider(
     _selector: any,
     _provider: any,
     ..._triggerCharacters: string[]
   ): { dispose: () => void } {
+    capturedCompletionProviders.push({
+      selector: _selector,
+      provider: _provider,
+      triggerCharacters: _triggerCharacters
+    });
     return { dispose: () => {} };
   },
 };
@@ -459,6 +471,7 @@ export function resetVscodeStub(): void {
   createdTerminals.length = 0;
   visibleEditors.length = 0;
   commands.executed.length = 0;
+  capturedCompletionProviders.length = 0;
   // Handle case where workspaceFolders might be undefined
   if (workspace.workspaceFolders) {
     workspace.workspaceFolders.length = 0;

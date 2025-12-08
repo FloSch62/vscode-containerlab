@@ -10,12 +10,18 @@ interface MockImageState {
   pullShouldFail?: boolean;
 }
 
+interface MockPortBinding {
+  HostIp?: string;
+  HostPort?: string;
+}
+
 interface MockContainerState {
   running: boolean;
   paused: boolean;
   name: string;
   labels?: Record<string, string>;
   networkId?: string;
+  ports?: Record<string, MockPortBinding[] | undefined>;
 }
 
 interface MockNetworkState {
@@ -107,7 +113,10 @@ class MockContainer {
     Name: string;
     State: { Running: boolean; Paused: boolean };
     Config: { Labels: Record<string, string> };
-    NetworkSettings: { Networks: Record<string, { NetworkID: string }> };
+    NetworkSettings: {
+      Networks: Record<string, { NetworkID: string }>;
+      Ports: Record<string, MockPortBinding[] | undefined>;
+    };
   }> {
     const networkSettings: Record<string, { NetworkID: string }> = {};
     if (this.state.networkId) {
@@ -118,7 +127,10 @@ class MockContainer {
       Name: this.state.name,
       State: { Running: this.state.running, Paused: this.state.paused },
       Config: { Labels: this.state.labels ?? {} },
-      NetworkSettings: { Networks: networkSettings }
+      NetworkSettings: {
+        Networks: networkSettings,
+        Ports: this.state.ports ?? {}
+      }
     };
   }
 

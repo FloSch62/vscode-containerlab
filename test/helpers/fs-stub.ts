@@ -183,6 +183,31 @@ export function mkdirSync(dirPath: string, _options?: { recursive?: boolean }): 
   return dirPath;
 }
 
+export function readdirSync(dirPath: string): string[] {
+  const dir = directories.get(dirPath);
+  if (!dir?.exists) {
+    const error = new Error(`ENOENT: no such file or directory, scandir '${dirPath}'`) as ErrnoException;
+    error.code = 'ENOENT';
+    throw error;
+  }
+
+  // Return files that are in this directory
+  const result: string[] = [];
+  const prefix = dirPath.endsWith('/') ? dirPath : dirPath + '/';
+
+  for (const [path] of files) {
+    if (path.startsWith(prefix)) {
+      const relativePath = path.slice(prefix.length);
+      const firstSegment = relativePath.split('/')[0];
+      if (firstSegment && !result.includes(firstSegment)) {
+        result.push(firstSegment);
+      }
+    }
+  }
+
+  return result;
+}
+
 export function unlinkSync(filePath: string): void {
   const file = files.get(filePath);
   if (!file?.exists) {
