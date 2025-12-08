@@ -40,7 +40,7 @@ type TemplateParamsContext = Parameters<typeof webviewTabManager.getViewerTempla
 type PanelInitContext = Parameters<typeof webviewTabManager.loadYamlViewMode>[2];
 
 const extensionModule = require('../../../src/extension') as typeof import('../../../src/extension');
-const utilsModule = require('../../../src/utils/index');
+const imagesModule = require('../../../src/utils/docker/images');
 const customNodeConfigManager = require('../../../src/topoViewer/extension/services/CustomNodeConfigManager').customNodeConfigManager;
 const iconManager = require('../../../src/topoViewer/extension/services/IconManager').iconManager;
 const runningLabsProvider =
@@ -125,8 +125,8 @@ afterEach(() => {
         lastYamlFilePath: '/home/test/lab2.clab.yml',
         currentClabTopo: { topology: { defaults: { mgmt: 'oob' }, kinds: { router: {} }, groups: { core: {} } } } as any
       };
-      const refreshStub = sinon.stub(utilsModule, 'refreshDockerImages').resolves();
-      sinon.stub(utilsModule, 'getDockerImages').returns(['img:1']);
+      const refreshStub = sinon.stub(imagesModule, 'refreshDockerImages').resolves();
+      sinon.stub(imagesModule, 'getDockerImages').returns(['img:1']);
       const legacyMap = { linux: 'eth{n}' };
       sinon.stub(customNodeConfigManager, 'getLegacyInterfacePatternMapping').returns(legacyMap);
       const customNodes = [{ name: 'Node A', kind: 'linux', type: 'ixr', icon: 'router' }];

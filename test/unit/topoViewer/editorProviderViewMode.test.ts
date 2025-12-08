@@ -1,5 +1,5 @@
 /* eslint-env mocha */
-/* global describe, it, beforeEach, afterEach, after, __dirname */
+/* global describe, it, before, after, beforeEach, afterEach, __dirname */
 /**
  * Tests for EditorProvider.ts view mode caching and panel operations.
  * Tests ensureViewModeCache, buildEdgeUpdatesFromCache, writeTopologyFiles, etc.
@@ -9,17 +9,17 @@ import sinon from 'sinon';
 import path from 'path';
 import Module from 'module';
 
-// Clear require cache
-Object.keys(require.cache).forEach(key => {
-  if (key.includes('topoViewer') || key.includes('vscode-stub') || key.includes('extensionLogger-stub') ||
-      (key.includes('utils') && !key.includes('node_modules')) ||
-      (key.includes('extension') && !key.includes('node_modules'))) {
-    delete require.cache[key];
-  }
-});
-
 const originalResolve = (Module as any)._resolveFilename;
-(Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+
+function clearModuleCache() {
+  Object.keys(require.cache).forEach(key => {
+    if (key.includes('vscode-containerlab') && !key.includes('node_modules')) {
+      delete require.cache[key];
+    }
+  });
+}
+
+function getStubPath(request: string): string | null {
   if (request === 'vscode') {
     return path.join(__dirname, '..', '..', 'helpers', 'vscode-stub.js');
   }
@@ -29,20 +29,8 @@ const originalResolve = (Module as any)._resolveFilename;
   if (request.endsWith('utils/index') || (request.endsWith('/utils') && request.includes('src'))) {
     return path.join(__dirname, '..', '..', 'helpers', 'utils-stub.js');
   }
-  return originalResolve.call(this, request, parent, isMain, options);
-};
-
-import * as vscode from '../../helpers/vscode-stub';
-import { resetLoggerStub } from '../../helpers/extensionLogger-stub';
-import * as utilsStub from '../../helpers/utils-stub';
-
-const EDITOR_PROVIDER_PATH = '../../../src/topoViewer/extension/services/EditorProvider';
-const editorProviderModule = require(EDITOR_PROVIDER_PATH) as typeof import('../../../src/topoViewer/extension/services/EditorProvider');
-const { TopoViewerEditor } = editorProviderModule;
-
-const extensionModule = require('../../../src/extension') as typeof import('../../../src/extension');
-
-extensionModule.runningLabsProvider ??= { discoverInspectLabs: async () => ({}) } as any;
+  return null;
+}
 
 const TEST_LAB_NAME = 'testlab';
 const TEST_YAML_PATH = '/path/to/lab.clab.yml';
@@ -85,21 +73,48 @@ function createMockExtensionContext(): MockExtensionContext {
   };
 }
 
-after(() => {
+// Shared context
+let vscode: any;
+let utilsStub: any;
+let TopoViewerEditor: any;
+let extensionModule: any;
+let resetLoggerStub: any;
+
+function setupModuleResolution() {
+  clearModuleCache();
+  (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+    const stubPath = getStubPath(request);
+    if (stubPath) {
+      return stubPath;
+    }
+    return originalResolve.call(this, request, parent, isMain, options);
+  };
+
+  vscode = require('../../helpers/vscode-stub');
+  const loggerStub = require('../../helpers/extensionLogger-stub');
+  resetLoggerStub = loggerStub.resetLoggerStub;
+  utilsStub = require('../../helpers/utils-stub');
+  const editorProviderModule = require('../../../src/topoViewer/extension/services/EditorProvider');
+  TopoViewerEditor = editorProviderModule.TopoViewerEditor;
+  extensionModule = require('../../../src/extension');
+  extensionModule.runningLabsProvider ??= { discoverInspectLabs: async () => ({}) } as any;
+}
+
+function teardownModuleResolution() {
   (Module as any)._resolveFilename = originalResolve;
-});
-
-beforeEach(() => {
-  resetLoggerStub();
-});
-
-afterEach(() => {
-  sinon.restore();
-  vscode.resetVscodeStub();
-  utilsStub.clearDockerImagesMocks();
-});
+  clearModuleCache();
+}
 
 describe('TopoViewerEditor - ensureViewModeCache', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns early when not in view mode', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -116,7 +131,6 @@ describe('TopoViewerEditor - ensureViewModeCache', () => {
     editor.isViewMode = true;
     editor.lastYamlFilePath = '';
 
-    // Set up existing cache with elements
     (editor as any).viewModeCache = {
       elements: [{ data: { id: 'node1' } }],
       parsedTopology: { name: TEST_LAB_NAME },
@@ -125,7 +139,6 @@ describe('TopoViewerEditor - ensureViewModeCache', () => {
 
     await (editor as any).ensureViewModeCache(undefined);
 
-    // Cache should remain unchanged
     expect((editor as any).viewModeCache.elements.length).to.equal(1);
   });
 
@@ -136,21 +149,18 @@ describe('TopoViewerEditor - ensureViewModeCache', () => {
     editor.lastYamlFilePath = '';
     editor.currentLabName = TEST_LAB_NAME;
 
-    // Empty cache
     (editor as any).viewModeCache = {
       elements: [],
       parsedTopology: undefined,
       yamlMtimeMs: undefined
     };
 
-    // Stub the adaptor method
     sinon.stub((editor as any).adaptor, 'clabYamlToCytoscapeElements').resolves([
       { data: { id: 'newNode' } }
     ]);
 
     await (editor as any).ensureViewModeCache(undefined);
 
-    // Cache should be updated
     expect((editor as any).viewModeCache.elements.length).to.equal(1);
     expect((editor as any).viewModeCache.elements[0].data.id).to.equal('newNode');
   });
@@ -175,6 +185,15 @@ describe('TopoViewerEditor - ensureViewModeCache', () => {
 });
 
 describe('TopoViewerEditor - buildEdgeUpdatesFromCache', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns empty array when no cache exists', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -196,7 +215,6 @@ describe('TopoViewerEditor - buildEdgeUpdatesFromCache', () => {
       yamlMtimeMs: undefined
     };
 
-    // Stub linkStateManager
     const buildStub = sinon.stub((editor as any).linkStateManager, 'buildEdgeUpdatesFromCache').returns([
       { data: { id: 'edge1', state: 'up' } }
     ]);
@@ -210,6 +228,15 @@ describe('TopoViewerEditor - buildEdgeUpdatesFromCache', () => {
 });
 
 describe('TopoViewerEditor - writeTopologyFiles', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('writes topology files successfully', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -248,7 +275,6 @@ describe('TopoViewerEditor - writeTopologyFiles', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
 
-    // During initial load, write is non-blocking
     const writePromise = Promise.resolve();
     sinon.stub((editor as any).adaptor, 'createFolderAndWriteJson').returns(writePromise);
 
@@ -259,12 +285,20 @@ describe('TopoViewerEditor - writeTopologyFiles', () => {
       true
     );
 
-    // Initial load returns true even before write completes
     expect(result).to.be.true;
   });
 });
 
 describe('TopoViewerEditor - updatePanelHtmlCore', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns false when currentLabName is empty', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -341,6 +375,15 @@ describe('TopoViewerEditor - updatePanelHtmlCore', () => {
 });
 
 describe('TopoViewerEditor - normalizeFileUri', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('calls webviewTabManager.normalizeFileUri', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -354,6 +397,15 @@ describe('TopoViewerEditor - normalizeFileUri', () => {
 });
 
 describe('TopoViewerEditor - revealIfPanelExists', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns false when no panel exists', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -377,6 +429,15 @@ describe('TopoViewerEditor - revealIfPanelExists', () => {
 });
 
 describe('TopoViewerEditor - loadRunningLabData', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('loads lab data from runningLabsProvider', async () => {
     const ctx = createMockExtensionContext();
     const mockLabs = { lab1: { labPath: '/path' } };
@@ -395,12 +456,20 @@ describe('TopoViewerEditor - loadRunningLabData', () => {
     const editor = new TopoViewerEditor(ctx as any);
     await (editor as any).loadRunningLabData();
 
-    // Should not throw
     expect(true).to.be.true;
   });
 });
 
 describe('TopoViewerEditor - loadYamlViewMode', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('sets skipInitialValidation to true', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -417,7 +486,6 @@ describe('TopoViewerEditor - loadYamlViewMode', () => {
 
     const fileUri = vscode.Uri.file(TEST_YAML_PATH);
 
-    // Stub fs to simulate file exists
     const fsStub = require('fs');
     sinon.stub(fsStub.promises, 'readFile').resolves(VALID_YAML);
 
@@ -443,6 +511,15 @@ describe('TopoViewerEditor - loadYamlViewMode', () => {
 });
 
 describe('TopoViewerEditor - getViewerTemplateParams', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns params from webviewTabManager', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -456,6 +533,15 @@ describe('TopoViewerEditor - getViewerTemplateParams', () => {
 });
 
 describe('TopoViewerEditor - getEditorTemplateParams', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns params from webviewTabManager', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -469,6 +555,15 @@ describe('TopoViewerEditor - getEditorTemplateParams', () => {
 });
 
 describe('TopoViewerEditor - registerPanelListeners', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('registers dispose and message listeners', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -476,7 +571,6 @@ describe('TopoViewerEditor - registerPanelListeners', () => {
 
     (editor as any).registerPanelListeners(mockPanel, ctx);
 
-    // Dispose the panel to trigger the listener
     mockPanel.dispose();
 
     expect(editor.currentPanel).to.be.undefined;

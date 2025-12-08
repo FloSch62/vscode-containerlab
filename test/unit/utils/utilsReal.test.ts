@@ -1,5 +1,5 @@
 /* eslint-env mocha */
-/* global describe, it, beforeEach, afterEach, after, __dirname */
+/* global describe, it, before, beforeEach, afterEach, after, __dirname */
 import { expect } from 'chai';
 import sinon from 'sinon';
 import path from 'path';
@@ -12,9 +12,17 @@ const MOCK_WORKSPACE_PATH = '/home/testuser';
 const ANSI_RED = '\x1b[31m';
 const ANSI_RESET = '\x1b[0m';
 
-// Redirect vscode and extension imports to stubs
 const originalResolve = (Module as any)._resolveFilename;
-(Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+
+function clearModuleCache() {
+  Object.keys(require.cache).forEach(key => {
+    if (key.includes('vscode-containerlab') && !key.includes('node_modules')) {
+      delete require.cache[key];
+    }
+  });
+}
+
+function getStubPath(request: string): string | null {
   if (request === 'vscode') {
     return path.join(__dirname, '..', '..', 'helpers', 'vscode-stub.js');
   }
@@ -24,20 +32,35 @@ const originalResolve = (Module as any)._resolveFilename;
   if (request.includes('../treeView/common')) {
     return path.join(__dirname, '..', '..', 'helpers', 'treeView-common-stub.js');
   }
-  return originalResolve.call(this, request, parent, isMain, options);
-};
+  return null;
+}
 
-// Import the real module after redirects
-const utils = require('../../../src/utils/utils');
+function setupModuleResolution() {
+  clearModuleCache();
+  (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+    const stubPath = getStubPath(request);
+    return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+  };
+}
 
-after(() => {
+function teardownModuleResolution() {
   (Module as any)._resolveFilename = originalResolve;
-});
+  clearModuleCache();
+}
+
+let utils: any;
 
 /**
  * Tests for stripAnsi function
  */
 describe('utils.ts - stripAnsi', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should remove ANSI color codes', () => {
     const input = `${ANSI_RED}red text${ANSI_RESET}`;
     const result = utils.stripAnsi(input);
@@ -83,6 +106,13 @@ describe('utils.ts - stripAnsi', () => {
  * Tests for stripFileName function
  */
 describe('utils.ts - stripFileName', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should extract directory from path', () => {
     const result = utils.stripFileName('/home/user/labs/topology.yml');
     expect(result).to.equal('/home/user/labs');
@@ -118,6 +148,13 @@ describe('utils.ts - stripFileName', () => {
  * Tests for titleCase function
  */
 describe('utils.ts - titleCase', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should capitalize first letter', () => {
     const result = utils.titleCase('hello');
     expect(result).to.equal('Hello');
@@ -148,6 +185,13 @@ describe('utils.ts - titleCase', () => {
  * Tests for sanitize function
  */
 describe('utils.ts - sanitize', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should replace special characters with dash', () => {
     const result = utils.sanitize('a/b:c@d');
     expect(result).to.equal('a-b-c-d');
@@ -213,6 +257,13 @@ describe('utils.ts - sanitize', () => {
  * Tests for normalizeLabPath function
  */
 describe('utils.ts - normalizeLabPath', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should return empty string for empty path', () => {
     const result = utils.normalizeLabPath('');
     expect(result).to.equal('');
@@ -258,11 +309,18 @@ describe('utils.ts - normalizeLabPath', () => {
 describe('utils.ts - isOrbstack', () => {
   let osReleaseStub: sinon.SinonStub;
 
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
   afterEach(() => {
     if (osReleaseStub) {
       osReleaseStub.restore();
     }
   });
+
+  after(teardownModuleResolution);
 
   it('should return boolean', () => {
     const result = utils.isOrbstack();
@@ -292,6 +350,13 @@ describe('utils.ts - isOrbstack', () => {
  * Tests for getFreePort function
  */
 describe('utils.ts - getFreePort', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should return a valid port number', async () => {
     const port = await utils.getFreePort();
     expect(port).to.be.a('number');
@@ -312,7 +377,13 @@ describe('utils.ts - getFreePort', () => {
  * Tests for getRelativeFolderPath function
  */
 describe('utils.ts - getRelativeFolderPath', () => {
-  const vscode = require('vscode');
+  let vscode: any;
+
+  before(() => {
+    setupModuleResolution();
+    vscode = require('vscode');
+    utils = require('../../../src/utils/utils');
+  });
 
   beforeEach(() => {
     // Set up workspace folders for these tests
@@ -325,6 +396,8 @@ describe('utils.ts - getRelativeFolderPath', () => {
   afterEach(() => {
     vscode.workspace.workspaceFolders = [];
   });
+
+  after(teardownModuleResolution);
 
   it('should return path relative to workspace', () => {
     const result = utils.getRelativeFolderPath(TEST_PATH);
@@ -341,7 +414,13 @@ describe('utils.ts - getRelativeFolderPath', () => {
  * Tests for getRelLabFolderPath function
  */
 describe('utils.ts - getRelLabFolderPath', () => {
-  const vscode = require('vscode');
+  let vscode: any;
+
+  before(() => {
+    setupModuleResolution();
+    vscode = require('vscode');
+    utils = require('../../../src/utils/utils');
+  });
 
   beforeEach(() => {
     // Set up workspace folders for these tests
@@ -355,6 +434,8 @@ describe('utils.ts - getRelLabFolderPath', () => {
     vscode.workspace.workspaceFolders = [];
   });
 
+  after(teardownModuleResolution);
+
   it('should return directory of relative path', () => {
     const result = utils.getRelLabFolderPath(TEST_PATH);
     expect(result).to.be.a('string');
@@ -365,6 +446,13 @@ describe('utils.ts - getRelLabFolderPath', () => {
  * Tests for getConfig function
  */
 describe('utils.ts - getConfig', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should return config value', () => {
     const result = utils.getConfig('someSetting');
     // The stub returns undefined for missing configs
@@ -376,6 +464,13 @@ describe('utils.ts - getConfig', () => {
  * Tests for getUserInfo function - Basic structure tests
  */
 describe('utils.ts - getUserInfo structure', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should return object with expected shape', () => {
     const result = utils.getUserInfo();
     expect(result).to.have.property('hasPermission');
@@ -415,6 +510,13 @@ describe('utils.ts - getUserInfo structure', () => {
  * Tests for installContainerlab function
  */
 describe('utils.ts - installContainerlab', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should be a function', () => {
     expect(utils.installContainerlab).to.be.a('function');
   });
@@ -428,6 +530,13 @@ describe('utils.ts - installContainerlab', () => {
  * Tests for getSelectedLabNode function
  */
 describe('utils.ts - getSelectedLabNode', () => {
+  before(() => {
+    setupModuleResolution();
+    utils = require('../../../src/utils/utils');
+  });
+
+  after(teardownModuleResolution);
+
   it('should return provided node directly', async () => {
     const mockNode = { labPath: '/test/lab.yml' };
     const result = await utils.getSelectedLabNode(mockNode);

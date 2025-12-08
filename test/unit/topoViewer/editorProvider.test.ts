@@ -1,53 +1,32 @@
 /* eslint-env mocha */
-/* global describe, it, beforeEach, afterEach, after, __dirname */
+/* global describe, it, before, after, beforeEach, afterEach, __dirname */
 import { expect } from 'chai';
 import sinon from 'sinon';
 import path from 'path';
 import Module from 'module';
 
-// Clear require cache for modules we need to stub BEFORE setting up resolution
-// Note: Be specific with 'utils' to avoid clearing fast-uri/lib/utils.js which breaks AJV
-Object.keys(require.cache).forEach(key => {
-  if (key.includes('topoViewer') || key.includes('vscode-stub') || key.includes('extensionLogger-stub') ||
-      (key.includes('utils') && !key.includes('node_modules')) ||
-      (key.includes('extension') && !key.includes('node_modules'))) {
-    delete require.cache[key];
-  }
-});
-
-// Ensure module resolution uses stubs for vscode, logger, and utils
 const originalResolve = (Module as any)._resolveFilename;
-(Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+
+function clearModuleCache() {
+  Object.keys(require.cache).forEach(key => {
+    if (key.includes('vscode-containerlab') && !key.includes('node_modules')) {
+      delete require.cache[key];
+    }
+  });
+}
+
+function getStubPath(request: string): string | null {
   if (request === 'vscode') {
     return path.join(__dirname, '..', '..', 'helpers', 'vscode-stub.js');
   }
   if (request.endsWith('logging/logger')) {
     return path.join(__dirname, '..', '..', 'helpers', 'extensionLogger-stub.js');
   }
-  // Redirect utils module to use stub for onDockerImagesUpdated
-  // Note: Be specific to avoid matching fast-uri/lib/utils or similar third-party modules
   if (request.endsWith('utils/index') || (request.endsWith('/utils') && request.includes('src'))) {
     return path.join(__dirname, '..', '..', 'helpers', 'utils-stub.js');
   }
-  return originalResolve.call(this, request, parent, isMain, options);
-};
-
-import * as vscode from '../../helpers/vscode-stub';
-import { resetLoggerStub } from '../../helpers/extensionLogger-stub';
-import * as utilsStub from '../../helpers/utils-stub';
-
-const EDITOR_PROVIDER_PATH = '../../../src/topoViewer/extension/services/EditorProvider';
-const editorProviderModule = require(EDITOR_PROVIDER_PATH) as typeof import('../../../src/topoViewer/extension/services/EditorProvider');
-const { TopoViewerEditor } = editorProviderModule;
-
-const extensionModule = require('../../../src/extension') as typeof import('../../../src/extension');
-const splitViewManagerModule = require('../../../src/topoViewer/extension/services/SplitViewManager');
-const deploymentStateCheckerModule = require('../../../src/topoViewer/extension/services/DeploymentStateChecker');
-const yamlValidatorModule = require('../../../src/topoViewer/extension/services/YamlValidator');
-const asyncUtils = require('../../../src/topoViewer/shared/utilities/AsyncUtils');
-
-// Initialize extensionModule stubs
-extensionModule.runningLabsProvider ??= { discoverInspectLabs: async () => ({}) } as any;
+  return null;
+}
 
 // Constants for test data
 const TEST_LAB_NAME = 'testlab';
@@ -94,25 +73,58 @@ function createMockExtensionContext(): MockExtensionContext {
   };
 }
 
-after(() => {
+// Shared context
+let vscode: any;
+let utilsStub: any;
+let TopoViewerEditor: any;
+let extensionModule: any;
+let splitViewManagerModule: any;
+let deploymentStateCheckerModule: any;
+let yamlValidatorModule: any;
+let asyncUtils: any;
+let resetLoggerStub: any;
+
+function setupModuleResolution() {
+  clearModuleCache();
+  (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+    const stubPath = getStubPath(request);
+    if (stubPath) {
+      return stubPath;
+    }
+    return originalResolve.call(this, request, parent, isMain, options);
+  };
+
+  vscode = require('../../helpers/vscode-stub');
+  const loggerStub = require('../../helpers/extensionLogger-stub');
+  resetLoggerStub = loggerStub.resetLoggerStub;
+  utilsStub = require('../../helpers/utils-stub');
+  const editorProviderModule = require('../../../src/topoViewer/extension/services/EditorProvider');
+  TopoViewerEditor = editorProviderModule.TopoViewerEditor;
+  extensionModule = require('../../../src/extension');
+  splitViewManagerModule = require('../../../src/topoViewer/extension/services/SplitViewManager');
+  deploymentStateCheckerModule = require('../../../src/topoViewer/extension/services/DeploymentStateChecker');
+  yamlValidatorModule = require('../../../src/topoViewer/extension/services/YamlValidator');
+  asyncUtils = require('../../../src/topoViewer/shared/utilities/AsyncUtils');
+  extensionModule.runningLabsProvider ??= { discoverInspectLabs: async () => ({}) } as any;
+}
+
+function teardownModuleResolution() {
   (Module as any)._resolveFilename = originalResolve;
-});
-
-beforeEach(() => {
-  resetLoggerStub();
-});
-
-afterEach(() => {
-  sinon.restore();
-  vscode.resetVscodeStub();
-  utilsStub.clearDockerImagesMocks();
-});
+  clearModuleCache();
+}
 
 describe('TopoViewerEditor - Constructor and Initialization', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('initializes with correct default state', () => {
     const ctx = createMockExtensionContext();
-    // utils stub provides onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
 
     expect(editor.currentPanel).to.be.undefined;
@@ -127,23 +139,18 @@ describe('TopoViewerEditor - Constructor and Initialization', () => {
 
   it('subscribes to docker images updates', () => {
     const ctx = createMockExtensionContext();
-    // utils stub provides onDockerImagesUpdated which adds to subscriptions
-
     const editor = new TopoViewerEditor(ctx as any);
 
-    // Check that at least one subscription was added (the docker images subscription)
     expect(ctx.subscriptions.length).to.be.greaterThan(0);
     expect(editor).to.be.instanceOf(TopoViewerEditor);
   });
 
   it('posts docker images to panel when updated', () => {
     const ctx = createMockExtensionContext();
-
     const editor = new TopoViewerEditor(ctx as any);
     const mockPanel = new vscode.MockWebviewPanel('topoViewer', 'Test Panel', {});
     editor.currentPanel = mockPanel as any;
 
-    // Use the utils stub helper to trigger docker images update
     utilsStub.triggerDockerImagesUpdate(['image:latest']);
 
     expect(mockPanel.webview._postedMessages).to.deep.include({
@@ -154,10 +161,17 @@ describe('TopoViewerEditor - Constructor and Initialization', () => {
 });
 
 describe('TopoViewerEditor - buildDefaultLabYaml', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('generates default YAML with lab name', () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     const yaml = (editor as any).buildDefaultLabYaml('mylab');
 
@@ -170,8 +184,6 @@ describe('TopoViewerEditor - buildDefaultLabYaml', () => {
 
   it('includes saved path comment when provided', () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     const yaml = (editor as any).buildDefaultLabYaml('testlab', '/path/to/file.clab.yml');
 
@@ -180,9 +192,17 @@ describe('TopoViewerEditor - buildDefaultLabYaml', () => {
 });
 
 describe('TopoViewerEditor - createTemplateFile', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('creates template file with correct path normalization', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     sinon.stub(asyncUtils, 'sleep').resolves();
     const createDirStub = sinon.stub().resolves();
     const writeFileStub = sinon.stub().resolves();
@@ -198,13 +218,11 @@ describe('TopoViewerEditor - createTemplateFile', () => {
     expect(editor.lastFolderName).to.equal('mylab');
     expect(editor.lastYamlFilePath).to.equal('/path/to/mylab.clab.yml');
     expect(editor.createTopoYamlTemplateSuccess).to.be.true;
-    // skipInitialValidation is private, but we can verify via createTopoYamlTemplateSuccess
     expect((editor as any).skipInitialValidation).to.be.true;
   });
 
   it('strips .clab suffix from name if present', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     sinon.stub(asyncUtils, 'sleep').resolves();
     (vscode.workspace.fs as any).createDirectory = sinon.stub().resolves();
     (vscode.workspace.fs as any).writeFile = sinon.stub().resolves();
@@ -220,7 +238,6 @@ describe('TopoViewerEditor - createTemplateFile', () => {
 
   it('handles file creation error and marks failure', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     (vscode.workspace.fs as any).createDirectory = sinon.stub().rejects(new Error(MKDIR_FAILED_ERROR));
 
     const editor = new TopoViewerEditor(ctx as any);
@@ -239,9 +256,17 @@ describe('TopoViewerEditor - createTemplateFile', () => {
 });
 
 describe('TopoViewerEditor - validateYaml', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('delegates to yamlValidator', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     const validateStub = sinon.stub(yamlValidatorModule, 'validateYamlContent').resolves(true);
 
     const editor = new TopoViewerEditor(ctx as any);
@@ -253,7 +278,6 @@ describe('TopoViewerEditor - validateYaml', () => {
 
   it('returns false when validation fails', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     sinon.stub(yamlValidatorModule, 'validateYamlContent').resolves(false);
 
     const editor = new TopoViewerEditor(ctx as any);
@@ -264,10 +288,17 @@ describe('TopoViewerEditor - validateYaml', () => {
 });
 
 describe('TopoViewerEditor - updatePanelHtml guards', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns false when currentLabName is empty', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentLabName = '';
 
@@ -278,8 +309,6 @@ describe('TopoViewerEditor - updatePanelHtml guards', () => {
 
   it('returns false when mode switching is in progress', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentLabName = TEST_LAB_NAME;
     (editor as any).isSwitchingMode = true;
@@ -291,8 +320,6 @@ describe('TopoViewerEditor - updatePanelHtml guards', () => {
 
   it('returns false when already updating', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentLabName = TEST_LAB_NAME;
     (editor as any).isUpdating = true;
@@ -304,10 +331,17 @@ describe('TopoViewerEditor - updatePanelHtml guards', () => {
 });
 
 describe('TopoViewerEditor - triggerUpdate', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('queues update when already updating', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     (editor as any).isUpdating = true;
     (editor as any).queuedUpdate = false;
@@ -319,8 +353,6 @@ describe('TopoViewerEditor - triggerUpdate', () => {
 
   it('skips update when mode switching is in progress', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     (editor as any).isSwitchingMode = true;
     const updateSpy = sinon.spy(editor, 'updatePanelHtml');
@@ -332,8 +364,6 @@ describe('TopoViewerEditor - triggerUpdate', () => {
 
   it('sends yaml-saved message after successful save-triggered update', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentLabName = TEST_LAB_NAME;
     const mockPanel = new vscode.MockWebviewPanel('test', 'Test', {});
@@ -347,10 +377,17 @@ describe('TopoViewerEditor - triggerUpdate', () => {
 });
 
 describe('TopoViewerEditor - postLifecycleStatus', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('posts lifecycle status to panel', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     const mockPanel = new vscode.MockWebviewPanel('test', 'Test', {});
     editor.currentPanel = mockPanel as any;
@@ -368,28 +405,31 @@ describe('TopoViewerEditor - postLifecycleStatus', () => {
 
   it('does nothing when panel is undefined', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentPanel = undefined;
 
-    // Should not throw
     await editor.postLifecycleStatus({
       commandType: 'destroy',
       status: 'error',
       errorMessage: 'failed'
     });
 
-    // Verify we didn't try to post to a non-existent panel
     expect(editor.currentPanel).to.be.undefined;
   });
 });
 
 describe('TopoViewerEditor - isModeSwitchInProgress', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns current mode switch state', () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
 
     expect(editor.isModeSwitchInProgress).to.be.false;
@@ -400,9 +440,17 @@ describe('TopoViewerEditor - isModeSwitchInProgress', () => {
 });
 
 describe('TopoViewerEditor - checkDeploymentState', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('delegates to deploymentStateChecker', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     const checkStub = sinon.stub(deploymentStateCheckerModule.deploymentStateChecker, 'checkDeploymentState')
       .resolves(DEPLOYED_STATE);
 
@@ -417,9 +465,17 @@ describe('TopoViewerEditor - checkDeploymentState', () => {
 });
 
 describe('TopoViewerEditor - openTemplateFile and toggleSplitView', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('delegates openTemplateFile to splitViewManager', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     const openStub = sinon.stub(splitViewManagerModule.splitViewManager, 'openTemplateFile').resolves();
 
     const editor = new TopoViewerEditor(ctx as any);
@@ -433,7 +489,6 @@ describe('TopoViewerEditor - openTemplateFile and toggleSplitView', () => {
 
   it('delegates toggleSplitView to splitViewManager', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
     const toggleStub = sinon.stub(splitViewManagerModule.splitViewManager, 'toggleSplitView').resolves();
 
     const editor = new TopoViewerEditor(ctx as any);
@@ -448,10 +503,17 @@ describe('TopoViewerEditor - openTemplateFile and toggleSplitView', () => {
 });
 
 describe('TopoViewerEditor - forceUpdateAfterCommand', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('clears switching flags and calls updatePanelHtmlCore', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     (editor as any).isSwitchingMode = true;
     (editor as any).isUpdating = true;
@@ -469,10 +531,17 @@ describe('TopoViewerEditor - forceUpdateAfterCommand', () => {
 });
 
 describe('TopoViewerEditor - refreshAfterExternalCommand', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns false when no panel', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentPanel = undefined;
 
@@ -483,8 +552,6 @@ describe('TopoViewerEditor - refreshAfterExternalCommand', () => {
 
   it('updates deployment state and mode', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentLabName = TEST_LAB_NAME;
     const mockPanel = new vscode.MockWebviewPanel('test', 'Test', {});
@@ -501,8 +568,6 @@ describe('TopoViewerEditor - refreshAfterExternalCommand', () => {
 
   it('sets edit mode for undeployed state', async () => {
     const ctx = createMockExtensionContext();
-    // utils stub handles onDockerImagesUpdated
-
     const editor = new TopoViewerEditor(ctx as any);
     editor.currentLabName = TEST_LAB_NAME;
     const mockPanel = new vscode.MockWebviewPanel('test', 'Test', {});
@@ -518,17 +583,24 @@ describe('TopoViewerEditor - refreshAfterExternalCommand', () => {
 });
 
 describe('TopoViewerEditor - handleWebviewMessage', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('ignores invalid messages', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
     const mockPanel = new vscode.MockWebviewPanel('test', 'Test', {});
 
-    // Call the private method
     await (editor as any).handleWebviewMessage(null, mockPanel);
     await (editor as any).handleWebviewMessage(undefined, mockPanel);
     await (editor as any).handleWebviewMessage('string', mockPanel);
 
-    // Should not throw
     expect(true).to.be.true;
   });
 
@@ -543,7 +615,6 @@ describe('TopoViewerEditor - handleWebviewMessage', () => {
       message: 'test info message'
     }, mockPanel);
 
-    // Log message should be processed (no error thrown)
     expect(true).to.be.true;
   });
 
@@ -554,10 +625,8 @@ describe('TopoViewerEditor - handleWebviewMessage', () => {
 
     await (editor as any).handleWebviewMessage({
       type: 'POST',
-      // Missing requestId and endpointName
     }, mockPanel);
 
-    // Should send error response
     const errorResponse = mockPanel.webview._postedMessages.find(
       (m: { type?: string }) => m.type === 'POST_RESPONSE'
     );
@@ -575,17 +644,24 @@ describe('TopoViewerEditor - handleWebviewMessage', () => {
       requestId: '123'
     }, mockPanel);
 
-    // Should not throw
     expect(mockPanel.webview._postedMessages.length).to.equal(0);
   });
 });
 
 describe('TopoViewerEditor - processLogMessage', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('processes different log levels', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
 
-    // Test all log levels - should not throw
     (editor as any).processLogMessage({ level: 'error', message: 'error msg' });
     (editor as any).processLogMessage({ level: 'warn', message: 'warn msg' });
     (editor as any).processLogMessage({ level: 'debug', message: 'debug msg' });
@@ -599,7 +675,6 @@ describe('TopoViewerEditor - processLogMessage', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
 
-    // Should not throw
     (editor as any).processLogMessage({
       level: 'info',
       message: 'test',
@@ -611,6 +686,15 @@ describe('TopoViewerEditor - processLogMessage', () => {
 });
 
 describe('TopoViewerEditor - handleGeneralEndpoint', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns error for unknown endpoints', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -629,6 +713,15 @@ describe('TopoViewerEditor - handleGeneralEndpoint', () => {
 });
 
 describe('TopoViewerEditor - handleSwitchModeEndpoint', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('rejects when mode switch is already in progress', async () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);
@@ -748,6 +841,15 @@ describe('TopoViewerEditor - handleSwitchModeEndpoint', () => {
 });
 
 describe('TopoViewerEditor - getHandlerContext', () => {
+  before(setupModuleResolution);
+  after(teardownModuleResolution);
+  beforeEach(() => resetLoggerStub());
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+    utilsStub.clearDockerImagesMocks();
+  });
+
   it('returns correct context object', () => {
     const ctx = createMockExtensionContext();
     const editor = new TopoViewerEditor(ctx as any);

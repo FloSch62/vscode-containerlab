@@ -1,5 +1,5 @@
 /* eslint-env mocha */
-/* global describe, it, after, beforeEach, afterEach, __dirname */
+/* global describe, it, before, after, beforeEach, afterEach, __dirname */
 /**
  * Unit tests for `LocalLabTreeDataProvider`.
  *
@@ -16,30 +16,25 @@ import sinon from 'sinon';
 import Module from 'module';
 import path from 'path';
 
-// Clear require cache for modules we need to stub BEFORE setting up resolution
-Object.keys(require.cache).forEach(key => {
-  if (key.includes('localLabsProvider') || key.includes('treeView') ||
-      key.includes('vscode-stub') || key.includes('utils-stub')) {
-    delete require.cache[key];
-  }
-});
-
-// Stub the vscode module before importing the provider
 const originalResolve = (Module as any)._resolveFilename;
-(Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+
+function clearModuleCache() {
+  Object.keys(require.cache).forEach(key => {
+    if (key.includes('vscode-containerlab') && !key.includes('node_modules')) {
+      delete require.cache[key];
+    }
+  });
+}
+
+function getStubPath(request: string): string | null {
   if (request === 'vscode') {
     return path.join(__dirname, '..', '..', 'helpers', 'vscode-stub.js');
   }
   if (request.includes('utils/utils')) {
     return path.join(__dirname, '..', '..', 'helpers', 'utils-stub.js');
   }
-  return originalResolve.call(this, request, parent, isMain, options);
-};
-
-import { LocalLabTreeDataProvider } from '../../../src/treeView/localLabsProvider';
-import * as ins from '../../../src/treeView/inspector';
-const vscodeStub = require('../../helpers/vscode-stub');
-const extension = require('../../../src/extension');
+  return null;
+}
 
 const LAB_B = '/workspace/b/lab2.clab.yaml';
 const LAB_A = '/workspace/a/lab1.clab.yml';
@@ -62,8 +57,31 @@ class EventEmitterStub {
 }
 
 describe('LocalLabTreeDataProvider', () => {
+  let LocalLabTreeDataProvider: any;
+  let ins: any;
+  let vscodeStub: any;
+  let extension: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      if (stubPath) {
+        return stubPath;
+      }
+      return originalResolve.call(this, request, parent, isMain, options);
+    };
+
+    vscodeStub = require('../../helpers/vscode-stub');
+    const provider = require('../../../src/treeView/localLabsProvider');
+    LocalLabTreeDataProvider = provider.LocalLabTreeDataProvider;
+    ins = require('../../../src/treeView/inspector');
+    extension = require('../../../src/extension');
+  });
+
   after(() => {
     (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
   });
 
   beforeEach(() => {
@@ -72,16 +90,6 @@ describe('LocalLabTreeDataProvider', () => {
     vscodeStub.workspace.createFileSystemWatcher = createFileWatcher;
     vscodeStub.workspace.findFiles = emptyFindFiles;
     vscodeStub.EventEmitter = EventEmitterStub as any;
-    try {
-      delete require.cache[require.resolve('../../../src/utils/utils')];
-    } catch {
-      /* ignore if module not in cache */
-    }
-    try {
-      delete require.cache[require.resolve('../../helpers/utils-stub')];
-    } catch {
-      /* ignore cleanup errors */
-    }
     extension.favoriteLabs = new Set();
     extension.extensionContext = { globalState: { update: sinon.stub().resolves() } } as any;
     (ins as any).rawInspectData = [];
@@ -212,4 +220,3 @@ describe('LocalLabTreeDataProvider', () => {
     expect(labs![0].label).to.equal('lab1.clab.yml');
   });
 });
-

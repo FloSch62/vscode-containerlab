@@ -77,8 +77,15 @@ export async function getSelectedLabNode(node?: any): Promise<any> {
 
 // Path normalization helpers for runningLabsProvider tests
 export function normalizeLabPath(labPath: string, _singleFolderBase?: string): string {
-  // Simple normalization - just return the path as-is for testing
-  // In production this resolves relative paths
+  if (!labPath) return '';
+  // Expand tilde to home directory
+  const os = require('os');
+  if (labPath.startsWith('~/')) {
+    return labPath.replace(/^~\//, os.homedir() + '/');
+  }
+  if (labPath.startsWith('~')) {
+    return labPath.replace(/^~/, os.homedir());
+  }
   return labPath;
 }
 
@@ -125,7 +132,7 @@ export function resetIsOrbstack(): void {
 }
 
 export function getConfig(_relCfgPath: string): any {
-  return {};
+  return undefined;
 }
 
 export function installContainerlab(): void {
