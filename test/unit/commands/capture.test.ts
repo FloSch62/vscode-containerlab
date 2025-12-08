@@ -45,6 +45,10 @@ let dockerodeStub: any;
 let utilsStub: any;
 let packetflixStub: any;
 
+// Constants for test values
+const PACKETFLIX_RESULT: [string, string] = ['packetflix:ws://localhost:5001/capture', 'localhost'];
+const WIRESHARK_IMAGE = 'ghcr.io/srl-labs/clab-wireshark-vnc:latest';
+
 // Table-driven test cases
 interface CaptureInterfaceTestCase {
   description: string;
@@ -125,7 +129,7 @@ describe('captureInterface() - routing based on preference', () => {
     extensionStub.setDockerClient(new Docker());
 
     // Set packetflix result
-    packetflixStub.setGenPacketflixURIResult(['packetflix:ws://localhost:5001/capture', 'localhost']);
+    packetflixStub.setGenPacketflixURIResult(PACKETFLIX_RESULT);
 
     await captureInterface(node);
 
@@ -146,7 +150,7 @@ describe('killAllWiresharkVNCCtrs() - container removal', () => {
     dockerodeStub.addListContainer({
       Id: 'wireshark-vnc-123',
       Names: ['/clab-wireshark-vnc-testuser-router1_eth0-12345'],
-      Image: 'ghcr.io/srl-labs/clab-wireshark-vnc:latest'
+      Image: WIRESHARK_IMAGE
     });
     dockerodeStub.setContainer('wireshark-vnc-123', {
       running: true,
@@ -177,6 +181,71 @@ describe('killAllWiresharkVNCCtrs() - container removal', () => {
     await killAllWiresharkVNCCtrs();
 
     // Should not show error
+    expect(vscodeStub.window.lastErrorMessage).to.equal('');
+  });
+
+  it('removes multiple matching containers', async () => {
+    const Docker = dockerodeStub.default;
+    const client = new Docker();
+    extensionStub.setDockerClient(client);
+
+    // Add multiple containers that match
+    dockerodeStub.addListContainer({
+      Id: 'vnc-1',
+      Names: ['/clab-wireshark-vnc-testuser-router1_eth0-111'],
+      Image: WIRESHARK_IMAGE
+    });
+    dockerodeStub.addListContainer({
+      Id: 'vnc-2',
+      Names: ['/clab-wireshark-vnc-testuser-router2_eth0-222'],
+      Image: WIRESHARK_IMAGE
+    });
+
+    dockerodeStub.setContainer('vnc-1', { running: true });
+    dockerodeStub.setContainer('vnc-2', { running: true });
+
+    await killAllWiresharkVNCCtrs();
+
+    expect(vscodeStub.window.lastErrorMessage).to.equal('');
+  });
+});
+
+describe('captureInterface() - capture preferences', () => {
+  setupCaptureTests();
+
+  it('handles capture when preference is edgeshark', async () => {
+    vscodeStub.setConfigValue('containerlab.capture.preferenceForCapture', 'edgeshark');
+
+    const node = {
+      parentName: 'router1',
+      name: 'eth0',
+      cID: 'container123'
+    };
+
+    const Docker = dockerodeStub.default;
+    extensionStub.setDockerClient(new Docker());
+    packetflixStub.setGenPacketflixURIResult(PACKETFLIX_RESULT);
+
+    await captureInterface(node);
+
+    expect(vscodeStub.window.lastErrorMessage).to.equal('');
+  });
+
+  it('handles capture when preference is wireshark', async () => {
+    vscodeStub.setConfigValue('containerlab.capture.preferenceForCapture', 'wireshark');
+
+    const node = {
+      parentName: 'router1',
+      name: 'eth0',
+      cID: 'container123'
+    };
+
+    const Docker = dockerodeStub.default;
+    extensionStub.setDockerClient(new Docker());
+    packetflixStub.setGenPacketflixURIResult(PACKETFLIX_RESULT);
+
+    await captureInterface(node);
+
     expect(vscodeStub.window.lastErrorMessage).to.equal('');
   });
 });
