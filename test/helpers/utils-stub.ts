@@ -199,3 +199,42 @@ export function clearCaptureUtilsMocks(): void {
   checkAndPullResult = true;
   checkAndPullCalls.length = 0;
 }
+
+// Docker images related stubs
+type DockerImageCallback = (images: string[]) => void;
+let dockerImageCallbacks: DockerImageCallback[] = [];
+let dockerImages: string[] = [];
+
+export function onDockerImagesUpdated(callback: DockerImageCallback): { dispose: () => void } {
+  dockerImageCallbacks.push(callback);
+  return {
+    dispose: () => {
+      const index = dockerImageCallbacks.indexOf(callback);
+      if (index >= 0) {
+        dockerImageCallbacks.splice(index, 1);
+      }
+    }
+  };
+}
+
+export function getDockerImages(): string[] {
+  return dockerImages;
+}
+
+export async function refreshDockerImages(): Promise<void> {
+  // no-op
+}
+
+// Test helper to trigger docker image updates
+export function triggerDockerImagesUpdate(images: string[]): void {
+  dockerImages = images;
+  for (const cb of dockerImageCallbacks) {
+    cb(images);
+  }
+}
+
+// Reset docker images callbacks
+export function clearDockerImagesMocks(): void {
+  dockerImageCallbacks = [];
+  dockerImages = [];
+}

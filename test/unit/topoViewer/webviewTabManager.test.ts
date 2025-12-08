@@ -9,8 +9,12 @@ import Module from 'module';
 // Clear require cache for modules we need to stub BEFORE setting up resolution
 const WEBVIEW_TAB_MANAGER_PATH = '../../../src/topoViewer/extension/services/WebviewTabManager';
 Object.keys(require.cache).forEach(key => {
-  // Clear all topoViewer modules and stubs to ensure fresh loads
-  if (key.includes('topoViewer') || key.includes('vscode-stub') || key.includes('extensionLogger-stub')) {
+  // Clear all topoViewer modules, utils/images, extension and stubs to ensure fresh loads
+  // Note: Exclude node_modules to avoid breaking third-party modules like fast-uri
+  const isOurCode = !key.includes('node_modules');
+  if (key.includes('topoViewer') || key.includes('vscode-stub') || key.includes('extensionLogger-stub') ||
+      (key.includes('utils') && isOurCode) || (key.includes('extension') && isOurCode) ||
+      key.includes('CustomNodeConfigManager') || key.includes('IconManager')) {
     delete require.cache[key];
   }
 });
@@ -36,7 +40,7 @@ type TemplateParamsContext = Parameters<typeof webviewTabManager.getViewerTempla
 type PanelInitContext = Parameters<typeof webviewTabManager.loadYamlViewMode>[2];
 
 const extensionModule = require('../../../src/extension') as typeof import('../../../src/extension');
-const imagesModule = require('../../../src/utils/docker/images');
+const utilsModule = require('../../../src/utils/index');
 const customNodeConfigManager = require('../../../src/topoViewer/extension/services/CustomNodeConfigManager').customNodeConfigManager;
 const iconManager = require('../../../src/topoViewer/extension/services/IconManager').iconManager;
 const runningLabsProvider =
@@ -121,8 +125,8 @@ afterEach(() => {
         lastYamlFilePath: '/home/test/lab2.clab.yml',
         currentClabTopo: { topology: { defaults: { mgmt: 'oob' }, kinds: { router: {} }, groups: { core: {} } } } as any
       };
-      const refreshStub = sinon.stub(imagesModule, 'refreshDockerImages').resolves();
-      sinon.stub(imagesModule, 'getDockerImages').returns(['img:1']);
+      const refreshStub = sinon.stub(utilsModule, 'refreshDockerImages').resolves();
+      sinon.stub(utilsModule, 'getDockerImages').returns(['img:1']);
       const legacyMap = { linux: 'eth{n}' };
       sinon.stub(customNodeConfigManager, 'getLegacyInterfacePatternMapping').returns(legacyMap);
       const customNodes = [{ name: 'Node A', kind: 'linux', type: 'ixr', icon: 'router' }];

@@ -290,14 +290,38 @@ export const workspace = {
 
 export const Uri = {
   file(p: string) {
-    return { fsPath: p, toString: () => p };
+    return {
+      fsPath: p,
+      path: p,
+      toString: () => p,
+      with: (change: { path?: string }) => {
+        const newPath = change.path ?? p;
+        return { fsPath: newPath, path: newPath, toString: () => newPath };
+      }
+    };
   },
   joinPath(...parts: any[]) {
-    const path = parts.map(p => (typeof p === 'string' ? p : p.fsPath)).join('/');
-    return { fsPath: path, toString: () => path };
+    const pathVal = parts.map(p => (typeof p === 'string' ? p : p.fsPath)).join('/');
+    return {
+      fsPath: pathVal,
+      path: pathVal,
+      toString: () => pathVal,
+      with: (change: { path?: string }) => {
+        const newPath = change.path ?? pathVal;
+        return { fsPath: newPath, path: newPath, toString: () => newPath };
+      }
+    };
   },
   parse(uri: string) {
-    return { fsPath: uri, toString: () => uri };
+    return {
+      fsPath: uri,
+      path: uri,
+      toString: () => uri,
+      with: (change: { path?: string }) => {
+        const newPath = change.path ?? uri;
+        return { fsPath: newPath, path: newPath, toString: () => newPath };
+      }
+    };
   },
 };
 

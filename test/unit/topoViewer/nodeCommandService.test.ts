@@ -4,6 +4,16 @@ import { expect } from 'chai';
 import sinon from 'sinon';
 import path from 'path';
 import Module from 'module';
+
+// Clear require cache for modules we need to stub BEFORE setting up resolution
+// Note: Exclude node_modules to avoid breaking third-party modules like fast-uri
+Object.keys(require.cache).forEach(key => {
+  if ((key.includes('NodeCommandService') || key.includes('vscode-stub')) ||
+      (key.includes('extension') && !key.includes('node_modules'))) {
+    delete require.cache[key];
+  }
+});
+
 import * as vscode from '../../helpers/vscode-stub';
 
 // Constants for commonly used test values
