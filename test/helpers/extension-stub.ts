@@ -45,6 +45,9 @@ export const runningLabsProvider = {
   softRefresh(): void {
     this.softRefreshCalled = true;
   },
+  async discoverInspectLabs(): Promise<any> {
+    return null;
+  },
   reset(): void {
     this.refreshCalled = false;
     this.softRefreshCalled = false;

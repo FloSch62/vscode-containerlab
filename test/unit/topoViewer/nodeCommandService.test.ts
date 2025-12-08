@@ -1,6 +1,10 @@
 /* eslint-env mocha */
-/* global describe, it, beforeEach */
+/* global describe, it, beforeEach, afterEach, after, __dirname */
 import { expect } from 'chai';
+import sinon from 'sinon';
+import path from 'path';
+import Module from 'module';
+import * as vscode from '../../helpers/vscode-stub';
 
 // Constants for commonly used test values
 const NODE_ROUTER1 = 'router1';
@@ -20,6 +24,35 @@ const ENDPOINT_LINK_CAPTURE = 'clab-link-capture';
 const ENDPOINT_EDGESHARK_VNC = 'clab-link-capture-edgeshark-vnc';
 const ENDPOINT_UNKNOWN = 'unknown-endpoint';
 const MAC_ADDRESS = '00:11:22:33:44:55';
+const CLAB_TEST_ROUTER1 = 'clab-test-router1';
+const MSG_SSH_EXECUTED = 'SSH connection executed';
+const MSG_UNKNOWN_ENDPOINT = 'Unknown endpoint';
+
+// Redirect vscode and extension imports to stubs
+const originalResolve = (Module as any)._resolveFilename;
+(Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+  if (request === 'vscode') {
+    return path.join(__dirname, '..', '..', 'helpers', 'vscode-stub.js');
+  }
+  if (request.endsWith('logging/logger')) {
+    return path.join(__dirname, '..', '..', 'helpers', 'extensionLogger-stub.js');
+  }
+  if (request.includes('../../../extension') || request.endsWith('/extension')) {
+    return path.join(__dirname, '..', '..', 'helpers', 'extension-stub.js');
+  }
+  return originalResolve.call(this, request, parent, isMain, options);
+};
+
+// Load module under test after redirects are in place
+const nodeCommandServiceModule = require('../../../src/topoViewer/extension/services/NodeCommandService');
+const { NodeCommandService } = nodeCommandServiceModule;
+
+// Import extension stub to set up provider
+const extensionStub = require('../../helpers/extension-stub');
+
+after(() => {
+  (Module as any)._resolveFilename = originalResolve;
+});
 
 /**
  * Helper to create a mock container node
@@ -70,13 +103,25 @@ function createMockSrosContainer(baseName: string, slot: string): Record<string,
 }
 
 /**
- * Helper function for SROS slot priority
+ * Helper function for SROS slot priority (for comparison)
  */
 function srosSlotPriority(slot: string): number {
   const normalized = slot.toLowerCase();
   if (normalized === 'a') return 0;
   if (normalized === 'b') return 1;
   return 2;
+}
+
+/**
+ * Helper to create mock labs data
+ */
+function createMockLabsData(containers: Record<string, unknown>[]): Record<string, unknown> {
+  return {
+    'test-lab': {
+      labPath: { absolute: YAML_PATH, relative: YAML_PATH_RELATIVE },
+      containers
+    }
+  };
 }
 
 /**
@@ -96,8 +141,8 @@ describe('NodeCommandService - Endpoint Result Structure', () => {
   });
 
   it('should allow result with null error', () => {
-    const mockResult = { result: 'SSH connection executed', error: null };
-    expect(mockResult.result).to.equal('SSH connection executed');
+    const mockResult = { result: MSG_SSH_EXECUTED, error: null };
+    expect(mockResult.result).to.equal(MSG_SSH_EXECUTED);
     expect(mockResult.error).to.be.null;
   });
 });
@@ -208,17 +253,16 @@ describe('NodeCommandService - Container Node Matching Logic', () => {
 
   beforeEach(() => {
     containers = [
-      createMockContainerNode({ name: 'clab-test-router1', name_short: 'router1', label: 'Router 1' }),
+      createMockContainerNode({ name: CLAB_TEST_ROUTER1, name_short: 'router1', label: 'Router 1' }),
       createMockContainerNode({ name: 'clab-test-spine1', name_short: 'spine1', label: 'Spine 1' }),
       createMockContainerNode({ name: 'clab-test-leaf1', name_short: 'leaf1', label: 'Leaf 1' })
     ];
   });
 
   it('should match container by full name', () => {
-    const targetName = 'clab-test-router1';
-    const found = containers.find((c) => c.name === targetName);
+    const found = containers.find((c) => c.name === CLAB_TEST_ROUTER1);
     expect(found).to.not.be.undefined;
-    expect(found?.name).to.equal(targetName);
+    expect(found?.name).to.equal(CLAB_TEST_ROUTER1);
   });
 
   it('should match container by short name', () => {
@@ -467,8 +511,8 @@ describe('NodeCommandService - Endpoint Result Messages', () => {
 describe('NodeCommandService - Unknown Endpoint Error Messages', () => {
   it('should format unknown endpoint error correctly', () => {
     const endpointName = ENDPOINT_UNKNOWN;
-    const error = `Unknown endpoint "${endpointName}".`;
-    expect(error).to.include('Unknown endpoint');
+    const error = `${MSG_UNKNOWN_ENDPOINT} "${endpointName}".`;
+    expect(error).to.include(MSG_UNKNOWN_ENDPOINT);
     expect(error).to.include(endpointName);
   });
 });
@@ -503,9 +547,9 @@ describe('NodeCommandService - Capture Payload Structure', () => {
  */
 describe('NodeCommandService - YAML Path Handling', () => {
   it('should accept valid YAML path', () => {
-    const path = YAML_PATH;
-    expect(path).to.be.a('string');
-    expect(path).to.include('.clab.yml');
+    const yamlPath = YAML_PATH;
+    expect(yamlPath).to.be.a('string');
+    expect(yamlPath).to.include('.clab.yml');
   });
 
   it('should match lab by absolute path', () => {
@@ -526,5 +570,479 @@ describe('NodeCommandService - YAML Path Handling', () => {
 
     const found = Object.values(labs).find((lab) => lab.labPath.absolute === differentPath);
     expect(found).to.be.undefined;
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - setYamlFilePath
+ */
+describe('NodeCommandService Class - setYamlFilePath', () => {
+  it('should set yaml file path', () => {
+    const service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+    // Path is set internally, verify by trying to get container
+    expect(service).to.be.instanceOf(NodeCommandService);
+  });
+
+  it('should allow empty path', () => {
+    const service = new NodeCommandService();
+    service.setYamlFilePath('');
+    expect(service).to.be.instanceOf(NodeCommandService);
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - getContainerNode
+ */
+describe('NodeCommandService Class - getContainerNode', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should return undefined when no labs available', async () => {
+    discoverInspectLabsStub.resolves(null);
+
+    const result = await service.getContainerNode(NODE_ROUTER1);
+    expect(result).to.be.undefined;
+  });
+
+  it('should return undefined when yamlFilePath is not set', async () => {
+    const emptyService = new NodeCommandService();
+    discoverInspectLabsStub.resolves(createMockLabsData([]));
+
+    const result = await emptyService.getContainerNode(NODE_ROUTER1);
+    expect(result).to.be.undefined;
+  });
+
+  it('should return undefined when lab not found by path', async () => {
+    discoverInspectLabsStub.resolves({
+      'other-lab': {
+        labPath: { absolute: '/other/path.clab.yml', relative: 'path.clab.yml' },
+        containers: []
+      }
+    });
+
+    const result = await service.getContainerNode(NODE_ROUTER1);
+    expect(result).to.be.undefined;
+  });
+
+  it('should find container by full name', async () => {
+    const container = createMockContainerNode({ name: NODE_ROUTER1, name_short: 'r1' });
+    discoverInspectLabsStub.resolves(createMockLabsData([container]));
+
+    const result = await service.getContainerNode(NODE_ROUTER1);
+    expect(result).to.not.be.undefined;
+    expect(result?.name).to.equal(NODE_ROUTER1);
+  });
+
+  it('should find container by short name', async () => {
+    const container = createMockContainerNode({ name: 'clab-test-router1', name_short: NODE_ROUTER1 });
+    discoverInspectLabsStub.resolves(createMockLabsData([container]));
+
+    const result = await service.getContainerNode(NODE_ROUTER1);
+    expect(result).to.not.be.undefined;
+    expect(result?.name_short).to.equal(NODE_ROUTER1);
+  });
+
+  it('should find container by label', async () => {
+    const container = createMockContainerNode({ name: 'clab-test-r1', name_short: 'r1', label: NODE_ROUTER1 });
+    discoverInspectLabsStub.resolves(createMockLabsData([container]));
+
+    const result = await service.getContainerNode(NODE_ROUTER1);
+    expect(result).to.not.be.undefined;
+    expect(result?.label).to.equal(NODE_ROUTER1);
+  });
+
+  it('should resolve distributed SROS container when direct match not found', async () => {
+    const srosContainerA = createMockSrosContainer(NODE_ROUTER1, 'A');
+    const srosContainerB = createMockSrosContainer(NODE_ROUTER1, 'B');
+    discoverInspectLabsStub.resolves(createMockLabsData([srosContainerA, srosContainerB]));
+
+    const result = await service.getContainerNode(NODE_ROUTER1);
+    expect(result).to.not.be.undefined;
+    // Should prefer slot A
+    expect((result?.name_short as string)).to.include('-A');
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - resolveInterfaceName
+ */
+describe('NodeCommandService Class - resolveInterfaceName', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should return original interface name when no labs data', async () => {
+    discoverInspectLabsStub.resolves(null);
+
+    const result = await service.resolveInterfaceName(NODE_ROUTER1, INTERFACE_ETH0);
+    expect(result).to.equal(INTERFACE_ETH0);
+  });
+
+  it('should return original name when container not found', async () => {
+    discoverInspectLabsStub.resolves(createMockLabsData([]));
+
+    const result = await service.resolveInterfaceName(NODE_ROUTER1, INTERFACE_ETH0);
+    expect(result).to.equal(INTERFACE_ETH0);
+  });
+
+  it('should resolve interface by name', async () => {
+    const container = createMockContainerNode({
+      name: NODE_ROUTER1,
+      interfaces: [createMockInterfaceNode({ name: INTERFACE_ETH0, alias: INTERFACE_ALIAS })]
+    });
+    discoverInspectLabsStub.resolves(createMockLabsData([container]));
+
+    const result = await service.resolveInterfaceName(NODE_ROUTER1, INTERFACE_ETH0);
+    expect(result).to.equal(INTERFACE_ETH0);
+  });
+
+  it('should resolve interface by alias', async () => {
+    const container = createMockContainerNode({
+      name: NODE_ROUTER1,
+      interfaces: [createMockInterfaceNode({ name: INTERFACE_ETH0, alias: INTERFACE_ALIAS })]
+    });
+    discoverInspectLabsStub.resolves(createMockLabsData([container]));
+
+    const result = await service.resolveInterfaceName(NODE_ROUTER1, INTERFACE_ALIAS);
+    expect(result).to.equal(INTERFACE_ETH0);
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleNodeEndpoint SSH
+ */
+describe('NodeCommandService Class - handleNodeEndpoint SSH', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+    discoverInspectLabsStub.resolves(null);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should execute SSH command for node', async () => {
+    const result = await service.handleNodeEndpoint(ENDPOINT_SSH, NODE_ROUTER1);
+
+    expect(result.error).to.be.null;
+    expect(result.result).to.include('SSH connection executed');
+    expect(vscode.commands.executed).to.have.lengthOf(1);
+    expect(vscode.commands.executed[0].command).to.equal('containerlab.node.ssh');
+  });
+
+  it('should include node name in result message', async () => {
+    const result = await service.handleNodeEndpoint(ENDPOINT_SSH, NODE_ROUTER1);
+    expect(result.result).to.include(NODE_ROUTER1);
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleNodeEndpoint Shell
+ */
+describe('NodeCommandService Class - handleNodeEndpoint Shell', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+    discoverInspectLabsStub.resolves(null);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should execute attach shell command for node', async () => {
+    const result = await service.handleNodeEndpoint(ENDPOINT_SHELL, NODE_ROUTER1);
+
+    expect(result.error).to.be.null;
+    expect(result.result).to.include('Attach shell executed');
+    expect(vscode.commands.executed).to.have.lengthOf(1);
+    expect(vscode.commands.executed[0].command).to.equal('containerlab.node.attachShell');
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleNodeEndpoint Logs
+ */
+describe('NodeCommandService Class - handleNodeEndpoint Logs', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+    discoverInspectLabsStub.resolves(null);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should execute show logs command for node', async () => {
+    const result = await service.handleNodeEndpoint(ENDPOINT_LOGS, NODE_ROUTER1);
+
+    expect(result.error).to.be.null;
+    expect(result.result).to.include('Show logs executed');
+    expect(vscode.commands.executed).to.have.lengthOf(1);
+    expect(vscode.commands.executed[0].command).to.equal('containerlab.node.showLogs');
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleNodeEndpoint Unknown
+ */
+describe('NodeCommandService Class - handleNodeEndpoint Unknown', () => {
+  beforeEach(() => {
+    vscode.resetVscodeStub();
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should return error for unknown endpoint', async () => {
+    const service = new NodeCommandService();
+    const result = await service.handleNodeEndpoint(ENDPOINT_UNKNOWN, NODE_ROUTER1);
+
+    expect(result.result).to.be.null;
+    expect(result.error).to.include(MSG_UNKNOWN_ENDPOINT);
+    expect(result.error).to.include(ENDPOINT_UNKNOWN);
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleInterfaceEndpoint Capture
+ */
+describe('NodeCommandService Class - handleInterfaceEndpoint Capture', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+    discoverInspectLabsStub.resolves(null);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should execute capture command for interface', async () => {
+    const payload = { nodeName: NODE_ROUTER1, interfaceName: INTERFACE_ETH0 };
+    const result = await service.handleInterfaceEndpoint(ENDPOINT_CAPTURE, payload);
+
+    expect(result.error).to.be.null;
+    expect(result.result).to.include('Capture executed');
+    expect(vscode.commands.executed).to.have.lengthOf(1);
+    expect(vscode.commands.executed[0].command).to.equal('containerlab.interface.capture');
+  });
+
+  it('should include node and interface in result', async () => {
+    const payload = { nodeName: NODE_ROUTER1, interfaceName: INTERFACE_ETH0 };
+    const result = await service.handleInterfaceEndpoint(ENDPOINT_CAPTURE, payload);
+
+    expect(result.result).to.include(NODE_ROUTER1);
+    expect(result.result).to.include(INTERFACE_ETH0);
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleInterfaceEndpoint Link Capture
+ */
+describe('NodeCommandService Class - handleInterfaceEndpoint Link Capture', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+    discoverInspectLabsStub.resolves(null);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should execute link capture with edgeshark', async () => {
+    const payload = { nodeName: NODE_ROUTER1, interfaceName: INTERFACE_ETH0 };
+    const result = await service.handleInterfaceEndpoint(ENDPOINT_LINK_CAPTURE, payload);
+
+    expect(result.error).to.be.null;
+    expect(result.result).to.include('Capture executed');
+    expect(vscode.commands.executed).to.have.lengthOf(1);
+    expect(vscode.commands.executed[0].command).to.equal('containerlab.interface.captureWithEdgeshark');
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleInterfaceEndpoint VNC
+ */
+describe('NodeCommandService Class - handleInterfaceEndpoint VNC', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+    discoverInspectLabsStub.resolves(null);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should execute VNC capture command', async () => {
+    const payload = { nodeName: NODE_ROUTER1, interfaceName: INTERFACE_ETH0 };
+    const result = await service.handleInterfaceEndpoint(ENDPOINT_EDGESHARK_VNC, payload);
+
+    expect(result.error).to.be.null;
+    expect(result.result).to.include('VNC capture executed');
+    expect(vscode.commands.executed).to.have.lengthOf(1);
+    expect(vscode.commands.executed[0].command).to.equal('containerlab.interface.captureWithEdgesharkVNC');
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - handleInterfaceEndpoint Unknown
+ */
+describe('NodeCommandService Class - handleInterfaceEndpoint Unknown', () => {
+  beforeEach(() => {
+    vscode.resetVscodeStub();
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should return error for unknown interface endpoint', async () => {
+    const service = new NodeCommandService();
+    const payload = { nodeName: NODE_ROUTER1, interfaceName: INTERFACE_ETH0 };
+    const result = await service.handleInterfaceEndpoint(ENDPOINT_UNKNOWN, payload);
+
+    expect(result.result).to.be.null;
+    expect(result.error).to.include(MSG_UNKNOWN_ENDPOINT);
+    expect(result.error).to.include(ENDPOINT_UNKNOWN);
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - Interface Alias Resolution
+ */
+describe('NodeCommandService Class - Interface Alias Resolution', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should resolve alias to actual interface name for capture', async () => {
+    const container = createMockContainerNode({
+      name: NODE_ROUTER1,
+      interfaces: [createMockInterfaceNode({ name: INTERFACE_ETH0, alias: INTERFACE_ALIAS })]
+    });
+    discoverInspectLabsStub.resolves(createMockLabsData([container]));
+
+    const payload = { nodeName: NODE_ROUTER1, interfaceName: INTERFACE_ALIAS };
+    const result = await service.handleInterfaceEndpoint(ENDPOINT_CAPTURE, payload);
+
+    expect(result.error).to.be.null;
+    expect(result.result).to.include(INTERFACE_ETH0);
+  });
+});
+
+/**
+ * Tests for NodeCommandService Class - SROS Container Resolution
+ */
+describe('NodeCommandService Class - SROS Container Resolution', () => {
+  let discoverInspectLabsStub: sinon.SinonStub;
+  let service: InstanceType<typeof NodeCommandService>;
+
+  beforeEach(() => {
+    discoverInspectLabsStub = sinon.stub(extensionStub.runningLabsProvider, 'discoverInspectLabs');
+    vscode.resetVscodeStub();
+    service = new NodeCommandService();
+    service.setYamlFilePath(YAML_PATH);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+    vscode.resetVscodeStub();
+  });
+
+  it('should prefer slot A over slot B for SROS containers', async () => {
+    const srosB = createMockSrosContainer('sros1', 'B');
+    const srosA = createMockSrosContainer('sros1', 'A');
+    discoverInspectLabsStub.resolves(createMockLabsData([srosB, srosA]));
+
+    const result = await service.getContainerNode('sros1');
+    expect(result).to.not.be.undefined;
+    expect((result?.name_short as string)).to.include('-A');
+  });
+
+  it('should return undefined when no SROS containers match', async () => {
+    const sros = createMockSrosContainer('sros1', 'A');
+    discoverInspectLabsStub.resolves(createMockLabsData([sros]));
+
+    const result = await service.getContainerNode('nonexistent');
+    expect(result).to.be.undefined;
   });
 });
