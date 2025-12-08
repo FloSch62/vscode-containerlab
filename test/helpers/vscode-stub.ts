@@ -28,10 +28,12 @@ const createdTerminals: MockTerminal[] = [];
 export class MockWebviewPanel {
   viewType: string;
   title: string;
+  iconPath: any;
   webview: {
     html: string;
     onDidReceiveMessage: (callback: (message: any) => void) => { dispose: () => void };
     postMessage: (message: any) => Promise<boolean>;
+    asWebviewUri: (uri: any) => any;
   };
   private disposeCallbacks: (() => void)[] = [];
   private messageCallbacks: ((message: any) => void)[] = [];
@@ -39,6 +41,7 @@ export class MockWebviewPanel {
   constructor(viewType: string, title: string) {
     this.viewType = viewType;
     this.title = title;
+    this.iconPath = undefined;
     this.webview = {
       html: '',
       onDidReceiveMessage: (callback: (message: any) => void) => {
@@ -50,7 +53,8 @@ export class MockWebviewPanel {
           }
         };
       },
-      postMessage: async (_message: any) => true
+      postMessage: async (_message: any) => true,
+      asWebviewUri: (uri: any) => uri
     };
   }
 
@@ -277,6 +281,7 @@ export const ViewColumn = {
 
 export const env = {
   remoteName: undefined as string | undefined,
+  lastOpenedUrl: undefined as any,
   clipboard: {
     lastText: '',
     writeText(text: string) {
@@ -284,7 +289,8 @@ export const env = {
       return Promise.resolve();
     },
   },
-  openExternal(_uri: any) {
+  openExternal(uri: any) {
+    this.lastOpenedUrl = uri;
     return Promise.resolve(true);
   },
   asExternalUri(uri: any) {
@@ -406,5 +412,6 @@ export function resetVscodeStub(): void {
   }
   env.clipboard.lastText = '';
   env.remoteName = undefined;
+  env.lastOpenedUrl = undefined;
   clearConfigValues();
 }
