@@ -4,6 +4,12 @@ export const ProgressLocation = {
   Window: 3,
 };
 
+export const ConfigurationTarget = {
+  Global: 1,
+  Workspace: 2,
+  WorkspaceFolder: 3,
+} as const;
+
 export const ColorThemeKind = {
   Light: 1,
   Dark: 2,
@@ -23,6 +29,7 @@ export interface MockTerminal {
 }
 
 const createdTerminals: MockTerminal[] = [];
+const visibleEditors: Array<{ document: { uri: { fsPath: string } } }> = [];
 
 // Webview panel stub
 export class MockWebviewPanel {
@@ -91,6 +98,7 @@ export const window = {
   inputBoxResult: undefined as string | undefined,
   openDialogResult: undefined as { fsPath: string }[] | undefined,
   terminals: createdTerminals as MockTerminal[],
+  visibleTextEditors: visibleEditors,
   activeColorTheme: { kind: ColorThemeKind.Dark } as { kind: number },
   createOutputChannel(_name: string, options?: { log: boolean } | string) {
     const isLogChannel = typeof options === 'object' && options?.log;
@@ -166,6 +174,16 @@ export const window = {
     const panel = new MockWebviewPanel(viewType, title);
     return panel;
   },
+  showTextDocument(document: any, _column?: any): Promise<any> {
+    // Add to visibleEditors if document has a uri
+    if (document && document.uri) {
+      visibleEditors.push({ document: { uri: document.uri } });
+    }
+    return Promise.resolve({
+      document,
+      viewColumn: ViewColumn.One,
+    });
+  },
 };
 
 export const commands = {
@@ -190,7 +208,7 @@ export function clearConfigValues(): void {
 export const workspace = {
   workspaceFolders: [] as { uri: { fsPath: string }; name?: string }[],
   getConfiguration(_section?: string) {
-    return {
+    const configObj = {
       get: <T>(key: string, defaultValue?: T): T | undefined => {
         const fullKey = _section ? `${_section}.${key}` : key;
         if (fullKey in configValues) {
@@ -202,6 +220,30 @@ export const workspace = {
         }
         return defaultValue;
       },
+      has: (key: string): boolean => {
+        const fullKey = _section ? `${_section}.${key}` : key;
+        return fullKey in configValues;
+      },
+      inspect: <T>(key: string): { globalValue?: T; workspaceValue?: T; defaultValue?: T } | undefined => {
+        const fullKey = _section ? `${_section}.${key}` : key;
+        if (fullKey in configValues) {
+          return { globalValue: configValues[fullKey] as T };
+        }
+        return undefined;
+      },
+      update: async (key: string, value: any, _target?: number): Promise<void> => {
+        const fullKey = _section ? `${_section}.${key}` : key;
+        configValues[fullKey] = value;
+      },
+    };
+    return configObj;
+  },
+  async openTextDocument(pathOrUri: string | { fsPath: string }): Promise<any> {
+    const path = typeof pathOrUri === 'string' ? pathOrUri : pathOrUri.fsPath;
+    return {
+      uri: { fsPath: path },
+      getText: () => '',
+      fileName: path,
     };
   },
   updateWorkspaceFolders(
@@ -393,6 +435,18 @@ export function clearTerminals(): void {
   createdTerminals.length = 0;
 }
 
+export function clearVisibleEditors(): void {
+  visibleEditors.length = 0;
+}
+
+export function addVisibleEditor(filePath: string, _viewColumn?: number): void {
+  visibleEditors.push({
+    document: {
+      uri: { fsPath: filePath }
+    }
+  });
+}
+
 export function resetVscodeStub(): void {
   window.lastErrorMessage = '';
   window.lastInfoMessage = '';
@@ -403,6 +457,7 @@ export function resetVscodeStub(): void {
   window.openDialogResult = undefined;
   window.activeColorTheme = { kind: ColorThemeKind.Dark };
   createdTerminals.length = 0;
+  visibleEditors.length = 0;
   commands.executed.length = 0;
   // Handle case where workspaceFolders might be undefined
   if (workspace.workspaceFolders) {

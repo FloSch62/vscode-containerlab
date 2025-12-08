@@ -5,8 +5,15 @@ import sinon from 'sinon';
 import fs from 'fs';
 import path from 'path';
 import Module from 'module';
-import * as vscode from '../../helpers/vscode-stub';
-import { resetLoggerStub } from '../../helpers/extensionLogger-stub';
+
+// Clear require cache for modules we need to stub BEFORE setting up resolution
+const WEBVIEW_TAB_MANAGER_PATH = '../../../src/topoViewer/extension/services/WebviewTabManager';
+Object.keys(require.cache).forEach(key => {
+  // Clear all topoViewer modules and stubs to ensure fresh loads
+  if (key.includes('topoViewer') || key.includes('vscode-stub') || key.includes('extensionLogger-stub')) {
+    delete require.cache[key];
+  }
+});
 
 // Ensure module resolution uses stubs for vscode and logger
 const originalResolve = (Module as any)._resolveFilename;
@@ -20,7 +27,9 @@ const originalResolve = (Module as any)._resolveFilename;
   return originalResolve.call(this, request, parent, isMain, options);
 };
 
-const WEBVIEW_TAB_MANAGER_PATH = '../../../src/topoViewer/extension/services/WebviewTabManager';
+// Now import stubs
+import * as vscode from '../../helpers/vscode-stub';
+import { resetLoggerStub } from '../../helpers/extensionLogger-stub';
 const webviewTabManagerModule = require(WEBVIEW_TAB_MANAGER_PATH) as typeof import('../../../src/topoViewer/extension/services/WebviewTabManager');
 const { webviewTabManager } = webviewTabManagerModule;
 type TemplateParamsContext = Parameters<typeof webviewTabManager.getViewerTemplateParams>[0];

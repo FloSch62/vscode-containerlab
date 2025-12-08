@@ -16,6 +16,14 @@ import sinon from 'sinon';
 import Module from 'module';
 import path from 'path';
 
+// Clear require cache for modules we need to stub BEFORE setting up resolution
+Object.keys(require.cache).forEach(key => {
+  if (key.includes('localLabsProvider') || key.includes('treeView') ||
+      key.includes('vscode-stub') || key.includes('utils-stub')) {
+    delete require.cache[key];
+  }
+});
+
 // Stub the vscode module before importing the provider
 const originalResolve = (Module as any)._resolveFilename;
 (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
