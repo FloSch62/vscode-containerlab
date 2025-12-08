@@ -132,8 +132,32 @@ export function installContainerlab(): void {
   // no-op in tests
 }
 
-export function sanitize(input: string): string {
-  return input.replace(/[^a-zA-Z0-9_-]/g, '_');
+export function sanitize(
+  raw: string,
+  { maxLen = 128, lower = false }: { maxLen?: number; lower?: boolean } = {},
+): string {
+  if (!raw) return "container";
+
+  // Replace all disallowed characters (including "/") with "-"
+  let out = raw.replace(/[^A-Za-z0-9_.-]+/g, "-");
+
+  // Remove leading or trailing separators
+  while (out.startsWith("-") || out.startsWith(".")) out = out.substring(1);
+  while (out.endsWith("-") || out.endsWith(".")) out = out.slice(0, -1);
+
+  // Ensure the name starts with an alphanumeric character
+  if (!/^[A-Za-z0-9]/.test(out)) {
+    out = `c-${out}`;
+  }
+
+  // Enforce maximum length and trim any trailing separators again
+  if (out.length > maxLen) {
+    out = out.slice(0, maxLen);
+    while (out.endsWith("-") || out.endsWith(".")) out = out.slice(0, -1);
+  }
+
+  if (!out) out = "container";
+  return lower ? out.toLowerCase() : out;
 }
 
 // Container action enum matching the real implementation
