@@ -47,7 +47,8 @@ let packetflixStub: any;
 
 // Constants for test values
 const PACKETFLIX_RESULT: [string, string] = ['packetflix:ws://localhost:5001/capture', 'localhost'];
-const WIRESHARK_IMAGE = 'ghcr.io/srl-labs/clab-wireshark-vnc:latest';
+// This must match DEFAULT_WIRESHARK_VNC_DOCKER_IMAGE in src/utils/consts.ts
+const WIRESHARK_IMAGE = 'ghcr.io/kaelemc/wireshark-vnc-docker:latest';
 
 // Table-driven test cases
 interface CaptureInterfaceTestCase {

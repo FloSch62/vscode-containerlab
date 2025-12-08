@@ -83,10 +83,8 @@ export function normalizeLabPath(labPath: string, _singleFolderBase?: string): s
 }
 
 export function getRelativeFolderPath(targetPath: string): string {
-  // Return the directory portion of the path
-  const parts = targetPath.split('/');
-  parts.pop(); // Remove filename
-  return parts.join('/') || '/';
+  // Return relative path (simplified for stub)
+  return targetPath;
 }
 
 export function getRelLabFolderPath(labPath: string): string {
@@ -103,10 +101,8 @@ export function stripAnsi(input: string): string {
 }
 
 export function stripFileName(p: string): string {
-  // Return directory portion of path
-  const parts = p.split('/');
-  parts.pop();
-  return parts.join('/') || '/';
+  // Return directory portion of path (matches source behavior)
+  return p.substring(0, p.lastIndexOf('/'));
 }
 
 export function titleCase(str: string): string {

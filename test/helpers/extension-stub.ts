@@ -16,6 +16,7 @@ export let dockerClient: any = undefined;
 // Mutable state for tests
 export let hideNonOwnedLabsState = false;
 export let runningTreeView: any = undefined;
+export let localTreeView: any = undefined;
 export let username = 'testuser';
 export const favoriteLabs = new Set<string>();
 export const sshxSessions = new Map<string, string>();
@@ -84,6 +85,10 @@ export function setRunningTreeView(view: any): void {
   runningTreeView = view;
 }
 
+export function setLocalTreeView(view: any): void {
+  localTreeView = view;
+}
+
 export function setUsername(name: string): void {
   username = name;
 }
@@ -92,6 +97,7 @@ export function resetExtensionStub(): void {
   dockerClient = undefined;
   hideNonOwnedLabsState = false;
   runningTreeView = undefined;
+  localTreeView = undefined;
   username = 'testuser';
   // eslint-disable-next-line sonarjs/no-empty-collection
   favoriteLabs.clear();

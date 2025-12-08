@@ -351,3 +351,170 @@ describe('getHostname() - Orbstack environment', () => {
     expect(result.length).to.be.greaterThan(0);
   });
 });
+
+/**
+ * Test setSessionHostname validation callback
+ */
+describe('setSessionHostname() - input validation', () => {
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+    vscodeStub = require('../../helpers/vscode-stub');
+    packetflixModule = require('../../../src/utils/packetflix');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+  });
+
+  it('accepts valid hostname input', async () => {
+    vscodeStub.window.inputBoxResult = 'valid-hostname';
+    const result = await packetflixModule.setSessionHostname();
+    expect(result).to.be.true;
+  });
+
+  it('accepts IPv4 address', async () => {
+    vscodeStub.window.inputBoxResult = '192.168.1.1';
+    const result = await packetflixModule.setSessionHostname();
+    expect(result).to.be.true;
+  });
+
+  it('accepts IPv6 address', async () => {
+    vscodeStub.window.inputBoxResult = '2001:db8::1';
+    const result = await packetflixModule.setSessionHostname();
+    expect(result).to.be.true;
+  });
+
+  it('accepts FQDN', async () => {
+    vscodeStub.window.inputBoxResult = 'server.example.com';
+    const result = await packetflixModule.setSessionHostname();
+    expect(result).to.be.true;
+  });
+});
+
+/**
+ * Test getHostname priority order
+ */
+describe('getHostname() - priority order', () => {
+  let originalSshConnection: string | undefined;
+  let utilsStub: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+    vscodeStub = require('../../helpers/vscode-stub');
+    utilsStub = require('../../helpers/utils-stub');
+    packetflixModule = require('../../../src/utils/packetflix');
+    originalSshConnection = process.env.SSH_CONNECTION;
+  });
+
+  after(() => {
+    if (originalSshConnection !== undefined) {
+      process.env.SSH_CONNECTION = originalSshConnection;
+    } else {
+      delete process.env.SSH_CONNECTION;
+    }
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+    utilsStub.resetIsOrbstack();
+  });
+
+  it('config hostname takes precedence over all others', async () => {
+    vscodeStub.setConfigValue('containerlab.capture.remoteHostname', 'config-host');
+    vscodeStub.env.remoteName = 'wsl';
+    const result = await packetflixModule.getHostname();
+    expect(result).to.equal('config-host');
+  });
+
+  it('WSL takes precedence over SSH remote when not configured', async () => {
+    vscodeStub.env.remoteName = 'wsl';
+    process.env.SSH_CONNECTION = '10.0.0.1 123 10.0.0.2 22';
+    const result = await packetflixModule.getHostname();
+    expect(result).to.equal('localhost');
+  });
+});
+
+/**
+ * Test genPacketflixURI additional cases
+ */
+describe('genPacketflixURI() - additional error cases', () => {
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+    vscodeStub = require('../../helpers/vscode-stub');
+    packetflixModule = require('../../../src/utils/packetflix');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+  });
+
+  it('returns undefined when nodes is undefined', async () => {
+    const result = await packetflixModule.genPacketflixURI(undefined);
+    expect(result).to.be.undefined;
+  });
+
+  it('shows error message for empty nodes', async () => {
+    await packetflixModule.genPacketflixURI([]);
+    expect(vscodeStub.window.lastErrorMessage).to.include('No interface');
+  });
+});
+
+/**
+ * Resolving OrbStack IPv4 fallback
+ */
+describe('getHostname() - Orbstack fallback', () => {
+  let utilsStub: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+    vscodeStub = require('../../helpers/vscode-stub');
+    utilsStub = require('../../helpers/utils-stub');
+    packetflixModule = require('../../../src/utils/packetflix');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+    utilsStub.resetIsOrbstack();
+  });
+
+  it('falls back when Orbstack has no eth0 interface', async () => {
+    utilsStub.setIsOrbstack(true);
+    vscodeStub.env.remoteName = undefined;
+    // With Orbstack but no eth0, should eventually return something
+    const result = await packetflixModule.getHostname();
+    expect(result).to.be.a('string');
+  });
+});
