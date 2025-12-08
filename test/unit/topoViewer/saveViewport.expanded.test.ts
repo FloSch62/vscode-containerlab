@@ -622,5 +622,373 @@ topology:
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    it('skips freeShape nodes', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-shape-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = 'name: test\ntopology:\n  nodes:\n    node1: {}\n';
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: {} },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: { id: 'shape-1', name: 'Rectangle', topoViewerRole: 'freeShape', extraData: {} },
+          position: { x: 50, y: 50 },
+          parent: ''
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        expect(parsed?.topology?.nodes?.['shape-1']).to.be.undefined;
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('existing link updates', () => {
+    it('updates existing veth link without changes (preserves format)', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-nochg-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = `name: test
+topology:
+  nodes:
+    node1: {}
+    node2: {}
+  links:
+    - endpoints: ["node1:eth0", "node2:eth0"]
+`;
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: { id: 'node2', name: 'node2', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 100, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'edges',
+          data: {
+            id: 'node1:eth0-node2:eth0',
+            source: 'node1',
+            target: 'node2',
+            sourceEndpoint: 'eth0',
+            targetEndpoint: 'eth0',
+            extraData: {}
+          }
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        expect(parsed?.topology?.links).to.have.length(1);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('updates existing link with mtu change', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-mtu-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = `name: test
+topology:
+  nodes:
+    node1: {}
+    node2: {}
+  links:
+    - endpoints: ["node1:eth0", "node2:eth0"]
+`;
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: { id: 'node2', name: 'node2', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 100, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'edges',
+          data: {
+            id: 'node1:eth0-node2:eth0',
+            source: 'node1',
+            target: 'node2',
+            sourceEndpoint: 'eth0',
+            targetEndpoint: 'eth0',
+            extraData: { extMtu: 9000 }
+          }
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        expect(parsed?.topology?.links).to.have.length(1);
+        expect(parsed?.topology?.links?.[0]?.mtu).to.equal(9000);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('bridge alias nodes', () => {
+    it('handles bridge alias nodes with extYamlNodeId', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-alias-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = `name: test
+topology:
+  nodes:
+    br1:
+      kind: bridge
+    node1:
+      kind: linux
+`;
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: {
+            id: 'br1:eth0',
+            name: 'br1:eth0',
+            topoViewerRole: 'bridge',
+            extraData: { kind: 'bridge', extYamlNodeId: 'br1' }
+          },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 100, y: 0 },
+          parent: ''
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        // br1 should still exist
+        expect(parsed?.topology?.nodes?.br1).to.exist;
+        // br1:eth0 should NOT be a separate node
+        expect(parsed?.topology?.nodes?.['br1:eth0']).to.be.undefined;
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('handles bridge rename through alias node', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-brrename-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = `name: test
+topology:
+  nodes:
+    br1:
+      kind: bridge
+`;
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      // Rename br1 to new-bridge via alias
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: {
+            id: 'br1:eth0',
+            name: 'br1:eth0',
+            topoViewerRole: 'bridge',
+            extraData: { kind: 'bridge', extYamlNodeId: 'new-bridge' }
+          },
+          position: { x: 0, y: 0 },
+          parent: ''
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        expect(parsed?.topology?.nodes?.['new-bridge']).to.exist;
+        expect(parsed?.topology?.nodes?.br1).to.be.undefined;
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('cloud nodes', () => {
+    it('handles cloud node annotations', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-cloud-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = 'name: test\ntopology:\n  nodes:\n    node1: {}\n';
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      const saveStub = sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: {
+            id: 'cloud1',
+            name: 'cloud1',
+            topoViewerRole: 'cloud',
+            extraData: { kind: 'bridge' }
+          },
+          position: { x: 200, y: 200 },
+          parent: ''
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        // Cloud node annotations should be saved
+        expect(saveStub.called).to.be.true;
+        const savedAnnotations = saveStub.firstCall?.args[1];
+        expect(savedAnnotations?.cloudNodeAnnotations).to.exist;
+        expect(savedAnnotations?.cloudNodeAnnotations).to.have.length(1);
+        if (savedAnnotations?.cloudNodeAnnotations) {
+          expect(savedAnnotations.cloudNodeAnnotations[0]?.id).to.equal('cloud1');
+        }
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 });

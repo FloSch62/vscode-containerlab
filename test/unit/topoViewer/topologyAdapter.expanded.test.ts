@@ -456,4 +456,274 @@ topology:
       expect(elements.length).to.be.greaterThan(0);
     });
   });
+
+  describe('property initialization', () => {
+    it('initializes with undefined currentClabTopo', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      expect(adaptor.currentClabTopo).to.be.undefined;
+    });
+
+    it('initializes with undefined currentClabDoc', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      expect(adaptor.currentClabDoc).to.be.undefined;
+    });
+
+    it('initializes with undefined currentClabName', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      expect(adaptor.currentClabName).to.be.undefined;
+    });
+
+    it('initializes with undefined currentClabPrefix', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      expect(adaptor.currentClabPrefix).to.be.undefined;
+    });
+
+    it('initializes with undefined allowedhostname', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      expect(adaptor.allowedhostname).to.be.undefined;
+    });
+  });
+
+  describe('bridge kind handling', () => {
+    it('handles bridge nodes correctly', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  nodes:
+    br1:
+      kind: bridge
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'br1');
+      expect(node).to.exist;
+      expect(node?.data?.topoViewerRole).to.equal('bridge');
+    });
+
+    it('handles ovs-bridge nodes correctly', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  nodes:
+    ovs1:
+      kind: ovs-bridge
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'ovs1');
+      expect(node).to.exist;
+      expect(node?.data?.topoViewerRole).to.equal('bridge');
+    });
+  });
+
+  describe('ipvlan links', () => {
+    it('handles ipvlan link type', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  nodes:
+    node1:
+      kind: linux
+  links:
+    - type: ipvlan
+      endpoint: node1:ipvlan0
+      host-interface: eth0
+      mode: l2
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      expect(elements.length).to.be.greaterThan(0);
+    });
+  });
+
+  describe('prefix handling', () => {
+    it('handles custom prefix', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+prefix: myprefix
+topology:
+  nodes:
+    node1:
+      kind: linux
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'node1');
+      expect(node?.data?.extraData?.labdir).to.equal('myprefix-test/');
+    });
+
+    it('handles empty prefix', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+prefix: ""
+topology:
+  nodes:
+    node1:
+      kind: linux
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'node1');
+      expect(node?.data?.extraData?.labdir).to.equal('');
+    });
+
+    it('handles whitespace-only prefix', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+prefix: "   "
+topology:
+  nodes:
+    node1:
+      kind: linux
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'node1');
+      expect(node?.data?.extraData?.labdir).to.equal('');
+    });
+
+    it('uses default clab prefix when not specified', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  nodes:
+    node1:
+      kind: linux
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'node1');
+      expect(node?.data?.extraData?.labdir).to.equal('clab-test/');
+    });
+  });
+
+  describe('kinds defaults', () => {
+    it('handles kind-specific defaults', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  kinds:
+    linux:
+      image: debian:latest
+  nodes:
+    node1:
+      kind: linux
+    node2:
+      kind: linux
+      image: ubuntu:latest
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node1 = elements.find(el => el.data?.id === 'node1');
+      const node2 = elements.find(el => el.data?.id === 'node2');
+      expect(node1?.data?.extraData?.image).to.equal('debian:latest');
+      expect(node2?.data?.extraData?.image).to.equal('ubuntu:latest');
+    });
+  });
+
+  describe('edge state handling', () => {
+    it('returns link-down when source state is down', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const topology = { nodes: { n1: {}, n2: {} } };
+      const result = adaptor.computeEdgeClassFromStates(topology, 'n1', 'n2', 'down', 'up');
+      expect(result).to.equal('link-down');
+    });
+
+    it('returns link-down when target state is down', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const topology = { nodes: { n1: {}, n2: {} } };
+      const result = adaptor.computeEdgeClassFromStates(topology, 'n1', 'n2', 'up', 'down');
+      expect(result).to.equal('link-down');
+    });
+
+    it('returns link-down with uppercase DOWN state', () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const topology = { nodes: { n1: {}, n2: {} } };
+      const result = adaptor.computeEdgeClassFromStates(topology, 'n1', 'n2', 'UP', 'DOWN');
+      expect(result).to.equal('link-down');
+    });
+  });
+
+  describe('topology without name', () => {
+    it('handles topology without name', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+topology:
+  nodes:
+    node1:
+      kind: linux
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      expect(elements.length).to.be.greaterThan(0);
+    });
+  });
+
+  describe('empty node object', () => {
+    it('handles node with empty object value', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  nodes:
+    node1: {}
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      expect(elements.length).to.be.greaterThan(0);
+      const node = elements.find(el => el.data?.id === 'node1');
+      expect(node).to.exist;
+    });
+  });
+
+  describe('node labels sanitization', () => {
+    it('removes graph-* labels from extraData', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  nodes:
+    node1:
+      kind: linux
+      labels:
+        graph-posX: "100"
+        graph-posY: "200"
+        custom-label: "value"
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'node1');
+      expect(node?.data?.extraData?.labels).to.not.have.property('graph-posX');
+      expect(node?.data?.extraData?.labels).to.not.have.property('graph-posY');
+      expect(node?.data?.extraData?.labels).to.have.property('custom-label', 'value');
+    });
+
+    it('handles all graph-* labels for removal', async () => {
+      const adaptor = new TopoViewerAdaptorClab();
+      const yaml = `
+name: test
+topology:
+  nodes:
+    node1:
+      kind: linux
+      labels:
+        graph-posX: "100"
+        graph-posY: "200"
+        graph-icon: "router"
+        graph-geoCoordinateLat: "51.5"
+        graph-geoCoordinateLng: "-0.12"
+        graph-groupLabelPos: "top"
+        graph-group: "spines"
+        graph-level: "1"
+`;
+      const elements = await adaptor.clabYamlToCytoscapeElementsEditor(yaml);
+      const node = elements.find(el => el.data?.id === 'node1');
+      const labels = node?.data?.extraData?.labels;
+      expect(labels).to.not.have.property('graph-posX');
+      expect(labels).to.not.have.property('graph-posY');
+      expect(labels).to.not.have.property('graph-icon');
+      expect(labels).to.not.have.property('graph-geoCoordinateLat');
+      expect(labels).to.not.have.property('graph-geoCoordinateLng');
+      expect(labels).to.not.have.property('graph-groupLabelPos');
+      expect(labels).to.not.have.property('graph-group');
+      expect(labels).to.not.have.property('graph-level');
+    });
+  });
 });
