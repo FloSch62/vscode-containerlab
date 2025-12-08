@@ -113,8 +113,19 @@ export function titleCase(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// Configurable isOrbstack for testing
+let isOrbstackValue = false;
+
 export function isOrbstack(): boolean {
-  return false;
+  return isOrbstackValue;
+}
+
+export function setIsOrbstack(value: boolean): void {
+  isOrbstackValue = value;
+}
+
+export function resetIsOrbstack(): void {
+  isOrbstackValue = false;
 }
 
 export function getConfig(_relCfgPath: string): any {

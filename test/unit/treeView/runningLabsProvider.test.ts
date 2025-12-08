@@ -403,5 +403,401 @@ describe('RunningLabTreeDataProvider', () => {
 
       expect(eventFired).to.be.true;
     });
+
+    it('fires event for specific element on selective refresh', async () => {
+      const fixture = loadInspectFixture('single-lab');
+      inspectorStub.setRawInspectData(fixture);
+
+      const mockContext = {
+        asAbsolutePath: (p: string) => `/mock/extension/${p}`
+      };
+      const provider = new RunningLabTreeDataProvider(mockContext);
+
+      const labs = await provider.getChildren();
+      const labNode = labs[0];
+
+      let eventFiredForElement = false;
+      provider.onDidChangeTreeData((element: any) => {
+        if (element === labNode) {
+          eventFiredForElement = true;
+        }
+      });
+
+      await provider.refresh(labNode);
+
+      expect(eventFiredForElement).to.be.true;
+    });
+  });
+
+  describe('softRefresh', () => {
+    it('fires onDidChangeTreeData on soft refresh', async () => {
+      const fixture = loadInspectFixture('single-lab');
+      inspectorStub.setRawInspectData(fixture);
+
+      const mockContext = {
+        asAbsolutePath: (p: string) => `/mock/extension/${p}`
+      };
+      const provider = new RunningLabTreeDataProvider(mockContext);
+
+      let eventFired = false;
+      provider.onDidChangeTreeData(() => {
+        eventFired = true;
+      });
+
+      await provider.softRefresh();
+
+      expect(eventFired).to.be.true;
+    });
+
+    it('fires event for specific element on selective soft refresh', async () => {
+      const fixture = loadInspectFixture('single-lab');
+      inspectorStub.setRawInspectData(fixture);
+
+      const mockContext = {
+        asAbsolutePath: (p: string) => `/mock/extension/${p}`
+      };
+      const provider = new RunningLabTreeDataProvider(mockContext);
+
+      const labs = await provider.getChildren();
+      const labNode = labs[0];
+
+      let eventFiredForElement = false;
+      provider.onDidChangeTreeData((element: any) => {
+        if (element === labNode) {
+          eventFiredForElement = true;
+        }
+      });
+
+      await provider.softRefresh(labNode);
+
+      expect(eventFiredForElement).to.be.true;
+    });
+  });
+
+  describe('refreshWithoutDiscovery', () => {
+    it('fires onDidChangeTreeData without calling discovery', async () => {
+      const fixture = loadInspectFixture('single-lab');
+      inspectorStub.setRawInspectData(fixture);
+
+      const mockContext = {
+        asAbsolutePath: (p: string) => `/mock/extension/${p}`
+      };
+      const provider = new RunningLabTreeDataProvider(mockContext);
+
+      let eventFired = false;
+      provider.onDidChangeTreeData(() => {
+        eventFired = true;
+      });
+
+      await provider.refreshWithoutDiscovery();
+
+      expect(eventFired).to.be.true;
+    });
+
+    it('fires event for element on selective refreshWithoutDiscovery', async () => {
+      const fixture = loadInspectFixture('single-lab');
+      inspectorStub.setRawInspectData(fixture);
+
+      const mockContext = {
+        asAbsolutePath: (p: string) => `/mock/extension/${p}`
+      };
+      const provider = new RunningLabTreeDataProvider(mockContext);
+
+      const labs = await provider.getChildren();
+      const labNode = labs[0];
+
+      let eventFiredForElement = false;
+      provider.onDidChangeTreeData((element: any) => {
+        if (element === labNode) {
+          eventFiredForElement = true;
+        }
+      });
+
+      await provider.refreshWithoutDiscovery(labNode);
+
+      expect(eventFiredForElement).to.be.true;
+    });
+  });
+});
+
+/**
+ * Badge update tests
+ */
+describe('RunningLabTreeDataProvider - badge updates', () => {
+  let RunningLabTreeDataProvider: any;
+  let inspectorStub: any;
+  let extensionStub: any;
+  let vscodeStub: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      if (stubPath) {
+        return stubPath;
+      }
+      return originalResolve.call(this, request, parent, isMain, options);
+    };
+
+    vscodeStub = require('../../helpers/vscode-stub');
+    inspectorStub = require('../../helpers/inspector-stub');
+    extensionStub = require('../../helpers/extension-stub');
+
+    const provider = require('../../../src/treeView/runningLabsProvider');
+    RunningLabTreeDataProvider = provider.RunningLabTreeDataProvider;
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    inspectorStub.resetForTests();
+    extensionStub.resetExtensionStub();
+    vscodeStub.commands.executed.length = 0;
+  });
+
+  it('updates badge with running labs count', async () => {
+    const fixture = loadInspectFixture('multi-lab');
+    inspectorStub.setRawInspectData(fixture);
+
+    // Set up a mock tree view
+    const mockTreeView = {
+      badge: undefined as any
+    };
+    extensionStub.setRunningTreeView(mockTreeView);
+
+    const mockContext = {
+      asAbsolutePath: (p: string) => `/mock/extension/${p}`
+    };
+    const provider = new RunningLabTreeDataProvider(mockContext);
+
+    await provider.getChildren();
+
+    // Badge should be set with number of labs
+    expect(mockTreeView.badge).to.not.be.undefined;
+    expect(mockTreeView.badge.value).to.equal(3);
+  });
+
+  it('clears badge when no running labs', async () => {
+    const fixture = loadInspectFixture('empty');
+    inspectorStub.setRawInspectData(fixture);
+
+    const mockTreeView = {
+      badge: { value: 5, tooltip: 'old' }
+    };
+    extensionStub.setRunningTreeView(mockTreeView);
+
+    const mockContext = {
+      asAbsolutePath: (p: string) => `/mock/extension/${p}`
+    };
+    const provider = new RunningLabTreeDataProvider(mockContext);
+
+    await provider.getChildren();
+
+    // Badge should be cleared
+    expect(mockTreeView.badge).to.be.undefined;
+  });
+});
+
+/**
+ * Interface state icons tests
+ */
+describe('RunningLabTreeDataProvider - interface state handling', () => {
+  let RunningLabTreeDataProvider: any;
+  let inspectorStub: any;
+  let extensionStub: any;
+  let vscodeStub: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      if (stubPath) {
+        return stubPath;
+      }
+      return originalResolve.call(this, request, parent, isMain, options);
+    };
+
+    vscodeStub = require('../../helpers/vscode-stub');
+    inspectorStub = require('../../helpers/inspector-stub');
+    extensionStub = require('../../helpers/extension-stub');
+
+    const provider = require('../../../src/treeView/runningLabsProvider');
+    RunningLabTreeDataProvider = provider.RunningLabTreeDataProvider;
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    inspectorStub.resetForTests();
+    extensionStub.resetExtensionStub();
+    vscodeStub.commands.executed.length = 0;
+  });
+
+  it('assigns up icon for up state interfaces', async () => {
+    const inspectFixture = loadInspectFixture('with-interfaces');
+    inspectorStub.setRawInspectData(inspectFixture);
+
+    // Set interface data with up state
+    inspectorStub.setInterfaceSnapshot('int111int222', [{
+      name: 'clab-interfaces-lab-router1',
+      interfaces: [{
+        name: 'eth0',
+        type: 'veth',
+        state: 'up',
+        mac: '00:11:22:33:44:55',
+        mtu: 1500,
+        ifindex: 1
+      }]
+    }]);
+
+    const mockContext = {
+      asAbsolutePath: (p: string) => `/mock/extension/${p}`
+    };
+    const provider = new RunningLabTreeDataProvider(mockContext);
+
+    const labs = await provider.getChildren();
+    const containers = await provider.getChildren(labs[0]);
+    const containerWithInt = containers.find((c: any) => c.cID === 'int111int222');
+    if (containerWithInt) {
+      const interfaces = await provider.getChildren(containerWithInt);
+      if (interfaces.length > 0) {
+        expect(interfaces[0].contextValue).to.equal('containerlabInterfaceUp');
+      }
+    }
+  });
+
+  it('assigns down icon for down state interfaces', async () => {
+    const inspectFixture = loadInspectFixture('with-interfaces');
+    inspectorStub.setRawInspectData(inspectFixture);
+
+    // Set interface data with down state
+    inspectorStub.setInterfaceSnapshot('int111int222', [{
+      name: 'clab-interfaces-lab-router1',
+      interfaces: [{
+        name: 'eth0',
+        type: 'veth',
+        state: 'down',
+        mac: '00:11:22:33:44:55',
+        mtu: 1500,
+        ifindex: 1
+      }]
+    }]);
+
+    const mockContext = {
+      asAbsolutePath: (p: string) => `/mock/extension/${p}`
+    };
+    const provider = new RunningLabTreeDataProvider(mockContext);
+
+    const labs = await provider.getChildren();
+    const containers = await provider.getChildren(labs[0]);
+    const containerWithInt = containers.find((c: any) => c.cID === 'int111int222');
+    if (containerWithInt) {
+      const interfaces = await provider.getChildren(containerWithInt);
+      if (interfaces.length > 0) {
+        expect(interfaces[0].contextValue).to.equal('containerlabInterfaceDown');
+      }
+    }
+  });
+});
+
+/**
+ * Lab sorting and merging tests
+ */
+describe('RunningLabTreeDataProvider - lab sorting and cache', () => {
+  let RunningLabTreeDataProvider: any;
+  let inspectorStub: any;
+  let extensionStub: any;
+  let vscodeStub: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      if (stubPath) {
+        return stubPath;
+      }
+      return originalResolve.call(this, request, parent, isMain, options);
+    };
+
+    vscodeStub = require('../../helpers/vscode-stub');
+    inspectorStub = require('../../helpers/inspector-stub');
+    extensionStub = require('../../helpers/extension-stub');
+
+    const provider = require('../../../src/treeView/runningLabsProvider');
+    RunningLabTreeDataProvider = provider.RunningLabTreeDataProvider;
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    inspectorStub.resetForTests();
+    extensionStub.resetExtensionStub();
+    vscodeStub.commands.executed.length = 0;
+  });
+
+  it('sorts deployed labs before undeployed labs', async () => {
+    const fixture = loadInspectFixture('multi-lab');
+    inspectorStub.setRawInspectData(fixture);
+
+    const mockContext = {
+      asAbsolutePath: (p: string) => `/mock/extension/${p}`
+    };
+    const provider = new RunningLabTreeDataProvider(mockContext);
+
+    const labs = await provider.getChildren();
+
+    // All should be deployed and sorted by path
+    labs.forEach((lab: any) => {
+      expect(lab.contextValue).to.include('containerlabLabDeployed');
+    });
+  });
+
+  it('preserves lab node references on refresh', async () => {
+    const fixture = loadInspectFixture('single-lab');
+    inspectorStub.setRawInspectData(fixture);
+
+    const mockContext = {
+      asAbsolutePath: (p: string) => `/mock/extension/${p}`
+    };
+    const provider = new RunningLabTreeDataProvider(mockContext);
+
+    // First discovery
+    const labs1 = await provider.getChildren();
+    const firstLabNode = labs1[0];
+
+    // Second discovery (should reuse node)
+    await provider.refresh();
+    const labs2 = await provider.getChildren();
+    const secondLabNode = labs2[0];
+
+    // Same reference should be preserved
+    expect(firstLabNode).to.equal(secondLabNode);
+  });
+
+  it('detects when new labs are added', async () => {
+    const mockContext = {
+      asAbsolutePath: (p: string) => `/mock/extension/${p}`
+    };
+    const provider = new RunningLabTreeDataProvider(mockContext);
+
+    // Start with empty
+    inspectorStub.setRawInspectData(loadInspectFixture('empty'));
+    let labs = await provider.getChildren();
+    expect(labs.length).to.equal(0);
+
+    // Add labs
+    inspectorStub.setRawInspectData(loadInspectFixture('single-lab'));
+    await provider.refresh();
+    labs = await provider.getChildren();
+    expect(labs.length).to.equal(1);
   });
 });

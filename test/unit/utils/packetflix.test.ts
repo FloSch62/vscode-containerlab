@@ -28,8 +28,15 @@ function getStubPath(request: string): string | null {
   if (request.includes('edgeshark') && !request.includes('stub') && !request.includes('.test')) {
     return path.join(__dirname, '..', '..', 'helpers', 'edgeshark-stub.js');
   }
+  // Stub ./utils (the utils module) but NOT packetflix itself
+  if ((request.endsWith('/utils') || request.endsWith('./utils')) && !request.includes('stub') && !request.includes('.test') && !request.includes('packetflix')) {
+    return path.join(__dirname, '..', '..', 'helpers', 'utils-stub.js');
+  }
   return null;
 }
+
+// Constants to avoid duplicate string literals
+const SSH_REMOTE = 'ssh-remote';
 
 // Shared context
 let packetflixModule: any;
@@ -170,14 +177,14 @@ describe('getHostname() - SSH environment', () => {
   });
 
   it('extracts IP from SSH_CONNECTION for ssh-remote', async () => {
-    vscodeStub.env.remoteName = 'ssh-remote';
+    vscodeStub.env.remoteName = SSH_REMOTE;
     process.env.SSH_CONNECTION = '192.168.1.10 54321 192.168.1.20 22';
     const result = await packetflixModule.getHostname();
     expect(result).to.equal('192.168.1.20');
   });
 
   it('falls back to localhost when SSH_CONNECTION missing', async () => {
-    vscodeStub.env.remoteName = 'ssh-remote';
+    vscodeStub.env.remoteName = SSH_REMOTE;
     delete process.env.SSH_CONNECTION;
     const result = await packetflixModule.getHostname();
     expect(result).to.equal('localhost');
@@ -213,5 +220,134 @@ describe('genPacketflixURI() - error handling', () => {
   it('returns undefined for null/undefined nodes', async () => {
     const result = await packetflixModule.genPacketflixURI(null);
     expect(result).to.be.undefined;
+  });
+});
+
+/**
+ * Session hostname tests - cover line 218-221
+ */
+describe('getHostname() - session hostname', () => {
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+    vscodeStub = require('../../helpers/vscode-stub');
+    packetflixModule = require('../../../src/utils/packetflix');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+  });
+
+  it('uses sessionHostname when set', async () => {
+    // First set the session hostname
+    vscodeStub.window.inputBoxResult = 'my-session-host';
+    await packetflixModule.setSessionHostname();
+
+    // Now getHostname should return it
+    vscodeStub.env.remoteName = undefined;
+    const result = await packetflixModule.getHostname();
+    expect(result).to.equal('my-session-host');
+  });
+});
+
+/**
+ * SSH environment extended tests
+ */
+describe('getHostname() - SSH connection parsing', () => {
+  let originalSshConnection: string | undefined;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+    vscodeStub = require('../../helpers/vscode-stub');
+    packetflixModule = require('../../../src/utils/packetflix');
+    originalSshConnection = process.env.SSH_CONNECTION;
+  });
+
+  after(() => {
+    if (originalSshConnection !== undefined) {
+      process.env.SSH_CONNECTION = originalSshConnection;
+    } else {
+      delete process.env.SSH_CONNECTION;
+    }
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+  });
+
+  it('handles malformed SSH_CONNECTION string', async () => {
+    vscodeStub.env.remoteName = SSH_REMOTE;
+    process.env.SSH_CONNECTION = 'invalid';
+    const result = await packetflixModule.getHostname();
+    // Falls back to localhost when parts are insufficient
+    expect(result).to.equal('localhost');
+  });
+
+  it('handles empty SSH_CONNECTION string', async () => {
+    vscodeStub.env.remoteName = SSH_REMOTE;
+    process.env.SSH_CONNECTION = '';
+    const result = await packetflixModule.getHostname();
+    expect(result).to.equal('localhost');
+  });
+
+  it('parses IPv6 address from SSH_CONNECTION', async () => {
+    vscodeStub.env.remoteName = SSH_REMOTE;
+    process.env.SSH_CONNECTION = '::1 54321 2001:db8::1 22';
+    const result = await packetflixModule.getHostname();
+    expect(result).to.equal('2001:db8::1');
+  });
+});
+
+/**
+ * Orbstack environment tests
+ */
+describe('getHostname() - Orbstack environment', () => {
+  let utilsStub: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+    vscodeStub = require('../../helpers/vscode-stub');
+    utilsStub = require('../../helpers/utils-stub');
+    packetflixModule = require('../../../src/utils/packetflix');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+    utilsStub.resetIsOrbstack();
+  });
+
+  it('attempts to resolve Orbstack IPv4 when in Orbstack environment', async () => {
+    utilsStub.setIsOrbstack(true);
+    vscodeStub.env.remoteName = undefined;
+
+    // Orbstack will try to resolve IPv4 from network interfaces
+    // It may return an IP or fall back to localhost
+    const result = await packetflixModule.getHostname();
+    // Should return either an IP address or localhost
+    expect(result).to.be.a('string');
+    expect(result.length).to.be.greaterThan(0);
   });
 });

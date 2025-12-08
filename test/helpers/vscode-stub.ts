@@ -165,12 +165,41 @@ export const window = {
     this.lastWarningMessage = message;
     return Promise.resolve(this.lastWarningSelection);
   },
+  // Properties for controlling withProgress behavior in tests
+  withProgressShouldCancel: false,
+  withProgressCancelDelay: 0,
+  lastProgressReports: [] as { message?: string }[],
+
   withProgress<T>(
     _options: { location: number; title: string; cancellable: boolean },
-    task: () => Promise<T>
+    task: (progress: { report: (value: { message?: string }) => void }, token: { isCancellationRequested: boolean; onCancellationRequested: (cb: () => void) => { dispose: () => void } }) => Promise<T>
   ): Promise<T> {
-    // Simply execute the task without progress UI
-    return task();
+    // Create mock progress object
+    const progress = {
+      report: (value: { message?: string }) => {
+        window.lastProgressReports.push(value);
+      }
+    };
+
+    // Create mock cancellation token
+    let cancelCallback: (() => void) | null = null;
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: (cb: () => void) => {
+        cancelCallback = cb;
+        // If test configured to cancel, do it after delay
+        if (window.withProgressShouldCancel) {
+          setTimeout(() => {
+            token.isCancellationRequested = true;
+            if (cancelCallback) cancelCallback();
+          }, window.withProgressCancelDelay);
+        }
+        return { dispose: () => { cancelCallback = null; } };
+      }
+    };
+
+    // Execute the task with progress and token
+    return task(progress, token);
   },
   showQuickPick(_items: string[], _options?: any): Promise<string | undefined> {
     return Promise.resolve(this.quickPickResult);
@@ -288,42 +317,38 @@ export const workspace = {
   },
 };
 
-export const Uri = {
-  file(p: string) {
-    return {
-      fsPath: p,
-      path: p,
-      toString: () => p,
-      with: (change: { path?: string }) => {
-        const newPath = change.path ?? p;
-        return { fsPath: newPath, path: newPath, toString: () => newPath };
-      }
-    };
-  },
-  joinPath(...parts: any[]) {
-    const pathVal = parts.map(p => (typeof p === 'string' ? p : p.fsPath)).join('/');
-    return {
-      fsPath: pathVal,
-      path: pathVal,
-      toString: () => pathVal,
-      with: (change: { path?: string }) => {
-        const newPath = change.path ?? pathVal;
-        return { fsPath: newPath, path: newPath, toString: () => newPath };
-      }
-    };
-  },
-  parse(uri: string) {
-    return {
-      fsPath: uri,
-      path: uri,
-      toString: () => uri,
-      with: (change: { path?: string }) => {
-        const newPath = change.path ?? uri;
-        return { fsPath: newPath, path: newPath, toString: () => newPath };
-      }
-    };
-  },
-};
+// Uri class for instanceof support
+export class Uri {
+  public fsPath: string;
+  public path: string;
+
+  private constructor(pathVal: string) {
+    this.fsPath = pathVal;
+    this.path = pathVal;
+  }
+
+  toString(): string {
+    return this.fsPath;
+  }
+
+  with(change: { path?: string }): Uri {
+    const newPath = change.path ?? this.fsPath;
+    return Uri.file(newPath);
+  }
+
+  static file(p: string): Uri {
+    return new Uri(p);
+  }
+
+  static joinPath(...parts: any[]): Uri {
+    const pathVal = parts.map((p: any) => (typeof p === 'string' ? p : p.fsPath)).join('/');
+    return new Uri(pathVal);
+  }
+
+  static parse(uri: string): Uri {
+    return new Uri(uri);
+  }
+}
 
 export class TreeItem {
   public iconPath: any;
@@ -510,6 +535,9 @@ export function resetVscodeStub(): void {
   window.openDialogResult = undefined;
   window.activeColorTheme = { kind: ColorThemeKind.Dark };
   window.lastWebviewPanel = undefined;
+  window.withProgressShouldCancel = false;
+  window.withProgressCancelDelay = 0;
+  window.lastProgressReports = [];
   createdTerminals.length = 0;
   visibleEditors.length = 0;
   commands.executed.length = 0;

@@ -27,6 +27,9 @@ function getStubPath(request: string): string | null {
   if (request.includes('utils/index') || (request.includes('utils') && !request.includes('stub') && !request.includes('utils.ts'))) {
     return path.join(__dirname, '..', '..', 'helpers', 'utils-stub.js');
   }
+  if (request === 'child_process') {
+    return path.join(__dirname, '..', '..', 'helpers', 'child-process-stub.js');
+  }
   return null;
 }
 
@@ -36,6 +39,9 @@ const TERMINAL_NAME_FOCUS = 'Focus Terminal';
 const TERMINAL_NAME_NEW_REUSE = 'New Reuse Terminal';
 const CMD_TEST_COMMAND = 'test-command';
 const CMD_ECHO_HELLO = 'echo hello';
+const MSG_RUNNING = 'Running...';
+const MSG_DONE = 'Done!';
+const MSG_TESTING = 'Testing...';
 
 // Helper to setup module resolution for command tests
 function setupCommandModuleResolution() {
@@ -144,8 +150,8 @@ describe('command.ts - Command class construction', () => {
       useSpinner: true,
       command: CMD_TEST_COMMAND,
       spinnerMsg: {
-        progressMsg: 'Running...',
-        successMsg: 'Done!'
+        progressMsg: MSG_RUNNING,
+        successMsg: MSG_DONE
       }
     });
 
@@ -176,8 +182,8 @@ describe('command.ts - Command class construction', () => {
       useSpinner: true,
       command: CMD_TEST_COMMAND,
       spinnerMsg: {
-        progressMsg: 'Running...',
-        successMsg: 'Done!',
+        progressMsg: MSG_RUNNING,
+        successMsg: MSG_DONE,
         failMsg: 'Failed!'
       }
     });
@@ -339,8 +345,8 @@ describe('command.ts - Command getCwd behavior', () => {
       useSpinner: true,
       command: 'test',
       spinnerMsg: {
-        progressMsg: 'Testing...',
-        successMsg: 'Done!'
+        progressMsg: MSG_TESTING,
+        successMsg: MSG_DONE
       }
     });
 
@@ -354,11 +360,274 @@ describe('command.ts - Command getCwd behavior', () => {
       useSpinner: true,
       command: 'test',
       spinnerMsg: {
-        progressMsg: 'Testing...',
-        successMsg: 'Done!'
+        progressMsg: MSG_TESTING,
+        successMsg: MSG_DONE
       }
     });
 
     expect(cmd).to.exist;
+  });
+});
+
+/**
+ * Tests for Command class spinner execution
+ */
+describe('command.ts - Command spinner execution', () => {
+  let commandModule: any;
+  let vscodeStub: any;
+  let childProcessStub: any;
+  let TestableCommand: any;
+
+  before(() => {
+    clearModuleCache();
+    setupCommandModuleResolution();
+    vscodeStub = require('../../helpers/vscode-stub');
+    childProcessStub = require('../../helpers/child-process-stub');
+    commandModule = require('../../../src/commands/command');
+    TestableCommand = createTestableCommand(commandModule);
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+    childProcessStub.resetMockSpawnConfig();
+    childProcessStub.clearSpawnCalls();
+  });
+
+  it('executes command with spinner on success', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 0,
+      stdoutData: ['Line 1\n', 'Line 2\n'],
+      stderrData: [],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: '/test/workspace' } }];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'test-cmd',
+      spinnerMsg: {
+        progressMsg: 'Running test...',
+        successMsg: 'Test completed!'
+      }
+    });
+
+    await cmd.testExecute(['arg1', 'arg2']);
+
+    // Verify spawn was called with correct arguments
+    expect(childProcessStub.spawnCalls).to.have.length(1);
+    expect(childProcessStub.spawnCalls[0].cmd).to.equal('test-cmd');
+    expect(childProcessStub.spawnCalls[0].args).to.deep.equal(['arg1', 'arg2']);
+  });
+
+  it('handles stdout output in progress reporting', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 0,
+      stdoutData: ['Processing item 1\n', 'Processing item 2\n'],
+      stderrData: [],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: '/test' } }];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'process',
+      spinnerMsg: {
+        progressMsg: 'Processing...',
+        successMsg: MSG_DONE
+      }
+    });
+
+    await cmd.testExecute(['items']);
+
+    // Verify progress was reported
+    expect(vscodeStub.window.lastProgressReports.length).to.be.greaterThan(0);
+  });
+
+  it('handles stderr output', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 0,
+      stdoutData: [],
+      stderrData: ['Warning: deprecated\n'],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: '/test' } }];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'warn-cmd',
+      spinnerMsg: {
+        progressMsg: MSG_RUNNING,
+        successMsg: MSG_DONE
+      }
+    });
+
+    await cmd.testExecute(['run']);
+
+    // Should complete without error even with stderr output
+    expect(childProcessStub.spawnCalls).to.have.length(1);
+  });
+
+  it('handles non-zero exit code as error', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 1,
+      stdoutData: [],
+      stderrData: ['Error occurred\n'],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: '/test' } }];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'fail-cmd',
+      spinnerMsg: {
+        progressMsg: MSG_RUNNING,
+        successMsg: MSG_DONE,
+        failMsg: 'Command failed'
+      }
+    });
+
+    // Should not throw, but should trigger error handling
+    await cmd.testExecute();
+
+    // Error message should have been shown
+    expect(vscodeStub.window.lastErrorMessage).to.include('Command failed');
+  });
+
+  it('uses fallback cwd when no workspace folder', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 0,
+      stdoutData: [],
+      stderrData: [],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'test',
+      spinnerMsg: {
+        progressMsg: MSG_TESTING,
+        successMsg: MSG_DONE
+      }
+    });
+
+    await cmd.testExecute(['run']);
+
+    // Should have called spawn with cwd containing .clab
+    expect(childProcessStub.spawnCalls).to.have.length(1);
+    expect(childProcessStub.spawnCalls[0].options.cwd).to.include('.clab');
+  });
+});
+
+/**
+ * Tests for Command class error handling in spinner mode
+ */
+describe('command.ts - Command spinner error handling', () => {
+  let commandModule: any;
+  let vscodeStub: any;
+  let childProcessStub: any;
+  let TestableCommand: any;
+
+  before(() => {
+    clearModuleCache();
+    setupCommandModuleResolution();
+    vscodeStub = require('../../helpers/vscode-stub');
+    childProcessStub = require('../../helpers/child-process-stub');
+    commandModule = require('../../../src/commands/command');
+    TestableCommand = createTestableCommand(commandModule);
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+    childProcessStub.resetMockSpawnConfig();
+    childProcessStub.clearSpawnCalls();
+  });
+
+  it('displays default error message when failMsg not provided', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 1,
+      stdoutData: [],
+      stderrData: [],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: '/test' } }];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'failing',
+      spinnerMsg: {
+        progressMsg: MSG_RUNNING,
+        successMsg: MSG_DONE
+        // No failMsg provided
+      }
+    });
+
+    await cmd.testExecute(['deploy']);
+
+    // Should show default error message with command name
+    expect(vscodeStub.window.lastErrorMessage).to.include('Deploy failed');
+  });
+
+  it('handles multiline output correctly', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 0,
+      stdoutData: ['Line1\nLine2\nLine3\n'],
+      stderrData: [],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: '/test' } }];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'multi',
+      spinnerMsg: {
+        progressMsg: MSG_RUNNING,
+        successMsg: MSG_DONE
+      }
+    });
+
+    await cmd.testExecute(['process']);
+
+    // Should have reported progress for each non-empty line
+    const nonEmptyReports = vscodeStub.window.lastProgressReports.filter(
+      (r: any) => r.message && r.message.trim()
+    );
+    expect(nonEmptyReports.length).to.be.greaterThan(0);
+  });
+
+  it('strips ANSI codes from output', async () => {
+    childProcessStub.setMockSpawnConfig({
+      exitCode: 0,
+      stdoutData: ['\x1b[32mColored text\x1b[0m\n'],
+      stderrData: [],
+      delayMs: 5
+    });
+    vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: '/test' } }];
+
+    const cmd = new TestableCommand({
+      useSpinner: true,
+      command: 'ansi',
+      spinnerMsg: {
+        progressMsg: MSG_RUNNING,
+        successMsg: MSG_DONE
+      }
+    });
+
+    await cmd.testExecute(['print']);
+
+    // ANSI codes should be stripped
+    const reports = vscodeStub.window.lastProgressReports;
+    const hasAnsi = reports.some((r: any) => r.message && r.message.includes('\x1b'));
+    expect(hasAnsi).to.be.false;
   });
 });
