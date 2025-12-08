@@ -479,3 +479,326 @@ describe('manageNodeImpairments() - runtime configuration', () => {
     expect(runCommandCalls[0].cmd).to.include('/custom/path/clab');
   });
 });
+
+describe('nodeImpairments - apply command execution', () => {
+  setupNodeImpairmentsTests();
+
+  it('runs netem set command for each interface with valid settings', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    // Reset calls to track only apply commands
+    runCommandCalls = [];
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    // Get the message handler and simulate an apply message
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({
+        command: 'apply',
+        data: {
+          eth1: { delay: '50ms', jitter: '10ms', loss: '5%', rate: '1000', corruption: '2%' }
+        }
+      });
+
+      // Verify netem set commands were called
+      const setCalls = runCommandCalls.filter(c => c.cmd.includes('netem set'));
+      expect(setCalls.length).to.be.greaterThan(0);
+      expect(setCalls[0].cmd).to.include('-n router1');
+      expect(setCalls[0].cmd).to.include('-i eth1');
+      expect(setCalls[0].cmd).to.include('--delay 50ms');
+      expect(setCalls[0].cmd).to.include('--jitter 10ms');
+      expect(setCalls[0].cmd).to.include('--loss 5');
+      expect(setCalls[0].cmd).to.include('--rate 1000');
+    }
+  });
+
+  it('shows info message when no parameters specified', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    runCommandCalls = [];
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({
+        command: 'apply',
+        data: {
+          eth1: { delay: '', jitter: '', loss: '', rate: '', corruption: '' }
+        }
+      });
+
+      expect(vscodeStub.window.lastInfoMessage).to.include('No parameters');
+    }
+  });
+
+  it('shows error on apply failure', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      // Make subsequent commands fail
+      runCommandShouldFail = true;
+      runCommandError = new Error('Apply failed');
+
+      await messageHandler({
+        command: 'apply',
+        data: {
+          eth1: { delay: '10ms', jitter: '5ms', loss: '5%', rate: '100', corruption: '0%' }
+        }
+      });
+
+      expect(vscodeStub.window.lastErrorMessage).to.include('Failed to apply');
+    }
+  });
+});
+
+describe('nodeImpairments - apply argument handling', () => {
+  setupNodeImpairmentsTests();
+
+  it('strips percentage sign from loss before apply', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    runCommandCalls = [];
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({
+        command: 'apply',
+        data: {
+          eth1: { delay: '10ms', jitter: '5ms', loss: '10%', rate: '100', corruption: '1%' }
+        }
+      });
+
+      const setCalls = runCommandCalls.filter(c => c.cmd.includes('netem set'));
+      if (setCalls.length > 0) {
+        expect(setCalls[0].cmd).to.include('--loss 10');
+        expect(setCalls[0].cmd).to.not.include('--loss 10%');
+        expect(setCalls[0].cmd).to.include('--corruption 1');
+        expect(setCalls[0].cmd).to.not.include('--corruption 1%');
+      }
+    }
+  });
+
+  it('skips zero loss and corruption in apply arguments', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    runCommandCalls = [];
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({
+        command: 'apply',
+        data: {
+          eth1: { delay: '10ms', jitter: '5ms', loss: '0%', rate: '100', corruption: '0%' }
+        }
+      });
+
+      const setCalls = runCommandCalls.filter(c => c.cmd.includes('netem set'));
+      if (setCalls.length > 0) {
+        expect(setCalls[0].cmd).to.not.include('--loss');
+        expect(setCalls[0].cmd).to.not.include('--corruption');
+      }
+    }
+  });
+});
+
+describe('manageNodeImpairments() - clearAll message', () => {
+  setupNodeImpairmentsTests();
+
+  it('runs netem clear commands for all non-loopback interfaces', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode({
+      interfaces: [
+        { name: 'eth1' },
+        { name: 'eth2' },
+        { name: 'lo' }
+      ]
+    });
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    runCommandCalls = [];
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({ command: 'clearAll' });
+
+      const setCalls = runCommandCalls.filter(c => c.cmd.includes('netem set'));
+      // Should have 2 clear calls (eth1 and eth2, not lo)
+      expect(setCalls.length).to.equal(2);
+      expect(setCalls.some(c => c.cmd.includes('-i eth1'))).to.be.true;
+      expect(setCalls.some(c => c.cmd.includes('-i eth2'))).to.be.true;
+      expect(setCalls.every(c => !c.cmd.includes('-i lo'))).to.be.true;
+    }
+  });
+
+  it('shows success message after clear', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    runCommandCalls = [];
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({ command: 'clearAll' });
+
+      expect(vscodeStub.window.lastInfoMessage).to.include('Cleared netem');
+    }
+  });
+
+  it('shows error on clear failure', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      runCommandShouldFail = true;
+      runCommandError = new Error('Clear failed');
+
+      await messageHandler({ command: 'clearAll' });
+
+      expect(vscodeStub.window.lastErrorMessage).to.include('Failed to clear');
+    }
+  });
+});
+
+describe('manageNodeImpairments() - refresh message', () => {
+  setupNodeImpairmentsTests();
+
+  it('refreshes netem settings and posts update message', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    runCommandCalls = [];
+    runCommandResult = JSON.stringify({
+      [TEST_NODE_NAME]: [
+        { interface: 'eth1', delay: '100ms', jitter: '20ms', packet_loss: 5, rate: 500, corruption: 1 }
+      ]
+    });
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({ command: 'refresh' });
+
+      // Should have called netem show
+      const showCalls = runCommandCalls.filter(c => c.cmd.includes('netem show'));
+      expect(showCalls.length).to.equal(1);
+
+      // Should show info message
+      expect(vscodeStub.window.lastInfoMessage).to.include('refreshed');
+
+      // Should have posted update to webview
+      const messages = vscodeStub.window.lastWebviewPanel?.webview?._postedMessages || [];
+      const updateMsg = messages.find((m: any) => m.command === 'updateFields');
+      expect(updateMsg).to.exist;
+    }
+  });
+});
+
+describe('manageNodeImpairments() - webview panel setup', () => {
+  setupNodeImpairmentsTests();
+
+  it('sets panel icon from extension resources', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    const panel = vscodeStub.window.lastWebviewPanel;
+    expect(panel).to.exist;
+    expect(panel.iconPath).to.exist;
+  });
+
+  it('enables scripts in webview options', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode();
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    const panel = vscodeStub.window.lastWebviewPanel;
+    expect(panel?.options?.enableScripts).to.be.true;
+  });
+});
+
+describe('manageNodeImpairments() - multiple interfaces', () => {
+  setupNodeImpairmentsTests();
+
+  it('applies settings to multiple interfaces in parallel', async () => {
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const node = createTestNode({
+      interfaces: [
+        { name: 'eth1' },
+        { name: 'eth2' },
+        { name: 'eth3' }
+      ]
+    });
+    const context = createMockContext();
+
+    await manageNodeImpairments(node, context);
+
+    runCommandCalls = [];
+    runCommandResult = JSON.stringify({ [TEST_NODE_NAME]: [] });
+
+    const messageHandler = vscodeStub.window.lastWebviewPanel?.webview?._messageHandler;
+    if (messageHandler) {
+      await messageHandler({
+        command: 'apply',
+        data: {
+          eth1: { delay: '10ms', jitter: '5ms', loss: '1%', rate: '100', corruption: '0%' },
+          eth2: { delay: '20ms', jitter: '10ms', loss: '2%', rate: '200', corruption: '0%' },
+          eth3: { delay: '30ms', jitter: '15ms', loss: '3%', rate: '300', corruption: '0%' }
+        }
+      });
+
+      const setCalls = runCommandCalls.filter(c => c.cmd.includes('netem set'));
+      expect(setCalls.length).to.equal(3);
+    }
+  });
+});

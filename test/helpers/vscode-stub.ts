@@ -36,31 +36,42 @@ export class MockWebviewPanel {
   viewType: string;
   title: string;
   iconPath: any;
+  options: { enableScripts?: boolean } = {};
   webview: {
     html: string;
     onDidReceiveMessage: (callback: (message: any) => void) => { dispose: () => void };
     postMessage: (message: any) => Promise<boolean>;
     asWebviewUri: (uri: any) => any;
+    _messageHandler?: (message: any) => void;
+    _postedMessages: any[];
   };
   private disposeCallbacks: (() => void)[] = [];
   private messageCallbacks: ((message: any) => void)[] = [];
 
-  constructor(viewType: string, title: string) {
+  constructor(viewType: string, title: string, options?: { enableScripts?: boolean }) {
     this.viewType = viewType;
     this.title = title;
     this.iconPath = undefined;
+    this.options = options || {};
+    const self = this;
     this.webview = {
       html: '',
+      _postedMessages: [],
       onDidReceiveMessage: (callback: (message: any) => void) => {
-        this.messageCallbacks.push(callback);
+        self.messageCallbacks.push(callback);
+        // Expose the last handler for easy testing
+        self.webview._messageHandler = callback;
         return {
           dispose: () => {
-            const idx = this.messageCallbacks.indexOf(callback);
-            if (idx >= 0) this.messageCallbacks.splice(idx, 1);
+            const idx = self.messageCallbacks.indexOf(callback);
+            if (idx >= 0) self.messageCallbacks.splice(idx, 1);
           }
         };
       },
-      postMessage: async (_message: any) => true,
+      postMessage: async (message: any) => {
+        self.webview._postedMessages.push(message);
+        return true;
+      },
       asWebviewUri: (uri: any) => uri
     };
   }
@@ -73,6 +84,10 @@ export class MockWebviewPanel {
         if (idx >= 0) this.disposeCallbacks.splice(idx, 1);
       }
     };
+  }
+
+  reveal(_viewColumn?: any): void {
+    // no-op for tests
   }
 
   dispose(): void {
@@ -100,6 +115,7 @@ export const window = {
   terminals: createdTerminals as MockTerminal[],
   visibleTextEditors: visibleEditors,
   activeColorTheme: { kind: ColorThemeKind.Dark } as { kind: number },
+  lastWebviewPanel: undefined as MockWebviewPanel | undefined,
   createOutputChannel(_name: string, options?: { log: boolean } | string) {
     const isLogChannel = typeof options === 'object' && options?.log;
     return {
@@ -169,9 +185,10 @@ export const window = {
     viewType: string,
     title: string,
     _showOptions: any,
-    _options?: any
+    options?: { enableScripts?: boolean }
   ): MockWebviewPanel {
-    const panel = new MockWebviewPanel(viewType, title);
+    const panel = new MockWebviewPanel(viewType, title, options);
+    this.lastWebviewPanel = panel;
     return panel;
   },
   showTextDocument(document: any, _column?: any): Promise<any> {
@@ -468,6 +485,7 @@ export function resetVscodeStub(): void {
   window.inputBoxResult = undefined;
   window.openDialogResult = undefined;
   window.activeColorTheme = { kind: ColorThemeKind.Dark };
+  window.lastWebviewPanel = undefined;
   createdTerminals.length = 0;
   visibleEditors.length = 0;
   commands.executed.length = 0;

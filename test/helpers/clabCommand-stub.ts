@@ -6,7 +6,7 @@ export class ClabCommand {
   public spinnerMessages: any;
   public runArgs: any[] | undefined;
 
-  constructor(action: string, node: any, spinnerMessages?: any) {
+  constructor(action: string, node: any, spinnerMessages?: any, _terminalMode?: boolean, _terminalName?: string) {
     this.action = action;
     this.node = node;
     this.spinnerMessages = spinnerMessages || {
@@ -16,7 +16,8 @@ export class ClabCommand {
     instances.push(this);
   }
 
-  run(args?: string[]) {
+  run(args?: string[]): Promise<void> {
     this.runArgs = args;
+    return Promise.resolve();
   }
 }
