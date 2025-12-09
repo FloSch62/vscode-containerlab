@@ -109,6 +109,7 @@ export const window = {
   lastInfoMessage: '',
   lastWarningMessage: '',
   lastWarningSelection: undefined as string | undefined,
+  lastInfoSelection: undefined as string | undefined,
   quickPickResult: undefined as string | undefined,
   inputBoxResult: undefined as string | undefined,
   openDialogResult: undefined as { fsPath: string }[] | undefined,
@@ -187,8 +188,9 @@ export const window = {
   showErrorMessage(message: string) {
     this.lastErrorMessage = message;
   },
-  showInformationMessage(message: string) {
+  showInformationMessage(message: string, ..._items: string[]): Promise<string | undefined> {
     this.lastInfoMessage = message;
+    return Promise.resolve(this.lastInfoSelection);
   },
   showWarningMessage(message: string, _options?: any, ..._items: string[]): Promise<string | undefined> {
     this.lastWarningMessage = message;
@@ -602,6 +604,7 @@ export function resetVscodeStub(): void {
   window.lastInfoMessage = '';
   window.lastWarningMessage = '';
   window.lastWarningSelection = undefined;
+  window.lastInfoSelection = undefined;
   window.quickPickResult = undefined;
   window.inputBoxResult = undefined;
   window.openDialogResult = undefined;

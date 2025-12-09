@@ -2,6 +2,7 @@
  * Stub for child_process module for testing command.ts
  */
 import { EventEmitter } from 'events';
+import { Readable } from 'stream';
 
 // Configuration for mock spawn behavior
 export interface MockSpawnConfig {
@@ -9,6 +10,8 @@ export interface MockSpawnConfig {
   stdoutData?: string[];
   stderrData?: string[];
   delayMs?: number;
+  emitError?: Error;
+  noStdout?: boolean;
 }
 
 let mockSpawnConfig: MockSpawnConfig = {
@@ -38,37 +41,58 @@ export function clearSpawnCalls(): void {
   spawnCalls.length = 0;
 }
 
+// Helper to emit spawn data after delay
+function emitSpawnData(
+  proc: EventEmitter,
+  stdout: Readable | null,
+  stderr: Readable
+): void {
+  // Emit error if configured
+  if (mockSpawnConfig.emitError) {
+    proc.emit('error', mockSpawnConfig.emitError);
+    return;
+  }
+
+  // Push stdout data as lines (for readline compatibility)
+  if (stdout) {
+    for (const data of (mockSpawnConfig.stdoutData || [])) {
+      stdout.push(data + '\n');
+    }
+    stdout.push(null);
+  }
+
+  // Push stderr data
+  for (const data of (mockSpawnConfig.stderrData || [])) {
+    stderr.push(Buffer.from(data));
+  }
+  stderr.push(null);
+
+  // Emit exit/close events
+  proc.emit('exit', mockSpawnConfig.exitCode, null);
+  proc.emit('close', mockSpawnConfig.exitCode);
+}
+
 /**
  * Mock spawn function that creates an EventEmitter-based process
+ * with proper Readable streams for stdout/stderr (supports readline)
  */
 export function spawn(cmd: string, args: string[], options?: any): any {
   spawnCalls.push({ cmd, args, options });
 
   const proc = new EventEmitter();
-  const stdout = new EventEmitter();
-  const stderr = new EventEmitter();
+  const stdout = mockSpawnConfig.noStdout ? null : new Readable({ read() {} });
+  const stderr = new Readable({ read() {} });
 
   (proc as any).stdout = stdout;
   (proc as any).stderr = stderr;
+  (proc as any).pid = 12345;
   (proc as any).kill = () => {
     proc.emit('close', 1);
+    if (stdout) stdout.push(null);
+    stderr.push(null);
   };
 
-  // Emit data and close after a short delay
-  setTimeout(() => {
-    // Emit stdout data
-    for (const data of (mockSpawnConfig.stdoutData || [])) {
-      stdout.emit('data', Buffer.from(data));
-    }
-
-    // Emit stderr data
-    for (const data of (mockSpawnConfig.stderrData || [])) {
-      stderr.emit('data', Buffer.from(data));
-    }
-
-    // Emit close event
-    proc.emit('close', mockSpawnConfig.exitCode);
-  }, mockSpawnConfig.delayMs || 10);
+  setTimeout(() => emitSpawnData(proc, stdout, stderr), mockSpawnConfig.delayMs || 10);
 
   return proc;
 }

@@ -599,3 +599,161 @@ describe('containerlabEvents - error handling', () => {
     expect(() => eventsModule.injectTestEventLine(JSON.stringify(event))).to.not.throw();
   });
 });
+
+// =============================================================================
+// containerlabEvents - Additional Container Events
+// =============================================================================
+
+describe('containerlabEvents - container lifecycle', () => {
+  const originalResolve = (Module as any)._resolveFilename;
+  let eventsModule: any;
+
+  before(() => {
+    clearModuleCache();
+    setupModuleInterception(originalResolve);
+    require('../../helpers/vscode-stub');
+    eventsModule = require('../../../src/services/containerlabEvents');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    eventsModule.resetForTests();
+  });
+
+  it('handles create action', () => {
+    const event = {
+      type: 'container', action: 'create', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME, state: 'created' }
+    };
+    eventsModule.injectTestEventLine(JSON.stringify(event));
+    expect(eventsModule.getGroupedContainers()[TEST_LAB][0].State).to.equal('created');
+  });
+
+  it('handles stop action', () => {
+    const startEvent = {
+      type: 'container', action: 'start', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME, state: RUNNING_STATE }
+    };
+    const stopEvent = {
+      type: 'container', action: 'stop', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME, state: EXITED_STATE }
+    };
+    eventsModule.injectTestEventLine(JSON.stringify(startEvent));
+    eventsModule.injectTestEventLine(JSON.stringify(stopEvent));
+    expect(eventsModule.getGroupedContainers()[TEST_LAB][0].State).to.equal(EXITED_STATE);
+  });
+
+  it('handles kill action', () => {
+    const startEvent = {
+      type: 'container', action: 'start', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME, state: RUNNING_STATE }
+    };
+    const killEvent = {
+      type: 'container', action: 'kill', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME }
+    };
+    eventsModule.injectTestEventLine(JSON.stringify(startEvent));
+    eventsModule.injectTestEventLine(JSON.stringify(killEvent));
+    expect(eventsModule.getGroupedContainers()[TEST_LAB][0].State).to.equal(EXITED_STATE);
+  });
+
+  it('handles restart action', () => {
+    const startEvent = {
+      type: 'container', action: 'start', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME, state: RUNNING_STATE }
+    };
+    const restartEvent = {
+      type: 'container', action: 'restart', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME }
+    };
+    eventsModule.injectTestEventLine(JSON.stringify(startEvent));
+    eventsModule.injectTestEventLine(JSON.stringify(restartEvent));
+    expect(eventsModule.getGroupedContainers()[TEST_LAB][0].State).to.equal(RUNNING_STATE);
+  });
+});
+
+// =============================================================================
+// containerlabEvents - Interface Statistics
+// =============================================================================
+
+describe('containerlabEvents - interface stats', () => {
+  const originalResolve = (Module as any)._resolveFilename;
+  let eventsModule: any;
+
+  before(() => {
+    clearModuleCache();
+    setupModuleInterception(originalResolve);
+    require('../../helpers/vscode-stub');
+    eventsModule = require('../../../src/services/containerlabEvents');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    eventsModule.resetForTests();
+  });
+
+  it('tracks all interface statistics fields', () => {
+    const containerEvent = {
+      type: 'container', action: 'start', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME, state: RUNNING_STATE }
+    };
+    const interfaceEvent = {
+      type: 'interface', action: 'update', actor_id: 'abc123',
+      attributes: {
+        ifname: 'eth0', state: 'up', type: 'veth',
+        rx_bps: 1000, tx_bps: 2000,
+        rx_pps: 10, tx_pps: 20,
+        rx_bytes: 10000, tx_bytes: 20000,
+        rx_packets: 100, tx_packets: 200,
+        interval_seconds: 5
+      }
+    };
+
+    eventsModule.injectTestEventLine(JSON.stringify(containerEvent));
+    eventsModule.injectTestEventLine(JSON.stringify(interfaceEvent));
+
+    const snapshot = eventsModule.getInterfaceSnapshot('abc123', TEST_NODE_NAME);
+    const iface = snapshot[0].interfaces[0];
+    expect(iface.rxBps).to.equal(1000);
+    expect(iface.txBps).to.equal(2000);
+    expect(iface.rxPps).to.equal(10);
+    expect(iface.txPps).to.equal(20);
+    expect(iface.rxBytes).to.equal(10000);
+    expect(iface.txBytes).to.equal(20000);
+    expect(iface.rxPackets).to.equal(100);
+    expect(iface.txPackets).to.equal(200);
+    expect(iface.statsIntervalSeconds).to.equal(5);
+  });
+
+  it('updates interface state correctly', () => {
+    const containerEvent = {
+      type: 'container', action: 'start', actor_id: 'abc123',
+      attributes: { containerlab: TEST_LAB, name: TEST_NODE_NAME, state: RUNNING_STATE }
+    };
+    const ifUpEvent = {
+      type: 'interface', action: 'update', actor_id: 'abc123',
+      attributes: { ifname: 'eth0', state: 'up' }
+    };
+    const ifDownEvent = {
+      type: 'interface', action: 'update', actor_id: 'abc123',
+      attributes: { ifname: 'eth0', state: 'down' }
+    };
+
+    eventsModule.injectTestEventLine(JSON.stringify(containerEvent));
+    eventsModule.injectTestEventLine(JSON.stringify(ifUpEvent));
+    let snapshot = eventsModule.getInterfaceSnapshot('abc123', TEST_NODE_NAME);
+    expect(snapshot[0].interfaces[0].state).to.equal('up');
+
+    eventsModule.injectTestEventLine(JSON.stringify(ifDownEvent));
+    snapshot = eventsModule.getInterfaceSnapshot('abc123', TEST_NODE_NAME);
+    expect(snapshot[0].interfaces[0].state).to.equal('down');
+  });
+});

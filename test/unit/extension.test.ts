@@ -1309,6 +1309,69 @@ describe('activate() permission scenarios', () => {
   });
 });
 
+describe('activate() install flow', () => {
+  let extensionModule: any;
+  let childProcessStub: any;
+  let originalPlatform: PropertyDescriptor | undefined;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function (request: string, parent: any, isMain: boolean, options: any) {
+      const stubPath = getStubPath(request);
+      return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
+    };
+
+    vscodeStub = require('../helpers/vscode-stub');
+    utilsStub = require('../helpers/utils-stub');
+    childProcessStub = require('../helpers/child-process-stub');
+    extensionModule = require('../../src/extension');
+    originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    if (originalPlatform) {
+      Object.defineProperty(process, 'platform', originalPlatform);
+    }
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    vscodeStub.resetVscodeStub();
+    utilsStub.clearMocks();
+    childProcessStub.resetExecSync();
+    childProcessStub.clearExecSyncCalls();
+    Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+    (extensionModule as any).containerlabBinaryPath = 'containerlab';
+    (extensionModule as any).outputChannel = undefined;
+  });
+
+  it('should call installContainerlab when user chooses Install', async () => {
+    childProcessStub.setExecSyncResult('');
+    vscodeStub.window.lastWarningSelection = 'Install';
+    vscodeStub.window.lastInfoSelection = 'Reload Window';
+
+    let installCalled = false;
+    utilsStub.installContainerlab = () => { installCalled = true; };
+
+    await extensionModule.activate(createActivationContext());
+
+    expect(installCalled).to.be.true;
+  });
+
+  it('should show reload prompt after install', async () => {
+    childProcessStub.setExecSyncResult('');
+    vscodeStub.window.lastWarningSelection = 'Install';
+    vscodeStub.window.lastInfoSelection = undefined;
+
+    utilsStub.installContainerlab = () => {};
+
+    await extensionModule.activate(createActivationContext());
+
+    expect(vscodeStub.window.lastInfoMessage).to.include('reload');
+  });
+});
+
 describe('registerUnsupportedViews behavior', () => {
   let extensionModule: any;
   let originalPlatform: PropertyDescriptor | undefined;

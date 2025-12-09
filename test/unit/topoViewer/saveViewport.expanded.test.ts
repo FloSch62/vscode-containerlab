@@ -991,4 +991,191 @@ topology:
       }
     });
   });
+
+  describe('special link types', () => {
+    it('creates mgmt-net link with required host-interface', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-mgmt-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = 'name: test\ntopology:\n  nodes:\n    node1: {}\n';
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: { id: 'mgmt-net:', name: 'mgmt-net', topoViewerRole: 'host', extraData: {} },
+          position: { x: 100, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'edges',
+          data: {
+            id: 'node1:eth0-mgmt-net:',
+            source: 'node1',
+            target: 'mgmt-net:',
+            sourceEndpoint: 'eth0',
+            targetEndpoint: '',
+            extraData: { extType: 'mgmt-net', extHostInterface: 'br-mgmt' }
+          }
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        expect(parsed?.topology?.links).to.have.length(1);
+        expect(parsed?.topology?.links?.[0]?.type).to.equal('mgmt-net');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('creates veth link with extended properties (mac addresses)', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-veth-mac-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = 'name: test\ntopology:\n  nodes:\n    node1: {}\n    node2: {}\n';
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: { id: 'node2', name: 'node2', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 100, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'edges',
+          data: {
+            id: 'node1:eth0-node2:eth0',
+            source: 'node1',
+            target: 'node2',
+            sourceEndpoint: 'eth0',
+            targetEndpoint: 'eth0',
+            extraData: { extSourceMac: '00:11:22:33:44:55', extTargetMac: 'aa:bb:cc:dd:ee:ff' }
+          }
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        expect(parsed?.topology?.links).to.have.length(1);
+        // Extended veth link with mac addresses should have endpoint objects
+        expect(parsed?.topology?.links?.[0]?.endpoints).to.be.an('array');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('creates macvlan link with required properties', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'saveViewport-macvlan-'));
+      const yamlPath = path.join(tmpDir, 'test.clab.yaml');
+      const yamlContent = 'name: test\ntopology:\n  nodes:\n    node1: {}\n';
+      fs.writeFileSync(yamlPath, yamlContent);
+
+      const adaptor = new TopoViewerAdaptorClab();
+      adaptor.currentClabDoc = YAML.parseDocument(yamlContent, { keepCstNodes: true } as any) as YAML.Document.Parsed;
+      adaptor.currentClabTopo = YAML.parse(yamlContent) as any;
+
+      sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+        freeTextAnnotations: [],
+        groupStyleAnnotations: [],
+        cloudNodeAnnotations: [],
+        nodeAnnotations: []
+      });
+      sinon.stub(annotationsManager, 'saveAnnotations').resolves();
+
+      const payload = JSON.stringify([
+        {
+          group: 'nodes',
+          data: { id: 'node1', name: 'node1', topoViewerRole: 'pe', extraData: { kind: 'linux' } },
+          position: { x: 0, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'nodes',
+          data: { id: 'macvlan:eth0', name: 'macvlan', topoViewerRole: 'macvlan', extraData: {} },
+          position: { x: 100, y: 0 },
+          parent: ''
+        },
+        {
+          group: 'edges',
+          data: {
+            id: 'node1:eth0-macvlan:eth0',
+            source: 'node1',
+            target: 'macvlan:eth0',
+            sourceEndpoint: 'eth0',
+            targetEndpoint: '',
+            extraData: { extType: 'macvlan', extHostInterface: 'eth0', extMode: 'bridge' }
+          }
+        }
+      ]);
+
+      try {
+        await saveViewport({
+          mode: 'edit',
+          yamlFilePath: yamlPath,
+          payload,
+          adaptor,
+          setInternalUpdate: () => {}
+        });
+        const updatedYaml = fs.readFileSync(yamlPath, 'utf8');
+        const parsed = YAML.parse(updatedYaml) as any;
+        expect(parsed?.topology?.links).to.have.length(1);
+        expect(parsed?.topology?.links?.[0]?.type).to.equal('macvlan');
+        expect(parsed?.topology?.links?.[0]?.['host-interface']).to.equal('eth0');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
 });
