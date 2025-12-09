@@ -1,14 +1,22 @@
 /* eslint-env mocha */
-import { describe, it } from 'mocha';
+import { describe, it, beforeEach, afterEach } from 'mocha';
 import { expect } from 'chai';
 import cytoscape from 'cytoscape';
 import { GroupManager } from '../../../src/topoViewer/webview/features/groups/GroupManager';
 import { GroupStyleManager } from '../../../src/topoViewer/webview/features/groups/GroupStyleManager';
 
-// ensure window is available for global assignments
-(globalThis as any).window = globalThis;
-
 describe('group manager global bindings', () => {
+  beforeEach(() => {
+    // ensure window is available for global assignments
+    (globalThis as any).window = globalThis;
+  });
+
+  afterEach(() => {
+    delete (globalThis as any).document;
+    delete (globalThis as any).acquireVsCodeApi;
+    delete (globalThis as any).sendMessageToVscodeEndpointPost;
+  });
+
   it('exposes nodeParentPropertiesUpdate on window and updates label class', async () => {
     const cy = cytoscape({ headless: true, elements: [
       { data: { id: 'group1:1', name: 'group1', topoViewerRole: 'group', extraData: {

@@ -1405,8 +1405,8 @@
     "lint:fix": "npm-run-all lint:ts:fix format:html",
     "format": "npm run format:html",
     "format:html": "prettier --write \"src/topoViewer/webview/assets/templates/**/*.html\"",
-    "test": "npm run test:compile && mocha --extension js --reporter mochawesome \"out/test/**/*.test.js\"",
-    "test:coverage": "npm run test:compile && c8 mocha --extension js \"out/test/**/*.test.js\"",
+    "test": "npm run test:compile && mocha --extension js --require out/test/test/helpers/mocha-setup.js --reporter mochawesome \"out/test/**/*.test.js\"",
+    "test:coverage": "npm run test:compile && c8 mocha --extension js --require out/test/test/helpers/mocha-setup.js \"out/test/**/*.test.js\"",
     "test:compile": "tsc -p test/tsconfig.json"
   },
   "devDependencies": {
