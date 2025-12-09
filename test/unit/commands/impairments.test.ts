@@ -36,6 +36,10 @@ function getStubPath(request: string): string | null {
 
 const ERR_NO_INTERFACE = 'No interface selected to set ';
 const ERR_CANNOT_READ_PROPS = 'Cannot read properties of undefined';
+const ERR_INPUT_EMPTY = 'Input should not be empty';
+const ERR_TIME_UNIT = 'time unit';
+const ERR_NUMBER_BETWEEN = 'number between 0 and 100';
+const TEST_EMPTY_INPUT = 'returns error for empty input';
 
 // Helper to create interface node mock
 function createInterfaceNode(name: string, parentName: string) {
@@ -148,6 +152,22 @@ describe('setLinkDelay() additional cases', () => {
   });
 });
 
+describe('setImpairment() error callback', () => {
+  setupImpairmentsTests();
+
+  it('shows error message when command fails', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = '50ms';
+
+    await impairmentFunctions.setLinkDelay(node);
+    // Simulate failure after command is executed
+    commandStub.simulateFailure('netem command not found');
+
+    expect(vscodeStub.window.lastErrorMessage).to.include('Failed to');
+    expect(vscodeStub.window.lastErrorMessage).to.include('netem command not found');
+  });
+});
+
 describe('WSL detection', () => {
   setupImpairmentsTests();
 
@@ -161,5 +181,189 @@ describe('WSL detection', () => {
     expect(vscodeStub.window.lastWarningMessage).to.include('WSL');
 
     vscodeStub.env.remoteName = originalRemoteName;
+  });
+});
+
+// Validator tests for setLinkDelay
+describe('setLinkDelay() validator', () => {
+  setupImpairmentsTests();
+
+  it(TEST_EMPTY_INPUT, async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkDelay(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator).to.be.a('function');
+    expect(validator?.('')).to.equal(ERR_INPUT_EMPTY);
+  });
+
+  it('returns error for invalid time unit format', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkDelay(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('50')).to.include(ERR_TIME_UNIT);
+    expect(validator?.('abc')).to.include(ERR_TIME_UNIT);
+    expect(validator?.('50m')).to.include(ERR_TIME_UNIT);
+  });
+
+  it('returns undefined for valid time unit', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkDelay(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('50ms')).to.be.undefined;
+    expect(validator?.('1s')).to.be.undefined;
+    expect(validator?.('100ms')).to.be.undefined;
+  });
+});
+
+// Validator tests for setLinkJitter
+describe('setLinkJitter() validator', () => {
+  setupImpairmentsTests();
+
+  it(TEST_EMPTY_INPUT, async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkJitter(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator).to.be.a('function');
+    expect(validator?.('')).to.equal(ERR_INPUT_EMPTY);
+  });
+
+  it('returns error for invalid time unit format', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkJitter(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('50')).to.include(ERR_TIME_UNIT);
+    expect(validator?.('xyz')).to.include(ERR_TIME_UNIT);
+  });
+
+  it('returns undefined for valid time unit', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkJitter(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('10ms')).to.be.undefined;
+    expect(validator?.('2s')).to.be.undefined;
+  });
+});
+
+// Validator tests for setLinkLoss
+describe('setLinkLoss() validator', () => {
+  setupImpairmentsTests();
+
+  it(TEST_EMPTY_INPUT, async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkLoss(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator).to.be.a('function');
+    expect(validator?.('')).to.equal(ERR_INPUT_EMPTY);
+  });
+
+  it('returns error for invalid percentage', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkLoss(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('abc')).to.include(ERR_NUMBER_BETWEEN);
+    expect(validator?.('101')).to.include(ERR_NUMBER_BETWEEN);
+    expect(validator?.('-1')).to.include(ERR_NUMBER_BETWEEN);
+    expect(validator?.('0')).to.include(ERR_NUMBER_BETWEEN);
+  });
+
+  it('returns undefined for valid percentage', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkLoss(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('1')).to.be.undefined;
+    expect(validator?.('50')).to.be.undefined;
+    expect(validator?.('100')).to.be.undefined;
+  });
+});
+
+// Validator tests for setLinkRate
+describe('setLinkRate() validator', () => {
+  setupImpairmentsTests();
+
+  it(TEST_EMPTY_INPUT, async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkRate(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator).to.be.a('function');
+    expect(validator?.('')).to.equal(ERR_INPUT_EMPTY);
+  });
+
+  it('returns error for non-numeric input', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkRate(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('abc')).to.include('number');
+    expect(validator?.('100kbps')).to.include('number');
+    expect(validator?.('10.5')).to.include('number');
+  });
+
+  it('returns undefined for valid number', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkRate(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('100')).to.be.undefined;
+    expect(validator?.('1000')).to.be.undefined;
+    expect(validator?.('0')).to.be.undefined;
+  });
+});
+
+// Validator tests for setLinkCorruption
+describe('setLinkCorruption() validator', () => {
+  setupImpairmentsTests();
+
+  it(TEST_EMPTY_INPUT, async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkCorruption(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator).to.be.a('function');
+    expect(validator?.('')).to.equal(ERR_INPUT_EMPTY);
+  });
+
+  it('returns error for invalid percentage', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkCorruption(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('abc')).to.include(ERR_NUMBER_BETWEEN);
+    expect(validator?.('101')).to.include(ERR_NUMBER_BETWEEN);
+    expect(validator?.('0')).to.include(ERR_NUMBER_BETWEEN);
+  });
+
+  it('returns undefined for valid percentage', async () => {
+    const node = createInterfaceNode('eth0', 'node1');
+    vscodeStub.window.inputBoxResult = undefined;
+    await impairmentFunctions.setLinkCorruption(node);
+
+    const validator = vscodeStub.window.lastInputBoxOptions?.validateInput;
+    expect(validator?.('1')).to.be.undefined;
+    expect(validator?.('50')).to.be.undefined;
+    expect(validator?.('100')).to.be.undefined;
   });
 });

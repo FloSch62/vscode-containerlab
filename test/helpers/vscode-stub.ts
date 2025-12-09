@@ -233,7 +233,10 @@ export const window = {
   showQuickPick(_items: string[], _options?: any): Promise<string | undefined> {
     return Promise.resolve(this.quickPickResult);
   },
-  showInputBox(_options?: any): Promise<string | undefined> {
+  // Capture the last inputBox options for testing validators
+  lastInputBoxOptions: undefined as { validateInput?: (input: string) => string | undefined } | undefined,
+  showInputBox(options?: { validateInput?: (input: string) => string | undefined }): Promise<string | undefined> {
+    this.lastInputBoxOptions = options;
     return Promise.resolve(this.inputBoxResult);
   },
   showOpenDialog(_options?: any): Promise<{ fsPath: string }[] | undefined> {
@@ -602,6 +605,7 @@ export function resetVscodeStub(): void {
   window.quickPickResult = undefined;
   window.inputBoxResult = undefined;
   window.openDialogResult = undefined;
+  window.lastInputBoxOptions = undefined;
   window.activeColorTheme = { kind: ColorThemeKind.Dark };
   window.lastWebviewPanel = undefined;
   window.withProgressShouldCancel = false;

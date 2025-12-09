@@ -104,3 +104,50 @@ export function execSync(command: string, _options?: any): string {
 export function clearExecSyncCalls(): void {
   execSyncCalls.length = 0;
 }
+
+// exec mock configuration for async operations
+let execResult: { stdout: string; stderr: string } = { stdout: '', stderr: '' };
+let execError: Error | null = null;
+
+export function setExecResult(result: { stdout: string; stderr: string }): void {
+  execResult = result;
+  execError = null;
+}
+
+export function setExecError(error: Error): void {
+  execError = error;
+}
+
+export function resetExec(): void {
+  execResult = { stdout: '', stderr: '' };
+  execError = null;
+}
+
+export const execCalls: string[] = [];
+
+export function exec(
+  command: string,
+  callback?: (error: Error | null, stdout: string, stderr: string) => void
+): any {
+  execCalls.push(command);
+
+  if (callback) {
+    // Callback style
+    if (execError) {
+      callback(execError, '', '');
+    } else {
+      callback(null, execResult.stdout, execResult.stderr);
+    }
+  }
+
+  // Return a fake ChildProcess for promisify compatibility
+  return {
+    stdout: null,
+    stderr: null,
+    kill: () => {}
+  };
+}
+
+export function clearExecCalls(): void {
+  execCalls.length = 0;
+}

@@ -336,3 +336,129 @@ describe('containerlabInspectFallback stub - reset', () => {
     expect(result).to.deep.equal([{ name: TEST_CONTAINER_NAME, interfaces: [] }]);
   });
 });
+
+// =============================================================================
+// containerlabInspectFallback - Data Change Detection
+// =============================================================================
+
+// Shared setup for data change detection tests
+const setupDataChangeTests = () => {
+  const originalResolve = (Module as any)._resolveFilename;
+  let fallbackModule: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+      if (request === 'vscode') {
+        return path.join(__dirname, '..', '..', 'helpers', VSCODE_STUB_PATH);
+      }
+      if (request.includes('extension') && !request.includes('stub') && !request.includes('test')) {
+        return path.join(__dirname, '..', '..', 'helpers', EXTENSION_STUB_PATH);
+      }
+      if (request === 'child_process') {
+        return path.join(__dirname, '..', '..', 'helpers', 'child-process-stub.js');
+      }
+      return originalResolve.call(this, request, parent, isMain, options);
+    };
+
+    require('../../helpers/vscode-stub');
+    fallbackModule = require('../../../src/services/containerlabInspectFallback');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    fallbackModule.resetForTests();
+  });
+
+  return { getFallbackModule: () => fallbackModule };
+};
+
+describe('containerlabInspectFallback - listener notifications', () => {
+  const setup = setupDataChangeTests();
+
+  it('listener is notified when data changes via forceUpdate', async function() {
+    this.timeout(5000);
+    let notified = false;
+    setup.getFallbackModule().onDataChanged(() => {
+      notified = true;
+    });
+
+    await setup.getFallbackModule().forceUpdate('docker');
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(notified).to.be.true;
+  });
+
+  it('multiple listeners receive notifications', async function() {
+    this.timeout(5000);
+    let count = 0;
+    setup.getFallbackModule().onDataChanged(() => count++);
+    setup.getFallbackModule().onDataChanged(() => count++);
+
+    await setup.getFallbackModule().forceUpdate('docker');
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(count).to.equal(2);
+  });
+});
+
+describe('containerlabInspectFallback - listener disposal', () => {
+  const setup = setupDataChangeTests();
+
+  it('disposed listener does not receive notifications', async function() {
+    this.timeout(5000);
+    let notified = false;
+    const dispose = setup.getFallbackModule().onDataChanged(() => {
+      notified = true;
+    });
+    dispose();
+
+    await setup.getFallbackModule().forceUpdate('docker');
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(notified).to.be.false;
+  });
+});
+
+// =============================================================================
+// containerlabInspectFallback - Interface Snapshot with Cache
+// =============================================================================
+
+describe('containerlabInspectFallback - interface cache behavior', () => {
+  const originalResolve = (Module as any)._resolveFilename;
+  let fallbackModule: any;
+
+  before(() => {
+    clearModuleCache();
+    (Module as any)._resolveFilename = function(request: string, parent: any, isMain: boolean, options: any) {
+      if (request === 'vscode') {
+        return path.join(__dirname, '..', '..', 'helpers', VSCODE_STUB_PATH);
+      }
+      if (request.includes('extension') && !request.includes('stub') && !request.includes('test')) {
+        return path.join(__dirname, '..', '..', 'helpers', EXTENSION_STUB_PATH);
+      }
+      return originalResolve.call(this, request, parent, isMain, options);
+    };
+
+    require('../../helpers/vscode-stub');
+    fallbackModule = require('../../../src/services/containerlabInspectFallback');
+  });
+
+  after(() => {
+    (Module as any)._resolveFilename = originalResolve;
+    clearModuleCache();
+  });
+
+  beforeEach(() => {
+    fallbackModule.resetForTests();
+  });
+
+  it('getInterfaceSnapshot returns empty when no container data', () => {
+    const result = fallbackModule.getInterfaceSnapshot('abc123', 'unknown-container');
+    expect(result).to.deep.equal([]);
+  });
+});
