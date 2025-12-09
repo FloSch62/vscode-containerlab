@@ -153,9 +153,46 @@ export const promises = {
   }
 };
 
+// fs.constants mock
+export const constants = {
+  F_OK: 0,
+  R_OK: 4,
+  W_OK: 2,
+  X_OK: 1
+};
+
 // Synchronous API (for compatibility)
 export function existsSync(filePath: string): boolean {
   return files.get(filePath)?.exists ?? directories.get(filePath)?.exists ?? false;
+}
+
+// Track which files are executable
+const executableFiles: Set<string> = new Set();
+
+export function markExecutable(filePath: string): void {
+  executableFiles.add(filePath);
+}
+
+export function clearExecutable(filePath: string): void {
+  executableFiles.delete(filePath);
+}
+
+export function accessSync(filePath: string, mode?: number): void {
+  if (accessError) {
+    throw accessError;
+  }
+  const file = files.get(filePath);
+  if (!file?.exists) {
+    const error = new Error(`ENOENT: no such file or directory, access '${filePath}'`) as ErrnoException;
+    error.code = 'ENOENT';
+    throw error;
+  }
+  // Check for execute permission if X_OK is requested
+  if (mode !== undefined && (mode & constants.X_OK) && !executableFiles.has(filePath)) {
+    const error = new Error(`EACCES: permission denied, access '${filePath}'`) as ErrnoException;
+    error.code = 'EACCES';
+    throw error;
+  }
 }
 
 export function readFileSync(filePath: string, _encoding?: string): string {
@@ -273,6 +310,7 @@ export function setWriteError(error: Error | null): void {
 export function clearFileSystem(): void {
   files.clear();
   directories.clear();
+  executableFiles.clear();
   accessError = null;
   readError = null;
   writeError = null;

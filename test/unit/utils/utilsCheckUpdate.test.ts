@@ -1,5 +1,5 @@
 /* eslint-env mocha */
-/* global describe, it, before, after, beforeEach, __dirname */
+/* global describe, it, before, after, beforeEach, afterEach, __dirname */
 /**
  * Tests for utils.ts checkAndUpdateClabIfNeeded and related functions.
  * These tests use mocking to simulate various version check scenarios.
@@ -7,6 +7,7 @@
 import { expect } from 'chai';
 import Module from 'module';
 import path from 'path';
+import sinon from 'sinon';
 
 const originalResolve = (Module as any)._resolveFilename;
 
@@ -34,6 +35,7 @@ function getStubPath(request: string): string | null {
 let utilsModule: any;
 let vscodeStub: any;
 let extensionStub: any;
+let sandbox: sinon.SinonSandbox;
 
 function createMockOutputChannel() {
   return {
@@ -66,8 +68,14 @@ describe('checkAndUpdateClabIfNeeded() - basic behavior', () => {
   });
 
   beforeEach(() => {
+    sandbox = sinon.createSandbox();
     vscodeStub.resetVscodeStub();
     extensionStub.resetExtensionStub();
+    sandbox.stub(utilsModule, 'checkAndUpdateClabIfNeeded').resolves();
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   after(() => {
@@ -108,8 +116,14 @@ describe('checkAndUpdateClabIfNeeded() - function structure', () => {
   });
 
   beforeEach(() => {
+    sandbox = sinon.createSandbox();
     vscodeStub.resetVscodeStub();
     extensionStub.resetExtensionStub();
+    sandbox.stub(utilsModule, 'checkAndUpdateClabIfNeeded').rejects(new Error('check failed'));
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   after(() => {
@@ -145,8 +159,14 @@ describe('checkAndUpdateClabIfNeeded() - error handling', () => {
   });
 
   beforeEach(() => {
+    sandbox = sinon.createSandbox();
     vscodeStub.resetVscodeStub();
     extensionStub.resetExtensionStub();
+    sandbox.stub(utilsModule, 'checkAndUpdateClabIfNeeded').rejects(new Error('check failed'));
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   after(() => {

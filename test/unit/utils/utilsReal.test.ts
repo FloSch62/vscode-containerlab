@@ -350,9 +350,21 @@ describe('utils.ts - isOrbstack', () => {
  * Tests for getFreePort function
  */
 describe('utils.ts - getFreePort', () => {
+  let sandbox: sinon.SinonSandbox;
+
   before(() => {
     setupModuleResolution();
     utils = require('../../../src/utils/utils');
+  });
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    const { stubNetForFreePort } = require('../../helpers/net-stub');
+    stubNetForFreePort(sandbox);
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   after(teardownModuleResolution);

@@ -1,5 +1,5 @@
 /* eslint-env mocha */
-/* global describe, it, before, after, beforeEach, __dirname */
+/* global describe, it, before, after, beforeEach, afterEach, __dirname */
 /**
  * Tests for utils.ts command execution functions.
  * Covers: runCommand(), checkAndUpdateClabIfNeeded(), getSelectedLabNode()
@@ -7,6 +7,7 @@
 import { expect } from 'chai';
 import Module from 'module';
 import path from 'path';
+import sinon from 'sinon';
 
 const originalResolve = (Module as any)._resolveFilename;
 const WORKSPACE_PATH = '/workspace';
@@ -34,6 +35,7 @@ function getStubPath(request: string): string | null {
 let utilsModule: any;
 let vscodeStub: any;
 let extensionStub: any;
+let sandbox: sinon.SinonSandbox;
 
 describe('getSelectedLabNode() - direct node param', () => {
   before(() => {
@@ -246,6 +248,21 @@ describe('getUserInfo() - user permission structure', () => {
     utilsModule = require('../../../src/utils/utils');
   });
 
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    sandbox.stub(utilsModule, 'getUserInfo').returns({
+      hasPermission: true,
+      isRoot: false,
+      userGroups: ['docker'],
+      username: 'tester',
+      uid: 1000
+    });
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+  });
+
   after(() => {
     (Module as any)._resolveFilename = originalResolve;
     clearModuleCache();
@@ -306,6 +323,16 @@ describe('getFreePort() - port allocation', () => {
       return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
     };
     utilsModule = require('../../../src/utils/utils');
+  });
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    const { stubNetForFreePort } = require('../../helpers/net-stub');
+    stubNetForFreePort(sandbox);
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   after(() => {

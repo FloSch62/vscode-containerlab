@@ -43,6 +43,7 @@ const createdContainers: { id: string; options: any }[] = [];
 let pullCallCount = 0;
 let createContainerShouldFail = false;
 let createContainerError: Error | null = null;
+let pingSuccess = true;
 
 // Test helpers
 export function setImageExists(image: string, exists: boolean, pullShouldFail = false): void {
@@ -79,6 +80,15 @@ export function clearDockerMocks(): void {
   pullCallCount = 0;
   createContainerShouldFail = false;
   createContainerError = null;
+  pingSuccess = true;
+}
+
+export function setPingSuccess(success: boolean): void {
+  pingSuccess = success;
+}
+
+export function resetDockerodeStub(): void {
+  clearDockerMocks();
 }
 
 export function getPullCallCount(): number {
@@ -216,6 +226,13 @@ class Docker {
       }, 0);
     }
   };
+
+  async ping(): Promise<string> {
+    if (!pingSuccess) {
+      throw new Error('Cannot connect to Docker daemon');
+    }
+    return 'OK';
+  }
 
   getImage(name: string): MockImage {
     return new MockImage(name);

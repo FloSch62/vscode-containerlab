@@ -1,5 +1,5 @@
 /* eslint-env mocha */
-/* global describe, it, before, after, beforeEach, __dirname */
+/* global describe, it, before, after, beforeEach, afterEach, __dirname */
 /**
  * Tests for the utils module (actual source coverage).
  * Uses module interception to mock vscode and other dependencies.
@@ -7,6 +7,7 @@
 import { expect } from 'chai';
 import Module from 'module';
 import path from 'path';
+import sinon from 'sinon';
 
 const originalResolve = (Module as any)._resolveFilename;
 
@@ -35,6 +36,7 @@ function getStubPath(request: string): string | null {
 // Shared context
 let utilsModule: any;
 let vscodeStub: any;
+let sandbox: sinon.SinonSandbox;
 
 describe('stripAnsi() - ANSI escape removal', () => {
   before(() => {
@@ -363,6 +365,16 @@ describe('getFreePort() - network utilities', () => {
       return stubPath ?? originalResolve.call(this, request, parent, isMain, options);
     };
     utilsModule = require('../../../src/utils/utils');
+  });
+
+  beforeEach(() => {
+    sandbox = sinon.createSandbox();
+    const { stubNetForFreePort } = require('../../helpers/net-stub');
+    stubNetForFreePort(sandbox);
+  });
+
+  afterEach(() => {
+    sandbox.restore();
   });
 
   after(() => {

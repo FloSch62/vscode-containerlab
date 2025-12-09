@@ -72,3 +72,35 @@ export function spawn(cmd: string, args: string[], options?: any): any {
 
   return proc;
 }
+
+// execSync mock configuration
+let execSyncResult: string = '/usr/bin/containerlab\n';
+let execSyncError: Error | null = null;
+
+export function setExecSyncResult(result: string): void {
+  execSyncResult = result;
+  execSyncError = null;
+}
+
+export function setExecSyncError(error: Error): void {
+  execSyncError = error;
+}
+
+export function resetExecSync(): void {
+  execSyncResult = '/usr/bin/containerlab\n';
+  execSyncError = null;
+}
+
+export const execSyncCalls: string[] = [];
+
+export function execSync(command: string, _options?: any): string {
+  execSyncCalls.push(command);
+  if (execSyncError) {
+    throw execSyncError;
+  }
+  return execSyncResult;
+}
+
+export function clearExecSyncCalls(): void {
+  execSyncCalls.length = 0;
+}

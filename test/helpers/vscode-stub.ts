@@ -118,17 +118,46 @@ export const window = {
   lastWebviewPanel: undefined as MockWebviewPanel | undefined,
   createOutputChannel(_name: string, options?: { log: boolean } | string) {
     const isLogChannel = typeof options === 'object' && options?.log;
+    const logs: string[] = [];
     return {
-      appendLine() {},
+      logs,
+      appendLine(line: string) { logs.push(line); },
       show() {},
       // LogOutputChannel methods (when { log: true } is passed)
       ...(isLogChannel && {
-        info() {},
-        debug() {},
-        warn() {},
-        error() {},
-        trace() {},
+        info(msg: string) { logs.push(`[info] ${msg}`); },
+        debug(msg: string) { logs.push(`[debug] ${msg}`); },
+        warn(msg: string) { logs.push(`[warn] ${msg}`); },
+        error(msg: string) { logs.push(`[error] ${msg}`); },
+        trace(msg: string) { logs.push(`[trace] ${msg}`); },
       }),
+    };
+  },
+  createTreeView<T>(viewId: string, options: { treeDataProvider: any; canSelectMany?: boolean }) {
+    const mockTreeView = {
+      viewId,
+      treeDataProvider: options.treeDataProvider,
+      canSelectMany: options.canSelectMany || false,
+      visible: true,
+      selection: [] as T[],
+      onDidChangeVisibility: {
+        _callbacks: [] as Array<(e: { visible: boolean }) => void>,
+        fire(e: { visible: boolean }) {
+          for (const cb of this._callbacks) {
+            cb(e);
+          }
+        }
+      },
+      dispose() {}
+    };
+    // Return an event function that accepts a callback
+    const onDidChangeVisibilityFunc = (callback: (e: { visible: boolean }) => void) => {
+      mockTreeView.onDidChangeVisibility._callbacks.push(callback);
+      return { dispose: () => {} };
+    };
+    return {
+      ...mockTreeView,
+      onDidChangeVisibility: onDidChangeVisibilityFunc
     };
   },
   createTerminal(options: string | { name: string; shellPath?: string; shellArgs?: string[] }) {
@@ -234,9 +263,14 @@ export const window = {
 
 export const commands = {
   executed: [] as { command: string; args: any[] }[],
+  registered: [] as { command: string; handler: Function }[],
   executeCommand(command: string, ...args: any[]) {
     this.executed.push({ command, args });
     return Promise.resolve();
+  },
+  registerCommand(command: string, handler: Function) {
+    this.registered.push({ command, handler });
+    return { dispose: () => {} };
   },
 };
 
@@ -339,6 +373,13 @@ export const workspace = {
       }
     };
     return watcher;
+  },
+  onDidChangeConfiguration(cb: any) {
+    if (typeof cb === 'function') {
+      // no-op
+    }
+    const disposable = { disposed: false, dispose() { this.disposed = true; } };
+    return disposable;
   },
   fs: {
     readFile: async () => new TextEncoder().encode('{}'),
@@ -569,6 +610,7 @@ export function resetVscodeStub(): void {
   createdTerminals.length = 0;
   visibleEditors.length = 0;
   commands.executed.length = 0;
+  commands.registered.length = 0;
   capturedCompletionProviders.length = 0;
   // Handle case where workspaceFolders might be undefined
   if (workspace.workspaceFolders) {

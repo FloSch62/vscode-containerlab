@@ -139,6 +139,14 @@ export function installContainerlab(): void {
   // no-op in tests
 }
 
+export function startDockerImageEventMonitor(_context: any): void {
+  // no-op in tests
+}
+
+export async function checkAndUpdateClabIfNeeded(_outputChannel: any, _context: any): Promise<void> {
+  // no-op in tests
+}
+
 export function sanitize(
   raw: string,
   { maxLen = 128, lower = false }: { maxLen?: number; lower?: boolean } = {},
