@@ -31,6 +31,8 @@ const annotationsManager = require('../../../src/topoViewer/extension/services/A
 const iconManager = require('../../../src/topoViewer/extension/services/IconManager').iconManager;
 const splitViewManager = require('../../../src/topoViewer/extension/services/SplitViewManager').splitViewManager;
 const resolveNodeConfigModule = require('../../../src/topoViewer/webview/core/nodeConfig');
+const customNodeConfigManager = require('../../../src/topoViewer/extension/services/CustomNodeConfigManager').customNodeConfigManager;
+const simpleEndpointHandlers = require('../../../src/topoViewer/extension/services/SimpleEndpointHandlers').simpleEndpointHandlers;
 
 function createEndpointContext(overrides: Partial<EndpointHandlerContext> = {}): EndpointHandlerContext {
   const adaptor = overrides.adaptor ?? ({ currentClabTopo: undefined } as any);
@@ -284,5 +286,308 @@ describe('EditorEndpointHandlers - node config and misc endpoints', () => {
 
     const payload = result.result as { splitViewOpen?: boolean };
     expect(payload?.splitViewOpen).to.be.true;
+  });
+
+  it('returns error when lastYamlFilePath is missing', async () => {
+    const ctx = createEndpointContext({ lastYamlFilePath: '' });
+
+    const result = await editorEndpointHandlers.handleGetNodeConfigEndpoint('r1', ctx);
+
+    expect(result.error).to.include('No lab YAML file loaded');
+  });
+});
+
+describe('EditorEndpointHandlers - viewport error paths', () => {
+  it('returns error result when view-mode save fails', async () => {
+    sinon.stub(saveViewportModule, 'saveViewport').rejects(new Error('view-save-fail'));
+    const ctx = createEndpointContext();
+
+    const result = await editorEndpointHandlers.handleViewportSaveEndpoint('payload', ctx);
+
+    expect(result).to.deep.equal({ result: null, error: null });
+  });
+
+  it('returns error and resets internal update on suppress notification failure', async () => {
+    sinon.stub(saveViewportModule, 'saveViewport').rejects(new Error('suppress-fail'));
+    const setInternalUpdate = sinon.spy();
+    const ctx = createEndpointContext({ setInternalUpdate });
+
+    const result = await editorEndpointHandlers.handleViewportSaveSuppressNotificationEndpoint('payload', ctx);
+
+    expect(setInternalUpdate.calledWith(false)).to.be.true;
+    expect(result.result).to.include('Error executing');
+  });
+
+  it('successfully saves edit-mode viewport and returns success', async () => {
+    sinon.stub(saveViewportModule, 'saveViewport').resolves();
+    const updateCachedYaml = sinon.stub().resolves();
+    const ctx = createEndpointContext({ updateCachedYaml });
+
+    const result = await editorEndpointHandlers.handleViewportSaveEditEndpoint('payload', ctx);
+
+    expect(updateCachedYaml.calledOnce).to.be.true;
+    expect(result).to.deep.equal({ result: 'Saved topology with preserved comments!', error: null });
+  });
+});
+
+describe('EditorEndpointHandlers - lab settings success paths', () => {
+  it('successfully retrieves lab settings from YAML file', async () => {
+    const yamlContent = 'name: mylab\nprefix: clab\nmgmt:\n  network: custom\n';
+    sinon.stub(fs.promises, 'readFile').resolves(yamlContent);
+
+    const result = await editorEndpointHandlers.handleLabSettingsGetEndpoint(createEndpointContext());
+
+    const payload = result.result as { success: boolean; settings?: any };
+    expect(payload.success).to.be.true;
+    expect(payload.settings.name).to.equal('mylab');
+    expect(payload.settings.prefix).to.equal('clab');
+  });
+
+  it('handles updateLabSettings failure with proper error result', async () => {
+    sinon.stub(fs.promises, 'readFile').rejects(new Error('update-fail'));
+    const ctx = createEndpointContext();
+
+    const result = await editorEndpointHandlers.updateLabSettings({ name: 'test' }, ctx);
+
+    expect(result.success).to.be.false;
+    expect(result.error).to.include('update-fail');
+    expect(ctx.isInternalUpdate).to.be.false;
+  });
+
+  it('parses payload string in handleLabSettingsUpdateEndpoint', async () => {
+    const updateStub = sinon.stub(editorEndpointHandlers as any, 'updateLabSettings');
+    updateStub.resolves({ success: true, yamlContent: 'updated' });
+
+    await editorEndpointHandlers.handleLabSettingsUpdateEndpoint('{"name":"test"}', undefined, createEndpointContext());
+
+    expect(updateStub.calledOnce).to.be.true;
+    expect(updateStub.firstCall.args[0]).to.deep.equal({ name: 'test' });
+  });
+});
+
+describe('EditorEndpointHandlers - viewer settings error paths', () => {
+  it('returns empty viewerSettings on load error', async () => {
+    sinon.stub(annotationsManager, 'loadAnnotations').rejects(new Error('load-fail'));
+
+    const result = await editorEndpointHandlers.handleLoadViewerSettingsEndpoint(createEndpointContext());
+
+    expect(result.result).to.deep.equal({ viewerSettings: {} });
+    expect(result.error).to.be.null;
+  });
+
+  it('returns error when saving viewer settings fails', async () => {
+    sinon.stub(annotationsManager, 'loadAnnotations').resolves({});
+    sinon.stub(annotationsManager, 'saveAnnotations').rejects(new Error('save-fail'));
+
+    const result = await editorEndpointHandlers.handleSaveViewerSettingsEndpoint(
+      { viewerSettings: { zoom: 1 } },
+      createEndpointContext()
+    );
+
+    expect(result.result).to.be.null;
+    expect(result.error).to.include('save-fail');
+  });
+});
+
+describe('EditorEndpointHandlers - annotations error paths', () => {
+  it('returns empty annotations on load error', async () => {
+    sinon.stub(annotationsManager, 'loadAnnotations').rejects(new Error('anno-load-fail'));
+
+    const result = await editorEndpointHandlers.handleLoadAnnotationsEndpoint(createEndpointContext());
+
+    expect(result.result).to.deep.equal({
+      annotations: [],
+      freeShapeAnnotations: [],
+      groupStyles: []
+    });
+    expect(result.error).to.be.null;
+  });
+
+  it('returns error when saving annotations fails', async () => {
+    sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+      freeTextAnnotations: [],
+      freeShapeAnnotations: [],
+      groupStyleAnnotations: [],
+      cloudNodeAnnotations: [],
+      nodeAnnotations: []
+    });
+    sinon.stub(annotationsManager, 'saveAnnotations').rejects(new Error('anno-save-fail'));
+
+    const result = await editorEndpointHandlers.handleSaveAnnotationsEndpoint(
+      { annotations: [{ id: 'test' }] },
+      createEndpointContext()
+    );
+
+    expect(result.result).to.be.null;
+    expect(result.error).to.include('anno-save-fail');
+  });
+
+  it('loads annotations with counts logged', async () => {
+    sinon.stub(annotationsManager, 'loadAnnotations').resolves({
+      freeTextAnnotations: [{ id: 't1' }, { id: 't2' }],
+      freeShapeAnnotations: [{ id: 's1' }],
+      groupStyleAnnotations: [{ id: 'g1' }, { id: 'g2' }, { id: 'g3' }]
+    });
+
+    const result = await editorEndpointHandlers.handleLoadAnnotationsEndpoint(createEndpointContext());
+
+    const payload = result.result as any;
+    expect(payload.annotations).to.have.length(2);
+    expect(payload.freeShapeAnnotations).to.have.length(1);
+    expect(payload.groupStyles).to.have.length(3);
+  });
+});
+
+describe('EditorEndpointHandlers - icon upload full flow', () => {
+  it('returns cancelled when user cancels file selection', async () => {
+    sinon.stub(iconManager, 'promptIconUploadSource').resolves('local');
+    sinon.stub(iconManager, 'getIconPickerOptions').returns({});
+    vscode.setOpenDialogResult([]);
+
+    const result = await editorEndpointHandlers.handleUploadIconEndpoint();
+
+    expect(result.result).to.deep.equal({ cancelled: true });
+  });
+
+  it('successfully uploads icon and returns updated list', async () => {
+    sinon.stub(iconManager, 'promptIconUploadSource').resolves('local');
+    sinon.stub(iconManager, 'getIconPickerOptions').returns({});
+    sinon.stub(iconManager, 'importCustomIcon').resolves({ name: 'myicon' });
+    sinon.stub(iconManager, 'loadCustomIcons').resolves([{ name: 'myicon' }]);
+    vscode.setOpenDialogResult([{ fsPath: '/path/to/icon.png' }]);
+
+    const result = await editorEndpointHandlers.handleUploadIconEndpoint();
+
+    const payload = result.result as any;
+    expect(payload.success).to.be.true;
+    expect(payload.lastAddedIcon).to.equal('myicon');
+    expect(vscode.window.lastInfoMessage).to.include('Added custom icon');
+  });
+
+  it('returns error when import fails', async () => {
+    sinon.stub(iconManager, 'promptIconUploadSource').resolves('local');
+    sinon.stub(iconManager, 'getIconPickerOptions').returns({});
+    sinon.stub(iconManager, 'importCustomIcon').rejects(new Error('import-failed'));
+    vscode.setOpenDialogResult([{ fsPath: '/path/to/icon.png' }]);
+
+    const result = await editorEndpointHandlers.handleUploadIconEndpoint();
+
+    expect(result.result).to.be.null;
+    expect(result.error).to.include('import-failed');
+    expect(vscode.window.lastErrorMessage).to.include('Failed to add custom icon');
+  });
+
+  it('returns error when icon not found during deletion', async () => {
+    sinon.stub(iconManager, 'deleteCustomIcon').resolves(false);
+
+    const result = await editorEndpointHandlers.handleDeleteIconEndpoint({ iconName: 'nonexistent' });
+
+    expect(result.result).to.be.null;
+    expect(result.error).to.include('was not found');
+  });
+});
+
+describe('EditorEndpointHandlers - custom node delegation', () => {
+  it('delegates saveCustomNode to customNodeConfigManager', async () => {
+    const stub = sinon.stub(customNodeConfigManager, 'saveCustomNode').resolves({ result: { success: true }, error: null });
+
+    const result = await editorEndpointHandlers.handleSaveCustomNodeEndpoint({ name: 'mynode' });
+
+    expect(stub.calledOnceWith({ name: 'mynode' })).to.be.true;
+    expect((result.result as any).success).to.be.true;
+  });
+
+  it('delegates setDefaultCustomNode to customNodeConfigManager', async () => {
+    const stub = sinon.stub(customNodeConfigManager, 'setDefaultCustomNode').resolves({ result: { success: true }, error: null });
+
+    const result = await editorEndpointHandlers.handleSetDefaultCustomNodeEndpoint({ name: 'default-node' });
+
+    expect(stub.calledOnceWith('default-node')).to.be.true;
+    expect((result.result as any).success).to.be.true;
+  });
+
+  it('delegates deleteCustomNode with empty name when not provided', async () => {
+    const stub = sinon.stub(customNodeConfigManager, 'deleteCustomNode').resolves({ result: { success: false }, error: null });
+
+    await editorEndpointHandlers.handleDeleteCustomNodeEndpoint({});
+
+    expect(stub.calledOnceWith('')).to.be.true;
+  });
+});
+
+describe('EditorEndpointHandlers - simple endpoint delegation', () => {
+  it('delegates handleShowErrorMessageEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleShowErrorMessageEndpoint').resolves({ result: null, error: null });
+
+    await editorEndpointHandlers.handleShowErrorMessageEndpoint('error message');
+
+    expect(stub.calledOnceWith('error message')).to.be.true;
+  });
+
+  it('delegates handlePerformanceMetricsEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handlePerformanceMetricsEndpoint').resolves({ result: null, error: null });
+
+    await editorEndpointHandlers.handlePerformanceMetricsEndpoint('payload', { metric: 'data' });
+
+    expect(stub.calledOnceWith('payload', { metric: 'data' })).to.be.true;
+  });
+
+  it('delegates handleShowVscodeMessageEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleShowVscodeMessageEndpoint').resolves({ result: null, error: null });
+
+    await editorEndpointHandlers.handleShowVscodeMessageEndpoint('message');
+
+    expect(stub.calledOnceWith('message')).to.be.true;
+  });
+
+  it('delegates handleOpenExternalEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleOpenExternalEndpoint').resolves({ result: null, error: null });
+
+    await editorEndpointHandlers.handleOpenExternalEndpoint('https://example.com');
+
+    expect(stub.calledOnceWith('https://example.com')).to.be.true;
+  });
+
+  it('delegates handleOpenExternalLinkEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleOpenExternalLinkEndpoint').resolves({ result: null, error: null });
+
+    await editorEndpointHandlers.handleOpenExternalLinkEndpoint('https://link.com');
+
+    expect(stub.calledOnceWith('https://link.com')).to.be.true;
+  });
+
+  it('delegates handleShowErrorEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleShowErrorEndpoint').resolves({ result: null, error: null });
+
+    await editorEndpointHandlers.handleShowErrorEndpoint({ message: 'error' });
+
+    expect(stub.calledOnceWith({ message: 'error' })).to.be.true;
+  });
+
+  it('delegates handleCopyElementsEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleCopyElementsEndpoint').resolves({ result: { success: true }, error: null });
+    const extCtx = {} as any;
+
+    await editorEndpointHandlers.handleCopyElementsEndpoint(extCtx, { elements: [] });
+
+    expect(stub.calledOnceWith(extCtx, { elements: [] })).to.be.true;
+  });
+
+  it('delegates handleGetCopiedElementsEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleGetCopiedElementsEndpoint').resolves({ result: { elements: [] }, error: null });
+    const extCtx = {} as any;
+    const panel = {} as any;
+
+    await editorEndpointHandlers.handleGetCopiedElementsEndpoint(extCtx, panel);
+
+    expect(stub.calledOnceWith(extCtx, panel)).to.be.true;
+  });
+
+  it('delegates handleDebugLogEndpoint', async () => {
+    const stub = sinon.stub(simpleEndpointHandlers, 'handleDebugLogEndpoint').resolves({ result: null, error: null });
+
+    await editorEndpointHandlers.handleDebugLogEndpoint({ level: 'debug', message: 'test' });
+
+    expect(stub.calledOnceWith({ level: 'debug', message: 'test' })).to.be.true;
   });
 });

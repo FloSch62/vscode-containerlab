@@ -599,6 +599,10 @@ export function addVisibleEditor(filePath: string, _viewColumn?: number): void {
   });
 }
 
+export function setOpenDialogResult(result: { fsPath: string }[] | undefined): void {
+  window.openDialogResult = result;
+}
+
 export function resetVscodeStub(): void {
   window.lastErrorMessage = '';
   window.lastInfoMessage = '';

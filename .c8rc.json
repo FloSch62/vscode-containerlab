@@ -3,11 +3,11 @@
   "src": ["out/test/src"],
   "include": ["out/test/src/**/*.js"],
   "exclude": [
-    "out/test/src/topoViewer/webview/**",
     "out/test/src/topoViewer/view/**",
     "out/test/src/topoViewer/edit/webview-ui/**",
     "out/test/src/types/**",
     "out/test/src/topoViewer/shared/types/**",
+    "out/test/src/topoViewer/webview/types/**",
     "**/*.d.ts"
   ],
   "reporter": ["text", "html", "lcov"],
