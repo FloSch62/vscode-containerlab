@@ -1,0 +1,84 @@
+{
+  "int111int222": {
+    "name": "clab-interfaces-lab-router1",
+    "interfaces": [
+      {
+        "name": "e1-1",
+        "type": "veth",
+        "state": "up",
+        "alias": "ethernet-1/1",
+        "mac": "aa:bb:cc:dd:ee:01",
+        "mtu": 9500,
+        "ifindex": 10,
+        "rxBps": 1024,
+        "rxPps": 100,
+        "rxBytes": 102400,
+        "rxPackets": 1000,
+        "txBps": 2048,
+        "txPps": 200,
+        "txBytes": 204800,
+        "txPackets": 2000,
+        "statsIntervalSeconds": 5
+      },
+      {
+        "name": "e1-2",
+        "type": "veth",
+        "state": "up",
+        "alias": "ethernet-1/2",
+        "mac": "aa:bb:cc:dd:ee:02",
+        "mtu": 9500,
+        "ifindex": 11,
+        "rxBps": 512,
+        "rxPps": 50,
+        "rxBytes": 51200,
+        "rxPackets": 500,
+        "txBps": 1024,
+        "txPps": 100,
+        "txBytes": 102400,
+        "txPackets": 1000,
+        "statsIntervalSeconds": 5
+      },
+      {
+        "name": "mgmt0",
+        "type": "veth",
+        "state": "up",
+        "alias": "mgmt0",
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "mtu": 1500,
+        "ifindex": 12
+      }
+    ]
+  },
+  "int222int333": {
+    "name": "clab-interfaces-lab-router2",
+    "interfaces": [
+      {
+        "name": "e1-1",
+        "type": "veth",
+        "state": "up",
+        "alias": "ethernet-1/1",
+        "mac": "bb:cc:dd:ee:ff:01",
+        "mtu": 9500,
+        "ifindex": 20,
+        "rxBps": 2048,
+        "rxPps": 200,
+        "rxBytes": 204800,
+        "rxPackets": 2000,
+        "txBps": 1024,
+        "txPps": 100,
+        "txBytes": 102400,
+        "txPackets": 1000,
+        "statsIntervalSeconds": 5
+      },
+      {
+        "name": "e1-2",
+        "type": "veth",
+        "state": "down",
+        "alias": "ethernet-1/2",
+        "mac": "bb:cc:dd:ee:ff:02",
+        "mtu": 9500,
+        "ifindex": 21
+      }
+    ]
+  }
+}

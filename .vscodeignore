@@ -45,3 +45,7 @@ CLAUDE.md
 mochawesome-report/**
 patch.sh
 report/
+.claude-flow/**
+coverage/**
+.nyc_output/**
+test/**

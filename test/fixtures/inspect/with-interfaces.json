@@ -1,0 +1,72 @@
+{
+  "interfaces-lab": [
+    {
+      "Names": ["clab-interfaces-lab-router1"],
+      "ID": "int111int222int333int444int555int666int777int888int999int000int1",
+      "ShortID": "int111int222",
+      "Image": "ghcr.io/nokia/srlinux:latest",
+      "State": "running",
+      "Status": "Up 2 hours",
+      "StartedAt": 1699900000,
+      "Labels": {
+        "clab-node-kind": "nokia_srlinux",
+        "clab-node-name": "router1",
+        "clab-node-longname": "clab-interfaces-lab-router1",
+        "clab-node-type": "ixrd3",
+        "clab-node-group": "core",
+        "clab-topo-file": "/home/user/labs/interfaces-lab.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-interfaces-lab",
+        "clab-owner": "testuser",
+        "containerlab": "interfaces-lab"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.70.2",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.70.1",
+        "IPv6addr": "2001:db8:70::2",
+        "IPv6pLen": 64,
+        "IPv6Gw": "2001:db8:70::1"
+      },
+      "Mounts": [
+        { "Source": "/home/user/labs/clab-interfaces-lab/router1", "Destination": "/etc/opt" }
+      ],
+      "Ports": [],
+      "Pid": 66666,
+      "NetworkName": "clab"
+    },
+    {
+      "Names": ["clab-interfaces-lab-router2"],
+      "ID": "int222int333int444int555int666int777int888int999int000int111int2",
+      "ShortID": "int222int333",
+      "Image": "ghcr.io/nokia/srlinux:latest",
+      "State": "running",
+      "Status": "Up 2 hours",
+      "StartedAt": 1699900000,
+      "Labels": {
+        "clab-node-kind": "nokia_srlinux",
+        "clab-node-name": "router2",
+        "clab-node-longname": "clab-interfaces-lab-router2",
+        "clab-node-type": "ixrd3",
+        "clab-node-group": "edge",
+        "clab-topo-file": "/home/user/labs/interfaces-lab.clab.yml",
+        "clab-node-lab-dir": "/home/user/labs/clab-interfaces-lab",
+        "clab-owner": "testuser",
+        "containerlab": "interfaces-lab"
+      },
+      "NetworkSettings": {
+        "IPv4addr": "172.20.70.3",
+        "IPv4pLen": 24,
+        "IPv4Gw": "172.20.70.1",
+        "IPv6addr": "2001:db8:70::3",
+        "IPv6pLen": 64,
+        "IPv6Gw": "2001:db8:70::1"
+      },
+      "Mounts": [
+        { "Source": "/home/user/labs/clab-interfaces-lab/router2", "Destination": "/etc/opt" }
+      ],
+      "Ports": [],
+      "Pid": 77777,
+      "NetworkName": "clab"
+    }
+  ]
+}
