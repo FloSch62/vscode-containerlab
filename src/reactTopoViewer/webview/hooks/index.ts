@@ -62,31 +62,5 @@ export interface LinkData {
   [key: string]: unknown;
 }
 
-/**
- * Stub hook for graph undo/redo handlers
- * [MIGRATION] Implement for ReactFlow
- */
-export function useGraphUndoRedoHandlers(_options?: unknown) {
-  // Stub undo/redo object with all expected properties
-  const undoRedo = {
-    undo: () => {},
-    redo: () => {},
-    canUndo: false,
-    canRedo: false,
-    pushAction: (_action: unknown) => {},
-    recordMove: (_nodeIds: string[], _beforePositions: unknown[]) => {},
-    clearHistory: () => {},
-    capturePositions: (_nodeIds: string[]) => [] as unknown[],
-    undoCount: 0,
-    redoCount: 0
-  };
-
-  return {
-    undoRedo,
-    handleDeleteNodeWithUndo: (_nodeId: string) => {},
-    handleDeleteLinkWithUndo: (_edgeId: string) => {},
-    recordPropertyEdit: (_entityType: string, _entityId: string, _before: unknown, _after: unknown) => {},
-    applyGraphChanges: (_changes: unknown[]) => {},
-    applyPropertyEdit: (_action: unknown, _isUndo: boolean) => {}
-  };
-}
+// Note: useGraphUndoRedoHandlers is now exported from './react-flow'
+// (was a stub, now uses the real implementation)

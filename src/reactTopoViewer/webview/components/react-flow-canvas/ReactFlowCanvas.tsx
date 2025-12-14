@@ -244,7 +244,7 @@ function useSyncAnnotationNodes(
 }
 
 const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ elements, annotationNodes, annotationMode, annotationHandlers, onNodeDelete, onEdgeDelete }, ref) => {
+  ({ elements, annotationNodes, annotationMode, annotationHandlers, onNodeDelete, onEdgeDelete, onMoveComplete }, ref) => {
     const { state, selectNode, selectEdge, editNode, editEdge } = useTopoViewer();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -254,7 +254,9 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
       selectNode, selectEdge, editNode, editEdge,
       mode: state.mode, isLocked: state.isLocked,
       onNodesChangeBase: onNodesChange, onEdgesChangeBase: onEdgesChange,
-      setEdges, onLockedAction: () => floatingPanelRef.current?.triggerShake()
+      setEdges, onLockedAction: () => floatingPanelRef.current?.triggerShake(),
+      nodes, // Pass nodes for position tracking
+      onMoveComplete // Pass callback for undo/redo
     });
 
     useElementConversion(elements, setNodes, setEdges);
@@ -266,7 +268,7 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
 
     useKeyboardDeleteHandlers(state.mode, state.isLocked, state.selectedNode, state.selectedEdge, handleDeleteNode, handleDeleteEdge);
 
-    const refMethods = useCanvasRefMethods(handlers.reactFlowInstance, nodes, edges, setNodes);
+    const refMethods = useCanvasRefMethods(handlers.reactFlowInstance, nodes, edges, setNodes, setEdges);
     useImperativeHandle(ref, () => refMethods, [refMethods]);
 
     const wrappedOnNodeClick = useWrappedNodeClick(linkSourceNode, completeLinkCreation, handlers.onNodeClick);
@@ -293,6 +295,7 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
             onInit={handlers.onInit}
             onNodeClick={wrappedOnNodeClick}
             onNodeDoubleClick={wrappedOnNodeDoubleClick}
+            onNodeDragStart={handlers.onNodeDragStart}
             onNodeDragStop={wrappedOnNodeDragStop}
             onNodeContextMenu={handlers.onNodeContextMenu}
             onEdgeClick={handlers.onEdgeClick}

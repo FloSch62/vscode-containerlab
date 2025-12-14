@@ -2,7 +2,7 @@
  * React TopoViewer Main Application Component
  */
 import React from 'react';
-import { ReactFlowProvider, type ReactFlowInstance } from '@xyflow/react';
+import { ReactFlowProvider, type ReactFlowInstance, type Node as RFNode, type Edge as RFEdge } from '@xyflow/react';
 import { useTopoViewer, CustomNodeTemplate } from './context/TopoViewerContext';
 import { Navbar } from './components/navbar/Navbar';
 import { ReactFlowCanvas } from './components/react-flow-canvas';
@@ -203,6 +203,22 @@ function useLinkEditorHandlers(
   return { handleClose, handleSave, handleApply };
 }
 
+/** Hook for creating React Flow ref callbacks */
+function useReactFlowRefCallbacks(reactFlowRef: React.RefObject<import('./components/react-flow-canvas').ReactFlowCanvasRef | null>) {
+  const getNodes = React.useCallback(() => reactFlowRef.current?.getNodes() ?? [], [reactFlowRef]);
+  const getEdges = React.useCallback(() => reactFlowRef.current?.getEdges() ?? [], [reactFlowRef]);
+  const setNodePositions = React.useCallback((positions: import('./hooks').NodePositionEntry[]) => {
+    reactFlowRef.current?.setNodePositions(positions);
+  }, [reactFlowRef]);
+  const updateNodes = React.useCallback((updater: (nodes: RFNode[]) => RFNode[]) => {
+    reactFlowRef.current?.updateNodes(updater);
+  }, [reactFlowRef]);
+  const updateEdges = React.useCallback((updater: (edges: RFEdge[]) => RFEdge[]) => {
+    reactFlowRef.current?.updateEdges(updater);
+  }, [reactFlowRef]);
+  return { getNodes, getEdges, setNodePositions, updateNodes, updateEdges };
+}
+
 /** State shape for node creation handlers */
 interface NodeCreationState {
   isLocked: boolean;
@@ -339,8 +355,8 @@ const AppContent: React.FC = () => {
   const { handleZoomToFit } = useRFNavbarActions(reactFlowRef);
   const navbarCommands = useNavbarCommands();
 
-  // Context menu handlers
-  const menuHandlers = useRFContextMenuHandlers(reactFlowRef, { selectNode, selectEdge, editNode, editEdge, removeNodeAndEdges, removeEdge });
+  // Context menu handlers (registered for future use, currently handled by ReactFlowCanvas internally)
+  useRFContextMenuHandlers(reactFlowRef, { selectNode, selectEdge, editNode, editEdge, removeNodeAndEdges, removeEdge });
   const floatingPanelCommands = useFloatingPanelCommands();
   const customNodeCommands = useCustomNodeCommands(state.customNodes, editCustomTemplate);
 
@@ -389,19 +405,32 @@ const AppContent: React.FC = () => {
     applyFreeShapeChange
   });
 
+  // Create callbacks for undo/redo that access ReactFlowCanvas via ref
+  const { getNodes, getEdges, setNodePositions, updateNodes, updateEdges } = useReactFlowRefCallbacks(reactFlowRef);
+
   const {
     undoRedo,
     handleDeleteNodeWithUndo,
     handleDeleteLinkWithUndo,
     recordPropertyEdit
   } = useGraphUndoRedoHandlers({
-    cyInstance: null, // React Flow handles this differently
     mode: state.mode,
+    getNodes,
+    getEdges,
+    setNodePositions,
     addNode,
     addEdge,
-    menuHandlers,
+    removeNodeAndEdges,
+    removeEdge,
+    updateNodes,
+    updateEdges,
     applyAnnotationChange
   });
+
+  // Callback for when a node move is complete (from ReactFlowCanvas)
+  const handleMoveComplete = React.useCallback((beforePositions: import('./hooks').NodePositionEntry[], afterPositions: import('./hooks').NodePositionEntry[]) => {
+    undoRedo.recordMove(beforePositions, afterPositions);
+  }, [undoRedo]);
 
   // Group undo/redo handlers (must be after useGraphUndoRedoHandlers)
   const { handleAddGroupWithUndo } = useAppGroupUndoHandlers({
@@ -556,6 +585,7 @@ const AppContent: React.FC = () => {
           annotationNodes={annotationNodes}
           annotationMode={annotationMode}
           annotationHandlers={annotationHandlers}
+          onMoveComplete={handleMoveComplete}
         />
         {/* Group, FreeText, and FreeShape layers are now rendered as React Flow nodes */}
         <NodeEditorPanel

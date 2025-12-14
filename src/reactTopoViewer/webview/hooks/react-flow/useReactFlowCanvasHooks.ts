@@ -213,6 +213,23 @@ export function useKeyboardDeleteHandlers(
   }, [mode, isLocked, selectedNode, selectedEdge, handleDeleteNode, handleDeleteEdge]);
 }
 
+/** Position entry for undo/redo */
+interface PositionEntry {
+  id: string;
+  position: { x: number; y: number };
+}
+
+/** Apply position update to a single node */
+function applyPositionToNode(node: Node, positions: PositionEntry[]): Node {
+  const posEntry = positions.find(p => p.id === node.id);
+  return posEntry ? { ...node, position: posEntry.position } : node;
+}
+
+/** Create node updater function for position changes */
+function createPositionUpdater(positions: PositionEntry[]) {
+  return (currentNodes: Node[]) => currentNodes.map(node => applyPositionToNode(node, positions));
+}
+
 /**
  * Hook to create imperative handle methods
  */
@@ -220,19 +237,23 @@ export function useCanvasRefMethods(
   reactFlowInstanceRef: React.RefObject<ReactFlowInstance | null>,
   nodes: Node[],
   edges: Edge[],
-  setNodes: React.Dispatch<React.SetStateAction<Node[]>>
+  setNodes: React.Dispatch<React.SetStateAction<Node[]>>,
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>
 ) {
   return useMemo(() => ({
-    fit: () => {
-      reactFlowInstanceRef.current?.fitView({ padding: 0.2, duration: 200 });
-    },
+    fit: () => reactFlowInstanceRef.current?.fitView({ padding: 0.2, duration: 200 }),
     runLayout: (layoutName: string) => {
-      const newNodes = applyLayout(layoutName as LayoutName, nodes, edges);
-      setNodes(newNodes);
-      setTimeout(() => {
-        reactFlowInstanceRef.current?.fitView({ padding: 0.2, duration: 200 });
-      }, 100);
+      setNodes(applyLayout(layoutName as LayoutName, nodes, edges));
+      setTimeout(() => reactFlowInstanceRef.current?.fitView({ padding: 0.2, duration: 200 }), 100);
     },
-    getReactFlowInstance: () => reactFlowInstanceRef.current
-  }), [nodes, edges, setNodes, reactFlowInstanceRef]);
+    getReactFlowInstance: () => reactFlowInstanceRef.current,
+    getNodes: () => nodes,
+    getEdges: () => edges,
+    setNodePositions: (positions: PositionEntry[]) => {
+      setNodes(createPositionUpdater(positions));
+      sendCommandToExtension('save-node-positions', { positions });
+    },
+    updateNodes: (updater: (nodes: Node[]) => Node[]) => setNodes(updater),
+    updateEdges: (updater: (edges: Edge[]) => Edge[]) => setEdges(updater)
+  }), [nodes, edges, setNodes, setEdges, reactFlowInstanceRef]);
 }

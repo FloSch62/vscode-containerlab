@@ -141,6 +141,16 @@ export interface ReactFlowCanvasRef {
   fit: () => void;
   runLayout: (layoutName: string) => void;
   getReactFlowInstance: () => ReactFlowInstance | null;
+  /** Get current nodes (for undo/redo) */
+  getNodes: () => Node[];
+  /** Get current edges (for undo/redo) */
+  getEdges: () => Edge[];
+  /** Update node positions (for undo/redo) */
+  setNodePositions: (positions: MovePositionEntry[]) => void;
+  /** Update nodes state (for undo/redo graph operations) */
+  updateNodes: (updater: (nodes: Node[]) => Node[]) => void;
+  /** Update edges state (for undo/redo graph operations) */
+  updateEdges: (updater: (edges: Edge[]) => Edge[]) => void;
 }
 
 /**
@@ -190,6 +200,12 @@ export interface AnnotationHandlers {
   disableAddShapeMode: () => void;
 }
 
+/** Position entry for undo/redo move tracking */
+export interface MovePositionEntry {
+  id: string;
+  position: { x: number; y: number };
+}
+
 /**
  * Props for ReactFlowCanvas component
  */
@@ -208,6 +224,8 @@ export interface ReactFlowCanvasProps {
   onNodeDelete?: (nodeId: string) => void;
   onEdgeDelete?: (edgeId: string) => void;
   onPaneClick?: () => void;
+  /** Callback when a node move is complete (for undo/redo) */
+  onMoveComplete?: (before: MovePositionEntry[], after: MovePositionEntry[]) => void;
 }
 
 /**

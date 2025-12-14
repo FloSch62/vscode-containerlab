@@ -30,6 +30,12 @@ export function snapToGrid(position: XYPosition): XYPosition {
   };
 }
 
+/** Position entry for undo/redo tracking */
+export interface DragPositionEntry {
+  id: string;
+  position: { x: number; y: number };
+}
+
 interface CanvasHandlersConfig {
   selectNode: (id: string | null) => void;
   selectEdge: (id: string | null) => void;
@@ -41,6 +47,10 @@ interface CanvasHandlersConfig {
   onEdgesChangeBase: (changes: unknown[]) => void;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   onLockedAction?: () => void;
+  /** Current nodes (needed for position tracking) */
+  nodes?: Node[];
+  /** Callback when a move is complete (for undo/redo) */
+  onMoveComplete?: (beforePositions: DragPositionEntry[], afterPositions: DragPositionEntry[]) => void;
 }
 
 interface ContextMenuState {
@@ -62,6 +72,7 @@ interface CanvasHandlers {
   onNodeContextMenu: (event: React.MouseEvent, node: Node) => void;
   onEdgeContextMenu: (event: React.MouseEvent, edge: Edge) => void;
   onPaneContextMenu: (event: React.MouseEvent) => void;
+  onNodeDragStart: NodeMouseHandler;
   onNodeDragStop: NodeMouseHandler;
   contextMenu: ContextMenuState;
   closeContextMenu: () => void;
@@ -78,6 +89,94 @@ function generateNodeId(): string {
 
 function generateEdgeId(source: string, target: string): string {
   return `${source}-${target}-${Date.now()}`;
+}
+
+/** Hook for node drag handlers with undo/redo support */
+function useNodeDragHandlers(
+  modeRef: React.RefObject<'view' | 'edit'>,
+  nodes: Node[] | undefined,
+  onNodesChangeBase: OnNodesChange,
+  onMoveComplete?: (before: DragPositionEntry[], after: DragPositionEntry[]) => void
+) {
+  const dragStartPositionsRef = useRef<DragPositionEntry[]>([]);
+
+  const onNodeDragStart: NodeMouseHandler = useCallback((_event, node) => {
+    if (modeRef.current !== 'edit' || !nodes) return;
+    const nodesToCapture = nodes.filter(n => n.selected || n.id === node.id);
+    dragStartPositionsRef.current = nodesToCapture.map(n => ({
+      id: n.id,
+      position: { x: Math.round(n.position.x), y: Math.round(n.position.y) }
+    }));
+    log.info(`[ReactFlowCanvas] Drag started for ${dragStartPositionsRef.current.length} node(s)`);
+  }, [modeRef, nodes]);
+
+  const onNodeDragStop: NodeMouseHandler = useCallback((_event, node) => {
+    if (modeRef.current !== 'edit') return;
+    const snappedPosition = snapToGrid(node.position);
+    onNodesChangeBase([{ type: 'position', id: node.id, position: snappedPosition, dragging: false }]);
+    log.info(`[ReactFlowCanvas] Node ${node.id} snapped to ${snappedPosition.x}, ${snappedPosition.y}`);
+    sendCommandToExtension('save-node-positions', { positions: [{ id: node.id, position: snappedPosition }] });
+
+    if (onMoveComplete && dragStartPositionsRef.current.length > 0) {
+      const afterPositions = computeAfterPositions(dragStartPositionsRef.current, nodes, node, snappedPosition);
+      const hasChanged = checkPositionsChanged(dragStartPositionsRef.current, afterPositions);
+      if (hasChanged) {
+        log.info(`[ReactFlowCanvas] Recording move for undo/redo: ${afterPositions.length} node(s)`);
+        onMoveComplete(dragStartPositionsRef.current, afterPositions);
+      }
+      dragStartPositionsRef.current = [];
+    }
+  }, [modeRef, nodes, onNodesChangeBase, onMoveComplete]);
+
+  return { onNodeDragStart, onNodeDragStop };
+}
+
+/** Compute after positions for undo/redo */
+function computeAfterPositions(before: DragPositionEntry[], nodes: Node[] | undefined, draggedNode: Node, snappedPos: XYPosition): DragPositionEntry[] {
+  return before.map(b => {
+    if (b.id === draggedNode.id) return { id: b.id, position: snappedPos };
+    const currentNode = nodes?.find(n => n.id === b.id);
+    return { id: b.id, position: currentNode ? snapToGrid(currentNode.position) : b.position };
+  });
+}
+
+/** Check if positions changed */
+function checkPositionsChanged(before: DragPositionEntry[], after: DragPositionEntry[]): boolean {
+  return before.some((b, i) => b.position.x !== after[i].position.x || b.position.y !== after[i].position.y);
+}
+
+/** Hook for context menu handlers */
+function useContextMenuHandlers(
+  selectNode: (id: string | null) => void,
+  selectEdge: (id: string | null) => void,
+  openNodeMenu: (x: number, y: number, id: string) => void,
+  openEdgeMenu: (x: number, y: number, id: string) => void,
+  openPaneMenu: (x: number, y: number) => void
+) {
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    event.stopPropagation();
+    selectNode(node.id);
+    selectEdge(null);
+    openNodeMenu(event.clientX, event.clientY, node.id);
+  }, [selectNode, selectEdge, openNodeMenu]);
+
+  const onEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    event.stopPropagation();
+    selectEdge(edge.id);
+    selectNode(null);
+    openEdgeMenu(event.clientX, event.clientY, edge.id);
+  }, [selectNode, selectEdge, openEdgeMenu]);
+
+  const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    selectNode(null);
+    selectEdge(null);
+    openPaneMenu(event.clientX, event.clientY);
+  }, [selectNode, selectEdge, openPaneMenu]);
+
+  return { onNodeContextMenu, onEdgeContextMenu, onPaneContextMenu };
 }
 
 /** Hook for context menu state management */
@@ -257,7 +356,7 @@ function useConnectionHandler(
  * Hook for canvas event handlers
  */
 export function useCanvasHandlers(config: CanvasHandlersConfig): CanvasHandlers {
-  const { selectNode, selectEdge, editNode, editEdge, mode, isLocked, onNodesChangeBase, setEdges, onLockedAction } = config;
+  const { selectNode, selectEdge, editNode, editEdge, mode, isLocked, onNodesChangeBase, setEdges, onLockedAction, nodes, onMoveComplete } = config;
 
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
   const modeRef = useRef(mode);
@@ -265,7 +364,7 @@ export function useCanvasHandlers(config: CanvasHandlersConfig): CanvasHandlers 
   modeRef.current = mode;
   isLockedRef.current = isLocked;
 
-  // Context menu
+  // Context menu state
   const { contextMenu, closeContextMenu, openNodeMenu, openEdgeMenu, openPaneMenu } = useContextMenuState();
 
   // Initialize
@@ -275,55 +374,20 @@ export function useCanvasHandlers(config: CanvasHandlersConfig): CanvasHandlers 
     setTimeout(() => instance.fitView({ padding: 0.2 }), 100);
   }, []);
 
-  // Click handlers
+  // Click handlers (extracted hooks)
   const { onNodeClick, onNodeDoubleClick } = useNodeClickHandlers(selectNode, selectEdge, editNode, closeContextMenu, modeRef, isLockedRef, onLockedAction);
   const { onEdgeClick, onEdgeDoubleClick } = useEdgeClickHandlers(selectNode, selectEdge, editEdge, closeContextMenu, modeRef, isLockedRef, onLockedAction);
   const onPaneClick = usePaneClickHandler(selectNode, selectEdge, closeContextMenu, reactFlowInstance, modeRef, isLockedRef, onLockedAction);
   const onConnect = useConnectionHandler(setEdges, modeRef, isLockedRef, onLockedAction);
 
-  // Node changes - no snapping during drag for smooth movement
-  const handleNodesChange: OnNodesChange = useCallback((changes: NodeChange[]) => {
-    onNodesChangeBase(changes);
-  }, [onNodesChangeBase]);
+  // Node changes handler
+  const handleNodesChange: OnNodesChange = useCallback((changes: NodeChange[]) => onNodesChangeBase(changes), [onNodesChangeBase]);
 
-  // Drag stop - snap to grid on release
-  const onNodeDragStop: NodeMouseHandler = useCallback((event, node) => {
-    if (modeRef.current !== 'edit') return;
-    const snappedPosition = snapToGrid(node.position);
-    // Update node position in React Flow to snapped position
-    onNodesChangeBase([{
-      type: 'position',
-      id: node.id,
-      position: snappedPosition,
-      dragging: false
-    }]);
-    log.info(`[ReactFlowCanvas] Node ${node.id} snapped to ${snappedPosition.x}, ${snappedPosition.y}`);
-    sendCommandToExtension('save-node-positions', { positions: [{ id: node.id, position: snappedPosition }] });
-  }, [onNodesChangeBase]);
+  // Drag handlers (extracted hook)
+  const { onNodeDragStart, onNodeDragStop } = useNodeDragHandlers(modeRef, nodes, onNodesChangeBase, onMoveComplete);
 
-  // Context menus
-  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
-    event.preventDefault();
-    event.stopPropagation();
-    selectNode(node.id);
-    selectEdge(null);
-    openNodeMenu(event.clientX, event.clientY, node.id);
-  }, [selectNode, selectEdge, openNodeMenu]);
-
-  const onEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
-    event.preventDefault();
-    event.stopPropagation();
-    selectEdge(edge.id);
-    selectNode(null);
-    openEdgeMenu(event.clientX, event.clientY, edge.id);
-  }, [selectNode, selectEdge, openEdgeMenu]);
-
-  const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
-    selectNode(null);
-    selectEdge(null);
-    openPaneMenu(event.clientX, event.clientY);
-  }, [selectNode, selectEdge, openPaneMenu]);
+  // Context menu handlers (extracted hook)
+  const { onNodeContextMenu, onEdgeContextMenu, onPaneContextMenu } = useContextMenuHandlers(selectNode, selectEdge, openNodeMenu, openEdgeMenu, openPaneMenu);
 
   return {
     reactFlowInstance,
@@ -338,6 +402,7 @@ export function useCanvasHandlers(config: CanvasHandlersConfig): CanvasHandlers 
     onNodeContextMenu,
     onEdgeContextMenu,
     onPaneContextMenu,
+    onNodeDragStart,
     onNodeDragStop,
     contextMenu,
     closeContextMenu

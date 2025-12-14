@@ -11,7 +11,14 @@ export {
 } from './useReactFlowCanvasHooks';
 
 // Canvas event handlers (moved from components/react-flow-canvas/)
-export { useCanvasHandlers, snapToGrid, GRID_SIZE } from './useCanvasHandlers';
+export { useCanvasHandlers, snapToGrid, GRID_SIZE, type DragPositionEntry } from './useCanvasHandlers';
+
+// Graph undo/redo handlers for React Flow
+export {
+  useGraphUndoRedoHandlers,
+  type UseGraphUndoRedoHandlersOptions,
+  type UseGraphUndoRedoHandlersReturn
+} from './useGraphUndoRedoHandlers';
 
 // Annotation nodes hook
 export { useAnnotationNodes, type AnnotationAddModeState } from './useAnnotationNodes';
