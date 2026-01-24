@@ -1,10 +1,7 @@
-// @ts-nocheck
 /**
  * Utility functions for bulk link creation
  */
-// [MIGRATION] Replace with ReactFlow types from @xyflow/react
-type CyCore = { zoom: () => number; pan: () => { x: number; y: number }; container: () => HTMLElement | null };
-type NodeSingular = { id: () => string; data: () => Record<string, unknown>; position: () => { x: number; y: number } };
+import type { Node, Edge } from '@xyflow/react';
 import { FilterUtils } from '../../../../../helpers/filterUtils';
 import { isSpecialEndpointId } from '../../../../shared/utilities/LinkTypes';
 import type { CyElement } from '../../../../shared/types/messages';
@@ -55,10 +52,13 @@ function generateInterfaceName(parsed: ParsedInterfacePattern, index: number): s
   return `${parsed.prefix}${num}${parsed.suffix}`;
 }
 
-function getNodeInterfacePattern(node: NodeSingular): string {
-  const extraData = node.data('extraData') as { interfacePattern?: string; kind?: string } | undefined;
-  if (extraData?.interfacePattern) return extraData.interfacePattern;
-  const kind = extraData?.kind;
+function getNodeInterfacePattern(node: Node): string {
+  const data = node.data as Record<string, unknown> | undefined;
+  const extraData = (data?.extraData as Record<string, unknown> | undefined) || {};
+  const interfacePattern = extraData.interfacePattern;
+  if (typeof interfacePattern === 'string' && interfacePattern.trim() !== '') return interfacePattern;
+
+  const kind = (data?.kind ?? extraData.kind) as string | undefined;
   if (kind && DEFAULT_INTERFACE_PATTERNS[kind]) return DEFAULT_INTERFACE_PATTERNS[kind];
   return DEFAULT_INTERFACE_PATTERN;
 }
@@ -74,39 +74,37 @@ function extractInterfaceIndex(endpoint: string, parsed: ParsedInterfacePattern)
   return -1;
 }
 
-function collectUsedIndices(cy: CyCore, nodeId: string, parsed: ParsedInterfacePattern): Set<number> {
+function collectUsedIndices(edges: Edge[], nodeId: string, parsed: ParsedInterfacePattern): Set<number> {
   const usedIndices = new Set<number>();
-  const edges = cy.edges(`[source = "${nodeId}"], [target = "${nodeId}"]`);
-  edges.forEach((edge) => {
-    const src = edge.data('source');
-    const tgt = edge.data('target');
-    const epSrc = edge.data('sourceEndpoint') as string | undefined;
-    const epTgt = edge.data('targetEndpoint') as string | undefined;
+  for (const edge of edges) {
+    if (edge.source !== nodeId && edge.target !== nodeId) continue;
+    const data = (edge.data as Record<string, unknown> | undefined) || {};
 
-    if (src === nodeId && epSrc) {
-      const idx = extractInterfaceIndex(epSrc, parsed);
+    if (edge.source === nodeId && typeof data.sourceEndpoint === 'string') {
+      const idx = extractInterfaceIndex(data.sourceEndpoint, parsed);
       if (idx >= 0) usedIndices.add(idx);
     }
-    if (tgt === nodeId && epTgt) {
-      const idx = extractInterfaceIndex(epTgt, parsed);
+
+    if (edge.target === nodeId && typeof data.targetEndpoint === 'string') {
+      const idx = extractInterfaceIndex(data.targetEndpoint, parsed);
       if (idx >= 0) usedIndices.add(idx);
     }
-  });
+  }
   return usedIndices;
 }
 
 function getOrCreateAllocator(
   allocators: Map<string, EndpointAllocator>,
-  cy: CyCore,
-  node: NodeSingular
+  edges: Edge[],
+  node: Node
 ): EndpointAllocator {
-  const nodeId = node.id();
+  const nodeId = node.id;
   const cached = allocators.get(nodeId);
   if (cached) return cached;
 
   const pattern = getNodeInterfacePattern(node);
   const parsed = parseInterfacePattern(pattern);
-  const usedIndices = collectUsedIndices(cy, nodeId, parsed);
+  const usedIndices = collectUsedIndices(edges, nodeId, parsed);
   const created = { parsed, usedIndices };
   allocators.set(nodeId, created);
   return created;
@@ -114,12 +112,12 @@ function getOrCreateAllocator(
 
 function allocateEndpoint(
   allocators: Map<string, EndpointAllocator>,
-  cy: CyCore,
-  node: NodeSingular
+  edges: Edge[],
+  node: Node
 ): string {
-  if (isSpecialEndpointId(node.id())) return '';
+  if (isSpecialEndpointId(node.id)) return '';
 
-  const allocator = getOrCreateAllocator(allocators, cy, node);
+  const allocator = getOrCreateAllocator(allocators, edges, node);
   let nextIndex = 0;
   while (allocator.usedIndices.has(nextIndex)) nextIndex++;
   allocator.usedIndices.add(nextIndex);
@@ -169,51 +167,76 @@ function getSourceMatch(
   return fallbackFilter(name) ? null : undefined;
 }
 
+function getNodeName(node: Node): string {
+  const data = node.data as Record<string, unknown> | undefined;
+  const name = data?.name ?? data?.label ?? node.id;
+  return String(name);
+}
+
+function isBulkLinkEligible(node: Node): boolean {
+  if (node.type && ['group-node', 'free-text-node', 'free-shape-node'].includes(node.type)) return false;
+  const role = (node.data as Record<string, unknown> | undefined)?.topoViewerRole as string | undefined;
+  if (role && ['group', 'freeText', 'freeShape'].includes(role)) return false;
+  return true;
+}
+
+function hasEdgeBetween(edges: Edge[], sourceId: string, targetId: string): boolean {
+  return edges.some(edge =>
+    (edge.source === sourceId && edge.target === targetId) ||
+    (edge.source === targetId && edge.target === sourceId)
+  );
+}
+
 export function computeCandidates(
-  cy: CyCore,
+  nodes: Node[],
+  edges: Edge[],
   sourceFilterText: string,
   targetFilterText: string
 ): LinkCandidate[] {
-  const nodes = cy.nodes('node[topoViewerRole != "freeText"]');
+  const eligibleNodes = nodes.filter(isBulkLinkEligible);
   const candidates: LinkCandidate[] = [];
 
   const sourceRegex = FilterUtils.tryCreateRegExp(sourceFilterText);
   const sourceFallbackFilter = sourceRegex ? null : FilterUtils.createFilter(sourceFilterText);
 
-  nodes.forEach((sourceNode) => {
-    const sourceName = sourceNode.data('name') as string;
+  for (const sourceNode of eligibleNodes) {
+    const sourceName = getNodeName(sourceNode);
     const match = getSourceMatch(sourceName, sourceRegex, sourceFallbackFilter);
-    if (match === undefined) return;
+    if (match === undefined) continue;
 
     const substitutedTargetPattern = applyBackreferences(targetFilterText, match);
     const targetFilter = FilterUtils.createFilter(substitutedTargetPattern);
 
-    nodes.forEach((targetNode) => {
-      if (sourceNode.id() === targetNode.id()) return;
-      if (!targetFilter(targetNode.data('name') as string)) return;
-      if (sourceNode.edgesWith(targetNode).nonempty()) return;
+    for (const targetNode of eligibleNodes) {
+      if (sourceNode.id === targetNode.id) continue;
+      if (!targetFilter(getNodeName(targetNode))) continue;
+      if (hasEdgeBetween(edges, sourceNode.id, targetNode.id)) continue;
 
-      candidates.push({ sourceId: sourceNode.id(), targetId: targetNode.id() });
-    });
-  });
+      candidates.push({ sourceId: sourceNode.id, targetId: targetNode.id });
+    }
+  }
 
   return candidates;
 }
 
-export function buildBulkEdges(cy: CyCore, candidates: LinkCandidate[]): CyElement[] {
+export function buildBulkEdges(nodes: Node[], edges: Edge[], candidates: LinkCandidate[]): CyElement[] {
   const allocators = new Map<string, EndpointAllocator>();
-  const edges: CyElement[] = [];
+  const nodeMap = new Map(nodes.map(node => [node.id, node]));
+  const createdEdges: CyElement[] = [];
 
   for (const { sourceId, targetId } of candidates) {
-    const sourceNode = cy.getElementById(sourceId) as unknown as NodeSingular;
-    const targetNode = cy.getElementById(targetId) as unknown as NodeSingular;
-    if (!sourceNode || !targetNode) continue;
+    if (hasEdgeBetween(edges, sourceId, targetId)) continue;
 
-    const sourceEndpoint = allocateEndpoint(allocators, cy, sourceNode);
-    const targetEndpoint = allocateEndpoint(allocators, cy, targetNode);
+    const sourceNode = nodeMap.get(sourceId);
+    const targetNode = nodeMap.get(targetId);
+    if (!sourceNode || !targetNode) continue;
+    if (!isBulkLinkEligible(sourceNode) || !isBulkLinkEligible(targetNode)) continue;
+
+    const sourceEndpoint = allocateEndpoint(allocators, edges, sourceNode);
+    const targetEndpoint = allocateEndpoint(allocators, edges, targetNode);
     const edgeId = `${sourceId}-${targetId}`;
 
-    edges.push({
+    createdEdges.push({
       group: 'edges',
       data: {
         id: edgeId,
@@ -227,15 +250,18 @@ export function buildBulkEdges(cy: CyCore, candidates: LinkCandidate[]): CyEleme
     });
   }
 
-  return edges;
+  return createdEdges;
 }
 
 export function buildUndoRedoEntries(edges: CyElement[]): { before: GraphChangeEntry[]; after: GraphChangeEntry[] } {
-  const before: GraphChangeEntry[] = [];
-  const after: GraphChangeEntry[] = [];
-  for (const edge of edges) {
-    before.push({ entity: 'edge', kind: 'delete', before: { ...edge, data: { ...edge.data } } });
-    after.push({ entity: 'edge', kind: 'add', after: { ...edge, data: { ...edge.data } } });
-  }
-  return { before, after };
+  const changes: GraphChangeEntry[] = edges.map(edge => ({
+    entity: 'edge',
+    kind: 'add',
+    after: { ...edge, data: { ...edge.data } }
+  }));
+
+  return {
+    before: changes.map(change => ({ ...change, after: change.after ? { ...change.after, data: { ...(change.after.data as Record<string, unknown>) } } : undefined })),
+    after: changes.map(change => ({ ...change, after: change.after ? { ...change.after, data: { ...(change.after.data as Record<string, unknown>) } } : undefined }))
+  };
 }

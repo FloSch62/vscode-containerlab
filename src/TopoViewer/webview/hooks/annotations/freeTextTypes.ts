@@ -3,11 +3,7 @@
  */
 import { FreeTextAnnotation } from '../../../shared/types/topology';
 
-// [MIGRATION] Replace with ReactFlowInstance from @xyflow/react
-
 export interface UseFreeTextAnnotationsOptions {
-  /** [MIGRATION] Replace with ReactFlowInstance from @xyflow/react */
-  cyInstance?: unknown;
   mode: 'edit' | 'view';
   isLocked: boolean;
   onLockedAction?: () => void;

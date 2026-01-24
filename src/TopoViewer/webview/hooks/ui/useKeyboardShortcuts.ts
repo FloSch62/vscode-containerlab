@@ -12,8 +12,6 @@ interface KeyboardShortcutsOptions {
   mode: 'edit' | 'view';
   selectedNode: string | null;
   selectedEdge: string | null;
-  /** [MIGRATION] Replace with ReactFlowInstance from @xyflow/react */
-  cyInstance?: unknown;
   /** Whether any graph elements are selected */
   hasSelectedElements?: boolean;
   onDeleteNode: (nodeId: string) => void;

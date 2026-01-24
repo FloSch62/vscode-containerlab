@@ -18,7 +18,8 @@ import type {
   XYPosition
 } from '@xyflow/react';
 import { log } from '../../utils/logger';
-import { sendCommandToExtension } from '../../utils/extensionMessaging';
+import type { CyElement } from '../../../shared/types/messages';
+import { createNode, createLink, saveNodePositions } from '../../services';
 
 // Grid size for snapping
 export const GRID_SIZE = 20;
@@ -47,6 +48,8 @@ interface CanvasHandlersConfig {
   onNodesChangeBase: OnNodesChange;
   onEdgesChangeBase: OnEdgesChange;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  addNode?: (node: CyElement) => void;
+  addEdge?: (edge: CyElement) => void;
   onLockedAction?: () => void;
   /** Current nodes (needed for position tracking) */
   nodes?: Node[];
@@ -116,7 +119,7 @@ function useNodeDragHandlers(
     const snappedPosition = snapToGrid(node.position);
     onNodesChangeBase([{ type: 'position', id: node.id, position: snappedPosition, dragging: false }]);
     log.info(`[ReactFlowCanvas] Node ${node.id} snapped to ${snappedPosition.x}, ${snappedPosition.y}`);
-    sendCommandToExtension('save-node-positions', { positions: [{ id: node.id, position: snappedPosition }] });
+    void saveNodePositions([{ id: node.id, position: snappedPosition }]);
 
     if (onMoveComplete && dragStartPositionsRef.current.length > 0) {
       const afterPositions = computeAfterPositions(dragStartPositionsRef.current, nodes, node, snappedPosition);
@@ -278,7 +281,8 @@ function usePaneClickHandler(
   reactFlowInstance: React.RefObject<ReactFlowInstance | null>,
   modeRef: React.RefObject<'view' | 'edit'>,
   isLockedRef: React.RefObject<boolean>,
-  onLockedAction?: () => void
+  onLockedAction?: () => void,
+  addNode?: (node: CyElement) => void
 ) {
   return useCallback((event: React.MouseEvent) => {
     closeContextMenu();
@@ -300,17 +304,21 @@ function usePaneClickHandler(
       const nodeId = generateNodeId();
       log.info(`[ReactFlowCanvas] Creating node at ${snappedPosition.x}, ${snappedPosition.y}`);
 
-      sendCommandToExtension('create-node', {
-        nodeId,
-        position: snappedPosition,
-        nodeData: { name: nodeId, topoViewerRole: 'default' }
+      const extraData = { kind: 'nokia_srlinux', topoViewerRole: 'default' };
+      const nodeData = { id: nodeId, name: nodeId, topoViewerRole: 'default', extraData };
+      addNode?.({ group: 'nodes', data: nodeData, position: snappedPosition });
+      void createNode({
+        id: nodeId,
+        name: nodeId,
+        extraData,
+        position: snappedPosition
       });
       return;
     }
 
     selectNode(null);
     selectEdge(null);
-  }, [selectNode, selectEdge, closeContextMenu, onLockedAction, reactFlowInstance, modeRef, isLockedRef]);
+  }, [selectNode, selectEdge, closeContextMenu, onLockedAction, reactFlowInstance, modeRef, isLockedRef, addNode]);
 }
 
 /** Hook for connection handler */
@@ -318,6 +326,7 @@ function useConnectionHandler(
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>,
   modeRef: React.RefObject<'view' | 'edit'>,
   isLockedRef: React.RefObject<boolean>,
+  addEdge: ((edge: CyElement) => void) | undefined,
   onLockedAction?: () => void
 ) {
   return useCallback((connection: Connection) => {
@@ -331,8 +340,17 @@ function useConnectionHandler(
     log.info(`[ReactFlowCanvas] Creating edge: ${connection.source} -> ${connection.target}`);
     const edgeId = generateEdgeId(connection.source, connection.target);
 
-    sendCommandToExtension('create-link', {
-      linkData: {
+    void createLink({
+      id: edgeId,
+      source: connection.source,
+      target: connection.target,
+      sourceEndpoint: 'eth1',
+      targetEndpoint: 'eth1'
+    });
+
+    addEdge?.({
+      group: 'edges',
+      data: {
         id: edgeId,
         source: connection.source,
         target: connection.target,
@@ -350,14 +368,14 @@ function useConnectionHandler(
     };
 
     setEdges((edges) => [...edges, newEdge]);
-  }, [setEdges, onLockedAction, modeRef, isLockedRef]);
+  }, [setEdges, onLockedAction, modeRef, isLockedRef, addEdge]);
 }
 
 /**
  * Hook for canvas event handlers
  */
 export function useCanvasHandlers(config: CanvasHandlersConfig): CanvasHandlers {
-  const { selectNode, selectEdge, editNode, editEdge, mode, isLocked, onNodesChangeBase, setEdges, onLockedAction, nodes, onMoveComplete } = config;
+  const { selectNode, selectEdge, editNode, editEdge, mode, isLocked, onNodesChangeBase, setEdges, addNode, addEdge, onLockedAction, nodes, onMoveComplete } = config;
 
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
   const modeRef = useRef(mode);
@@ -378,8 +396,8 @@ export function useCanvasHandlers(config: CanvasHandlersConfig): CanvasHandlers 
   // Click handlers (extracted hooks)
   const { onNodeClick, onNodeDoubleClick } = useNodeClickHandlers(selectNode, selectEdge, editNode, closeContextMenu, modeRef, isLockedRef, onLockedAction);
   const { onEdgeClick, onEdgeDoubleClick } = useEdgeClickHandlers(selectNode, selectEdge, editEdge, closeContextMenu, modeRef, isLockedRef, onLockedAction);
-  const onPaneClick = usePaneClickHandler(selectNode, selectEdge, closeContextMenu, reactFlowInstance, modeRef, isLockedRef, onLockedAction);
-  const onConnect = useConnectionHandler(setEdges, modeRef, isLockedRef, onLockedAction);
+  const onPaneClick = usePaneClickHandler(selectNode, selectEdge, closeContextMenu, reactFlowInstance, modeRef, isLockedRef, onLockedAction, addNode);
+  const onConnect = useConnectionHandler(setEdges, modeRef, isLockedRef, addEdge, onLockedAction);
 
   // Node changes handler
   const handleNodesChange: OnNodesChange = useCallback((changes: NodeChange[]) => onNodesChangeBase(changes), [onNodesChangeBase]);

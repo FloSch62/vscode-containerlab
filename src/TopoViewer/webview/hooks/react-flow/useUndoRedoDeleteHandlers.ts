@@ -6,8 +6,8 @@ import React, { useMemo } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import type { CyElement } from '../../../shared/types/messages';
 import type { GraphChange, UndoRedoAction } from '../state/useUndoRedo';
-import { sendCommandToExtension } from '../../utils/extensionMessaging';
 import { log } from '../../utils/logger';
+import { deleteNode as deleteNodeService, deleteLink as deleteLinkService, type LinkSaveData } from '../../services';
 
 /** Convert React Flow node to CyElement format */
 function nodeToCyElement(node: Node): CyElement {
@@ -42,6 +42,17 @@ function edgeToCyElement(edge: Edge): CyElement {
   };
 }
 
+function edgeToLinkSaveData(edge: Edge): LinkSaveData {
+  const data = edge.data as Record<string, unknown> || {};
+  return {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceEndpoint: (data.sourceEndpoint as string) || '',
+    targetEndpoint: (data.targetEndpoint as string) || ''
+  };
+}
+
 /** Build graph changes for node deletion */
 function buildNodeDeleteChanges(node: Node, connectedEdges: Edge[]): { before: GraphChange[]; after: GraphChange[] } {
   const nodeElement = nodeToCyElement(node);
@@ -64,20 +75,6 @@ function buildEdgeDeleteChanges(edge: Edge): { before: GraphChange[]; after: Gra
     before: [{ entity: 'edge', kind: 'delete', before: edgeElement }],
     after: [{ entity: 'edge', kind: 'delete', after: edgeElement }]
   };
-}
-
-/** Send edge delete command to extension */
-function sendEdgeDeleteCommand(edge: Edge, edgeId: string): void {
-  const edgeData = edge.data as Record<string, unknown> | undefined;
-  sendCommandToExtension('panel-delete-link', {
-    edgeId,
-    linkData: {
-      source: edge.source,
-      target: edge.target,
-      sourceEndpoint: edgeData?.sourceEndpoint || '',
-      targetEndpoint: edgeData?.targetEndpoint || ''
-    }
-  });
 }
 
 export interface UseUndoRedoDeleteHandlersOptions {
@@ -123,7 +120,7 @@ function createNodeDeleteHandler(ctx: DeleteContext, isEnabled: boolean, isApply
     ctx.removeNodeAndEdges(nodeId);
     ctx.updateNodes(nds => nds.filter(n => n.id !== nodeId));
     ctx.updateEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
-    sendCommandToExtension('panel-delete-node', { nodeId });
+    void deleteNodeService(nodeId);
   };
 }
 
@@ -140,7 +137,7 @@ function createEdgeDeleteHandler(ctx: DeleteContext, isEnabled: boolean, isApply
     log.info(`[UndoRedo] Deleting edge ${edgeId}`);
     ctx.removeEdge(edgeId);
     ctx.updateEdges(eds => eds.filter(e => e.id !== edgeId));
-    sendEdgeDeleteCommand(edge, edgeId);
+    void deleteLinkService(edgeToLinkSaveData(edge));
   };
 }
 

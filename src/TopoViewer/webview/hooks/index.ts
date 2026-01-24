@@ -37,7 +37,7 @@ export * from './react-flow';
 // Compatibility exports - [MIGRATION] Remove after full ReactFlow migration
 // ============================================================================
 
-export type LayoutOption = 'preset' | 'cola' | 'radial' | 'hierarchical' | 'cose' | 'geo';
+export type LayoutOption = 'preset' | 'force' | 'grid' | 'circle' | 'geo';
 export const DEFAULT_GRID_LINE_WIDTH = 0.5;
 
 export interface NodeData {

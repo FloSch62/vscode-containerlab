@@ -4,8 +4,8 @@
  */
 import { useMemo, useCallback } from 'react';
 import type { Node } from '@xyflow/react';
-import type { FreeTextAnnotation, FreeShapeAnnotation } from '../../../shared/types/topology';
-import type { FreeTextNodeData, FreeShapeNodeData } from '../../components/react-flow-canvas/types';
+import type { FreeTextAnnotation, FreeShapeAnnotation, GroupStyleAnnotation } from '../../../shared/types/topology';
+import type { FreeTextNodeData, FreeShapeNodeData, GroupNodeData } from '../../components/react-flow-canvas/types';
 
 /**
  * Convert a FreeTextAnnotation to a React Flow Node
@@ -142,6 +142,7 @@ function freeShapeToNode(annotation: FreeShapeAnnotation): Node<FreeShapeNodeDat
 interface UseAnnotationNodesOptions {
   freeTextAnnotations: FreeTextAnnotation[];
   freeShapeAnnotations: FreeShapeAnnotation[];
+  groupStyleAnnotations?: GroupStyleAnnotation[];
 }
 
 interface AnnotationAddModeState {
@@ -156,30 +157,76 @@ interface UseAnnotationNodesReturn {
   /** Check if a node ID is an annotation */
   isAnnotationNode: (nodeId: string) => boolean;
   /** Get annotation type for a node ID */
-  getAnnotationType: (nodeId: string) => 'freeText' | 'freeShape' | null;
+  getAnnotationType: (nodeId: string) => 'freeText' | 'freeShape' | 'group' | null;
+}
+
+/**
+ * Convert a GroupStyleAnnotation to a React Flow Node
+ */
+function groupToNode(annotation: GroupStyleAnnotation): Node<GroupNodeData> {
+  const width = annotation.width || 200;
+  const height = annotation.height || 150;
+  const position = {
+    x: annotation.position.x - width / 2,
+    y: annotation.position.y - height / 2
+  };
+
+  return {
+    id: annotation.id,
+    type: 'group-node',
+    position,
+    draggable: true,
+    selectable: true,
+    parentId: annotation.parentId,
+    data: {
+      label: annotation.name,
+      name: annotation.name,
+      level: annotation.level,
+      backgroundColor: annotation.backgroundColor,
+      backgroundOpacity: annotation.backgroundOpacity,
+      borderColor: annotation.borderColor,
+      borderWidth: annotation.borderWidth,
+      borderStyle: annotation.borderStyle,
+      borderRadius: annotation.borderRadius,
+      labelColor: annotation.labelColor,
+      labelPosition: annotation.labelPosition,
+      width,
+      height
+    },
+    style: { width, height },
+    zIndex: annotation.zIndex
+  };
 }
 
 /**
  * Hook that converts annotations to React Flow nodes
  */
 export function useAnnotationNodes(options: UseAnnotationNodesOptions): UseAnnotationNodesReturn {
-  const { freeTextAnnotations, freeShapeAnnotations } = options;
+  const { freeTextAnnotations, freeShapeAnnotations, groupStyleAnnotations = [] } = options;
 
   // Create a set of annotation IDs for quick lookup
   const annotationIds = useMemo(() => {
-    const ids = new Map<string, 'freeText' | 'freeShape'>();
+    const ids = new Map<string, 'freeText' | 'freeShape' | 'group'>();
     for (const ann of freeTextAnnotations) {
       ids.set(ann.id, 'freeText');
     }
     for (const ann of freeShapeAnnotations) {
       ids.set(ann.id, 'freeShape');
     }
+    for (const ann of groupStyleAnnotations) {
+      ids.set(ann.id, 'group');
+    }
     return ids;
-  }, [freeTextAnnotations, freeShapeAnnotations]);
+  }, [freeTextAnnotations, freeShapeAnnotations, groupStyleAnnotations]);
 
   // Convert annotations to React Flow nodes
   const annotationNodes = useMemo(() => {
     const nodes: Node[] = [];
+
+    // Add group nodes
+    for (const annotation of groupStyleAnnotations) {
+      nodes.push(groupToNode(annotation));
+    }
 
     // Add free text nodes
     for (const annotation of freeTextAnnotations) {
@@ -192,7 +239,7 @@ export function useAnnotationNodes(options: UseAnnotationNodesOptions): UseAnnot
     }
 
     return nodes;
-  }, [freeTextAnnotations, freeShapeAnnotations]);
+  }, [freeTextAnnotations, freeShapeAnnotations, groupStyleAnnotations]);
 
   const isAnnotationNode = useCallback((nodeId: string) => {
     return annotationIds.has(nodeId);

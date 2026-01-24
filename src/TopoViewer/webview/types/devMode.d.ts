@@ -4,21 +4,21 @@
  * to support E2E testing and debugging.
  */
 
-import type { Core as CyCore } from 'cytoscape';
+import type { ReactFlowInstance } from '@xyflow/react';
 
 import type { GroupStyleAnnotation, EdgeAnnotation } from '../../shared/types/topology';
 import type { NetworkType } from '../../shared/types/editors';
 
 /** Layout option type */
-type LayoutOption = 'preset' | 'cose' | 'cola' | 'radial' | 'hierarchical' | 'geo';
+type LayoutOption = 'preset' | 'force' | 'grid' | 'circle' | 'geo';
 
 /**
  * Development mode interface for E2E testing and debugging.
  * Exposed on window.__DEV__ only in development builds.
  */
 export interface DevModeInterface {
-  /** Cytoscape instance for graph manipulation */
-  cy?: CyCore;
+  /** React Flow instance for graph manipulation */
+  reactFlow?: ReactFlowInstance;
   /** Check if topology is locked */
   isLocked?: () => boolean;
   /** Get current mode */

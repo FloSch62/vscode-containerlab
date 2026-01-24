@@ -1,17 +1,11 @@
 /**
  * Graph manipulation hooks
  *
- * [MIGRATION] Migrate to @xyflow/react - deleted Cytoscape-specific hooks:
- * - useEdgeCreation (replaced by ReactFlow's built-in edge creation)
- * - useNodeCreation
- * - useNodeDragging (ReactFlow handles this natively)
- * - useCopyPaste
+ * [MIGRATION] React Flow is the canvas source of truth. Keep graph change
+ * typings aligned with the undo/redo system.
  */
 
-// Graph change types for undo/redo
-export interface GraphChangeEntry {
-  entityType: 'node' | 'edge';
-  operation: 'add' | 'delete' | 'update';
-  before?: unknown;
-  after?: unknown;
-}
+import type { GraphChange } from '../state/useUndoRedo';
+
+// Graph change types for undo/redo (alias to core undo/redo type)
+export type GraphChangeEntry = GraphChange;

@@ -52,10 +52,11 @@ import {
   useAnnotationCanvasProps
 } from './hooks';
 import type { GraphChangeEntry } from './hooks';
-import { sendCommandToExtension } from './utils/extensionMessaging';
-import { convertToEditorData } from '../shared/utilities/nodeEditorConversions';
+import type { CyElement } from '../shared/types/messages';
+import { createNode, editNode as editNodeService, editLink as editLinkService } from './services';
+import { convertToEditorData, convertEditorDataToNodeSaveData } from '../shared/utilities/nodeEditorConversions';
 import type { NodeEditorData } from './components/panels/node-editor/types';
-import { convertToLinkEditorData } from './utils/linkEditorConversions';
+import { convertToLinkEditorData, convertEditorDataToLinkSaveData } from './utils/linkEditorConversions';
 
 /**
  * Loading state component
@@ -117,7 +118,9 @@ function useNodeEditorHandlers(
         after: data as unknown as Record<string, unknown>
       });
     }
-    sendCommandToExtension('save-node-editor', { nodeData: data });
+    const oldName = initialDataRef.current?.name !== data.name ? initialDataRef.current?.name : undefined;
+    const saveData = convertEditorDataToNodeSaveData(data, oldName);
+    void editNodeService(saveData);
     initialDataRef.current = null;
     editNode(null);
   }, [editNode, recordPropertyEdit]);
@@ -137,7 +140,9 @@ function useNodeEditorHandlers(
         initialDataRef.current = { ...data };
       }
     }
-    sendCommandToExtension('apply-node-editor', { nodeData: data });
+    const oldName = initialDataRef.current?.name !== data.name ? initialDataRef.current?.name : undefined;
+    const saveData = convertEditorDataToNodeSaveData(data, oldName);
+    void editNodeService(saveData);
   }, [recordPropertyEdit]);
 
   return { handleClose, handleSave, handleApply };
@@ -178,7 +183,8 @@ function useLinkEditorHandlers(
         after: data as unknown as Record<string, unknown>
       });
     }
-    sendCommandToExtension('save-link-editor', { linkData: data });
+    const saveData = convertEditorDataToLinkSaveData(data);
+    void editLinkService(saveData);
     initialDataRef.current = null;
     editEdge(null);
   }, [editEdge, recordPropertyEdit]);
@@ -198,7 +204,8 @@ function useLinkEditorHandlers(
         initialDataRef.current = { ...data };
       }
     }
-    sendCommandToExtension('apply-link-editor', { linkData: data });
+    const saveData = convertEditorDataToLinkSaveData(data);
+    void editLinkService(saveData);
   }, [recordPropertyEdit]);
 
   return { handleClose, handleSave, handleApply };
@@ -308,7 +315,8 @@ function useNodeCreationHandlers(
   floatingPanelRef: React.RefObject<FloatingActionPanelHandle | null>,
   state: NodeCreationState,
   rfInstance: ReactFlowInstance | null,
-  onNewCustomNode: () => void
+  onNewCustomNode: () => void,
+  addNode: (node: CyElement) => void
 ) {
   const handleAddNodeFromPanel = React.useCallback((templateName?: string) => {
     if (templateName === '__new__') {
@@ -328,8 +336,27 @@ function useNodeCreationHandlers(
     const position = getViewportCenterPosition(rfInstance);
     const nodeData = buildNodeDataFromTemplate(nodeName, template);
 
-    sendCommandToExtension('create-node', { nodeId: nodeName, nodeData, position });
-  }, [rfInstance, state.isLocked, state.customNodes, state.defaultNode, state.elements, floatingPanelRef, onNewCustomNode]);
+    const element: CyElement = {
+      group: 'nodes',
+      data: nodeData,
+      position
+    };
+    addNode(element);
+
+    const extraData = {
+      ...(nodeData.extraData as Record<string, unknown> | undefined),
+      topoViewerRole: nodeData.topoViewerRole,
+      iconColor: nodeData.iconColor,
+      iconCornerRadius: nodeData.iconCornerRadius
+    };
+
+    void createNode({
+      id: nodeName,
+      name: nodeName,
+      extraData,
+      position
+    });
+  }, [rfInstance, state.isLocked, state.customNodes, state.defaultNode, state.elements, floatingPanelRef, onNewCustomNode, addNode]);
 
   return { handleAddNodeFromPanel };
 }
@@ -361,17 +388,15 @@ const AppContent: React.FC = () => {
   const floatingPanelCommands = useFloatingPanelCommands();
   const customNodeCommands = useCustomNodeCommands(state.customNodes, editCustomTemplate);
 
-  // Free text annotations (passing null for cyInstance since React Flow handles this differently)
+  // Free text annotations
   const freeTextAnnotations = useAppFreeTextAnnotations({
-    cyInstance: null,
     mode: state.mode,
     isLocked: state.isLocked,
     onLockedAction: () => floatingPanelRef.current?.triggerShake()
   });
 
-  // Free shape annotations (passing null for cyInstance since React Flow handles this differently)
+  // Free shape annotations
   const freeShapeAnnotations = useAppFreeShapeAnnotations({
-    cyInstance: null,
     mode: state.mode,
     isLocked: state.isLocked,
     onLockedAction: () => floatingPanelRef.current?.triggerShake()
@@ -380,24 +405,38 @@ const AppContent: React.FC = () => {
   const { isApplyingAnnotationUndoRedo, applyAnnotationChange: applyFreeShapeChange } =
     useFreeShapeAnnotationApplier(freeShapeAnnotations);
 
+  const groupNodes = React.useMemo(() => rfInstance?.getNodes() ?? [], [rfInstance, state.elements]);
+  const groupViewport = React.useMemo(() => rfInstance?.getViewport() ?? { x: 0, y: 0, zoom: 1 }, [rfInstance]);
+  const groupContainerSize = React.useMemo(() => {
+    if (typeof document === 'undefined') return { width: 800, height: 600 };
+    const container = document.querySelector('.react-flow-canvas');
+    if (!container) return { width: 800, height: 600 };
+    const rect = container.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  }, [rfInstance]);
+
+  // Groups
+  const { groups } = useAppGroups({
+    mode: state.mode,
+    isLocked: state.isLocked,
+    onLockedAction: () => floatingPanelRef.current?.triggerShake(),
+    nodes: groupNodes,
+    viewport: groupViewport,
+    containerSize: groupContainerSize
+  });
+
   // Convert annotations to React Flow nodes
   const { annotationNodes } = useAnnotationNodes({
     freeTextAnnotations: freeTextAnnotations.annotations,
-    freeShapeAnnotations: freeShapeAnnotations.annotations
+    freeShapeAnnotations: freeShapeAnnotations.annotations,
+    groupStyleAnnotations: groups.groups
   });
 
   // Annotation mode and handlers for the canvas
   const { annotationMode, annotationHandlers } = useAnnotationCanvasProps({
     freeTextAnnotations,
-    freeShapeAnnotations
-  });
-
-  // Groups (passing null for cyInstance since React Flow handles this differently)
-  const { groups } = useAppGroups({
-    cyInstance: null,
-    mode: state.mode,
-    isLocked: state.isLocked,
-    onLockedAction: () => floatingPanelRef.current?.triggerShake()
+    freeShapeAnnotations,
+    groupAnnotations: { updatePosition: groups.updateGroupPosition }
   });
 
   // Combined annotation change handler for undo/redo (freeShape + group)
@@ -435,7 +474,6 @@ const AppContent: React.FC = () => {
 
   // Group undo/redo handlers (must be after useGraphUndoRedoHandlers)
   const { handleAddGroupWithUndo } = useAppGroupUndoHandlers({
-    cyInstance: null, // React Flow handles this differently
     groups,
     undoRedo
   });
@@ -477,7 +515,7 @@ const AppContent: React.FC = () => {
 
   // Use the node creation handler hook (React Flow version)
   const { handleAddNodeFromPanel } = useNodeCreationHandlers(
-    floatingPanelRef, nodeCreationState, rfInstance, customNodeCommands.onNewCustomNode
+    floatingPanelRef, nodeCreationState, rfInstance, customNodeCommands.onNewCustomNode, addNode
   );
 
   // App-level handlers for drag, deselect, and lock state sync
@@ -528,7 +566,6 @@ const AppContent: React.FC = () => {
     mode: state.mode,
     selectedNode: state.selectedNode,
     selectedEdge: state.selectedEdge,
-    cyInstance: null, // React Flow handles this differently
     onDeleteNode: handleDeleteNodeWithUndo,
     onDeleteEdge: handleDeleteLinkWithUndo,
     onDeselectAll: handleDeselectAll,
@@ -616,7 +653,9 @@ const AppContent: React.FC = () => {
           isVisible={showBulkLinkPanel}
           mode={state.mode}
           isLocked={state.isLocked}
-          cy={null}
+          getNodes={getNodes}
+          getEdges={getEdges}
+          updateEdges={updateEdges}
           onClose={() => setShowBulkLinkPanel(false)}
           recordGraphChanges={recordGraphChanges}
         />

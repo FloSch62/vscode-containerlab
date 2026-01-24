@@ -2,8 +2,6 @@
  * Hook for integrating free shape annotations into App.tsx
  */
 import React from 'react';
-// [MIGRATION] Replace with ReactFlow types from @xyflow/react
-type CyCore = { zoom: () => number; pan: () => { x: number; y: number }; container: () => HTMLElement | null };
 import { FreeShapeAnnotation } from '../../../shared/types/topology';
 import { useFreeShapeAnnotations } from './useFreeShapeAnnotations';
 
@@ -19,17 +17,15 @@ interface TopologyDataMessage {
 }
 
 interface UseAppFreeShapeAnnotationsOptions {
-  cyInstance: CyCore | null;
   mode: 'edit' | 'view';
   isLocked: boolean;
   onLockedAction: () => void;
 }
 
 export function useAppFreeShapeAnnotations(options: UseAppFreeShapeAnnotationsOptions) {
-  const { cyInstance, mode, isLocked, onLockedAction } = options;
+  const { mode, isLocked, onLockedAction } = options;
 
   const freeShapeAnnotations = useFreeShapeAnnotations({
-    cyInstance,
     mode,
     isLocked,
     onLockedAction
@@ -55,4 +51,3 @@ export function useAppFreeShapeAnnotations(options: UseAppFreeShapeAnnotationsOp
 
   return freeShapeAnnotations;
 }
-

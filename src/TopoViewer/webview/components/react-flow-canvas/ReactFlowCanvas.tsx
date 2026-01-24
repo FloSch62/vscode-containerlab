@@ -192,7 +192,7 @@ const LARGE_GRAPH_EDGE_THRESHOLD = 900;
  * ReactFlowCanvas component
  */
 /** Node type constants */
-const ANNOTATION_NODE_TYPES_SET = new Set(['free-text-node', 'free-shape-node']);
+const ANNOTATION_NODE_TYPES_SET = new Set(['group-node', 'free-text-node', 'free-shape-node']);
 
 /**
  * Hook to sync annotation nodes into the React Flow nodes state.
@@ -262,7 +262,7 @@ function useSyncAnnotationNodes(
 
 const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
   ({ elements, annotationNodes, annotationMode, annotationHandlers, onNodeDelete, onEdgeDelete, onMoveComplete, linkLabelMode = 'show-all' }, ref) => {
-    const { state, selectNode, selectEdge, editNode, editEdge } = useTopoViewer();
+    const { state, selectNode, selectEdge, editNode, editEdge, addNode, addEdge } = useTopoViewer();
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const floatingPanelRef = useRef<{ triggerShake: () => void } | null>(null);
@@ -278,7 +278,8 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
       selectNode, selectEdge, editNode, editEdge,
       mode: state.mode, isLocked: state.isLocked,
       onNodesChangeBase: onNodesChange, onEdgesChangeBase: onEdgesChange,
-      setEdges, onLockedAction: () => floatingPanelRef.current?.triggerShake(),
+      setEdges, addNode, addEdge,
+      onLockedAction: () => floatingPanelRef.current?.triggerShake(),
       nodes, // Pass nodes for position tracking
       onMoveComplete // Pass callback for undo/redo
     });
@@ -286,7 +287,7 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
     useElementConversion(elements, setNodes, setEdges);
     useSyncAnnotationNodes(annotationNodes, setNodes);
 
-    const { linkSourceNode, startLinkCreation, completeLinkCreation, cancelLinkCreation } = useLinkCreation(setEdges);
+    const { linkSourceNode, startLinkCreation, completeLinkCreation, cancelLinkCreation } = useLinkCreation(setEdges, addEdge);
     const { handleDeleteNode, handleDeleteEdge } = useDeleteHandlers(edges, setNodes, setEdges, selectNode, selectEdge, handlers.closeContextMenu, onNodeDelete, onEdgeDelete);
     const sourceNodePosition = useSourceNodePosition(linkSourceNode, nodes);
 

@@ -22,8 +22,8 @@
     overflow: hidden;
   }
 
-  /* Cytoscape container */
-  .cytoscape-container {
+  /* React Flow canvas container */
+  .react-flow-canvas {
     position: absolute;
     top: 0;
     left: 0;
@@ -32,7 +32,7 @@
     background-color: var(--vscode-editor-background);
   }
 
-  .cytoscape-container:focus {
+  .react-flow-canvas:focus {
     outline: none;
   }
 
@@ -254,4 +254,3 @@
     background-color: var(--vscode-scrollbarSlider-hoverBackground);
   }
 }
-

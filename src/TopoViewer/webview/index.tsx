@@ -7,6 +7,12 @@ import { App } from './App';
 import { TopoViewerProvider } from './context/TopoViewerContext';
 import { log } from './utils/logger';
 import './styles/tailwind.css';
+import { PostMessageFsAdapter } from './adapters';
+import { initializeServices, getTopologyIO } from './services';
+import { subscribeToWebviewMessages } from './utils/webviewMessageBus';
+
+const fsAdapter = new PostMessageFsAdapter();
+initializeServices(fsAdapter, { verbose: false });
 
 // Get the initial data from the window object (injected by extension)
 const initialData = (window as any).__INITIAL_DATA__ || {};
@@ -23,8 +29,7 @@ if (initialData.dockerImages) {
 
 // Listen for docker images updates from extension
 // Note: In VS Code webviews, messages always come from the extension (trusted source)
-// eslint-disable-next-line sonarjs/post-message
-window.addEventListener('message', (event) => {
+subscribeToWebviewMessages((event) => {
   // VS Code webviews are sandboxed - messages come from the extension host
   const message = event.data;
   if (message?.type === 'docker-images-updated' && message.dockerImages) {
@@ -39,18 +44,40 @@ window.addEventListener('message', (event) => {
 // Log initial data
 log.info(`[ReactTopoViewer] Initial data received, elements count: ${initialData?.elements?.length || 0}`);
 
-// Find the root element
-const container = document.getElementById('root');
-if (!container) {
-  throw new Error('Root element not found');
+/**
+ * Bootstrap the application:
+ * 1. Initialize TopologyIO with the YAML file (for editing support)
+ * 2. Render React with the loaded data
+ */
+async function bootstrap(): Promise<void> {
+  // Find the root element
+  const container = document.getElementById('root');
+  if (!container) {
+    throw new Error('Root element not found');
+  }
+
+  // Initialize TopologyIO if we have a YAML file path (required for lab settings editing)
+  const yamlFilePath = initialData.yamlFilePath as string | undefined;
+  if (yamlFilePath) {
+    try {
+      const topologyIO = getTopologyIO();
+      await topologyIO.initializeFromFile(yamlFilePath);
+      log.info(`[ReactTopoViewer] TopologyIO initialized for: ${yamlFilePath}`);
+    } catch (err) {
+      log.warn(`[ReactTopoViewer] Failed to initialize TopologyIO: ${err}`);
+    }
+  }
+
+  // Create React root and render
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <TopoViewerProvider initialData={initialData}>
+        <App />
+      </TopoViewerProvider>
+    </React.StrictMode>
+  );
 }
 
-// Create React root and render
-const root = createRoot(container);
-root.render(
-  <React.StrictMode>
-    <TopoViewerProvider initialData={initialData}>
-      <App />
-    </TopoViewerProvider>
-  </React.StrictMode>
-);
+// Start the app
+void bootstrap();

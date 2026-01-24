@@ -3,7 +3,7 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GroupStyleAnnotation } from '../../../shared/types/topology';
-import { sendCommandToExtension } from '../../utils/extensionMessaging';
+import { saveGroupStyleAnnotations } from '../../services';
 import { log } from '../../utils/logger';
 import { GROUP_SAVE_DEBOUNCE_MS } from './groupHelpers';
 import type { UseGroupStateReturn, GroupEditorData } from './groupTypes';
@@ -21,9 +21,7 @@ export function useGroupState(): UseGroupStateReturn {
         clearTimeout(saveTimeoutRef.current);
       }
       saveTimeoutRef.current = setTimeout(() => {
-        sendCommandToExtension('save-group-style-annotations', {
-          annotations: updatedGroups
-        });
+        void saveGroupStyleAnnotations(updatedGroups);
         log.info(`[Groups] Saved ${updatedGroups.length} overlay groups`);
       }, GROUP_SAVE_DEBOUNCE_MS);
     },

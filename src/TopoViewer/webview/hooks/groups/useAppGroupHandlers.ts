@@ -15,8 +15,6 @@ interface UndoRedoApi {
 }
 
 interface UseAppGroupUndoHandlersOptions {
-  /** [MIGRATION] Replace with ReactFlowInstance from @xyflow/react */
-  cyInstance?: unknown;
   groups: UseGroupsReturn;
   undoRedo: UndoRedoApi;
 }
@@ -55,8 +53,6 @@ export function useAppGroupUndoHandlers(options: UseAppGroupUndoHandlersOptions)
 // ============================================================================
 
 interface UseGroupPositionHandlerOptions {
-  /** [MIGRATION] Replace with ReactFlowInstance from @xyflow/react */
-  cyInstance: unknown;
   /** Callback to update node positions in ReactFlow */
   updateNodePosition?: (nodeId: string, position: { x: number; y: number }) => void;
   groups: UseGroupsReturn;
@@ -93,10 +89,10 @@ export type GroupDragMoveHandler = (groupId: string, delta: { dx: number; dy: nu
  * [MIGRATION] Update to use ReactFlow's setNodes to update node positions
  */
 export function useGroupDragMoveHandler(options: UseGroupPositionHandlerOptions): GroupDragMoveHandler {
-  const { cyInstance, updateNodePosition, groups } = options;
+  const { updateNodePosition, groups } = options;
 
   return useCallback((groupId: string, delta: { dx: number; dy: number }) => {
-    if (!cyInstance || (delta.dx === 0 && delta.dy === 0)) return;
+    if (delta.dx === 0 && delta.dy === 0) return;
     const memberIds = groups.getGroupMembers(groupId);
     // [MIGRATION] Use ReactFlow's setNodes or updateNodePosition callback
     memberIds.forEach(_nodeId => {
@@ -105,5 +101,5 @@ export function useGroupDragMoveHandler(options: UseGroupPositionHandlerOptions)
         // updateNodePosition(_nodeId, { deltaX: delta.dx, deltaY: delta.dy });
       }
     });
-  }, [cyInstance, updateNodePosition, groups]);
+  }, [updateNodePosition, groups]);
 }

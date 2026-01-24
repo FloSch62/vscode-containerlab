@@ -2,8 +2,7 @@
  * BulkLinkPanel - Create multiple links based on name patterns
  */
 import React from 'react';
-// [MIGRATION] Replace with ReactFlow types from @xyflow/react
-type CyCore = { zoom: () => number; pan: () => { x: number; y: number }; container: () => HTMLElement | null };
+import type { Node, Edge } from '@xyflow/react';
 import { BasePanel } from '../../shared/editor/BasePanel';
 import type { GraphChangeEntry } from '../../../hooks';
 import { useBulkLinkPanel } from './useBulkLinkPanel';
@@ -14,7 +13,9 @@ interface BulkLinkPanelProps {
   isVisible: boolean;
   mode: 'edit' | 'view';
   isLocked: boolean;
-  cy: CyCore | null;
+  getNodes: () => Node[];
+  getEdges: () => Edge[];
+  updateEdges: (updater: (edges: Edge[]) => Edge[]) => void;
   onClose: () => void;
   recordGraphChanges?: (before: GraphChangeEntry[], after: GraphChangeEntry[]) => void;
   storageKey?: string;
@@ -65,7 +66,9 @@ export const BulkLinkPanel: React.FC<BulkLinkPanelProps> = ({
   isVisible,
   mode,
   isLocked,
-  cy,
+  getNodes,
+  getEdges,
+  updateEdges,
   onClose,
   recordGraphChanges,
   storageKey = 'bulk-link'
@@ -83,7 +86,7 @@ export const BulkLinkPanel: React.FC<BulkLinkPanelProps> = ({
     handleCompute,
     handleConfirmCreate,
     handleDismissConfirm
-  } = useBulkLinkPanel({ isVisible, mode, isLocked, cy, onClose, recordGraphChanges });
+  } = useBulkLinkPanel({ isVisible, mode, isLocked, getNodes, getEdges, updateEdges, onClose, recordGraphChanges });
 
   return (
     <>

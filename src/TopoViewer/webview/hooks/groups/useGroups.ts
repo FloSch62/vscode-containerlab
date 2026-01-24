@@ -7,7 +7,7 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import type { GroupStyleAnnotation } from '../../../shared/types/topology';
 import { log } from '../../utils/logger';
-import { sendCommandToExtension } from '../../utils/extensionMessaging';
+import { saveNodeMembership } from './groupHelpers';
 import { useGroupState } from './useGroupState';
 import {
   generateGroupId,
@@ -17,8 +17,7 @@ import {
   findGroupAtPosition as findGroupAtPositionHelper,
   updateGroupInList,
   removeGroupFromList,
-  calculateBoundingBox,
-  CMD_SAVE_NODE_GROUP_MEMBERSHIP
+  calculateBoundingBox
 } from './groupHelpers';
 import {
   DEFAULT_GROUP_WIDTH,
@@ -33,10 +32,7 @@ import {
 // import { ReactFlowInstance, Node } from '@xyflow/react';
 interface ReactFlowNode { id: string; position: { x: number; y: number }; data: Record<string, unknown> }
 
-export interface UseGroupsHookOptions extends UseGroupsOptions {
-  /** [MIGRATION] Replace with ReactFlowInstance from @xyflow/react */
-  cyInstance?: unknown;
-}
+export type UseGroupsHookOptions = UseGroupsOptions;
 
 /**
  * Get node positions from ReactFlow for selected nodes.
@@ -72,7 +68,6 @@ function getViewportCenter(viewport: { x: number; y: number; zoom: number }, con
  * [MIGRATION] Update to use ReactFlow's getNodes() and getViewport()
  */
 function useCreateGroup(
-  cyInstance: unknown,
   nodes: ReactFlowNode[],
   viewport: { x: number; y: number; zoom: number },
   containerSize: { width: number; height: number },
@@ -86,7 +81,7 @@ function useCreateGroup(
 ) {
   return useCallback(
     (selectedNodeIds?: string[]): string | null => {
-      if (mode === 'view' || isLocked || !cyInstance) {
+      if (mode === 'view' || isLocked) {
         if (isLocked) onLockedAction?.();
         return null;
       }
@@ -107,11 +102,7 @@ function useCreateGroup(
         // Save node membership
         const { name, level } = parseGroupId(groupId);
         selectedNodeIds.forEach(nodeId => {
-          sendCommandToExtension(CMD_SAVE_NODE_GROUP_MEMBERSHIP, {
-            nodeId,
-            group: name,
-            level
-          });
+          saveNodeMembership(nodeId, { id: groupId, name, level });
         });
       } else {
         // Create empty group at viewport center
@@ -133,7 +124,7 @@ function useCreateGroup(
       log.info(`[Groups] Created overlay group: ${groupId}`);
       return groupId;
     },
-    [cyInstance, nodes, viewport, containerSize, mode, isLocked, onLockedAction, groups, setGroups, saveGroupsToExtension, lastStyleRef]
+    [nodes, viewport, containerSize, mode, isLocked, onLockedAction, groups, setGroups, saveGroupsToExtension, lastStyleRef]
   );
 }
 
@@ -391,11 +382,7 @@ function useNodeGroupMembership(
 
       membershipRef.current.set(nodeId, groupId);
       const { name, level } = parseGroupId(groupId);
-      sendCommandToExtension(CMD_SAVE_NODE_GROUP_MEMBERSHIP, {
-        nodeId,
-        group: name,
-        level
-      });
+      saveNodeMembership(nodeId, { id: groupId, name, level });
       log.info(`[Groups] Added node ${nodeId} to group ${groupId}`);
     },
     [mode, isLocked, groups]
@@ -406,11 +393,7 @@ function useNodeGroupMembership(
       if (mode === 'view' || isLocked) return;
 
       membershipRef.current.delete(nodeId);
-      sendCommandToExtension(CMD_SAVE_NODE_GROUP_MEMBERSHIP, {
-        nodeId,
-        group: null,
-        level: null
-      });
+      saveNodeMembership(nodeId, null);
       log.info(`[Groups] Removed node ${nodeId} from group`);
     },
     [mode, isLocked]
@@ -428,7 +411,7 @@ export function useGroups(options: UseGroupsHookOptions & {
   viewport?: { x: number; y: number; zoom: number };
   containerSize?: { width: number; height: number };
 }): UseGroupsReturn {
-  const { cyInstance, mode, isLocked, onLockedAction, nodes = [], viewport = { x: 0, y: 0, zoom: 1 }, containerSize = { width: 800, height: 600 } } = options;
+  const { mode, isLocked, onLockedAction, nodes = [], viewport = { x: 0, y: 0, zoom: 1 }, containerSize = { width: 800, height: 600 } } = options;
 
   const state = useGroupState();
   const {
@@ -441,7 +424,7 @@ export function useGroups(options: UseGroupsHookOptions & {
   } = state;
 
   const createGroup = useCreateGroup(
-    cyInstance, nodes, viewport, containerSize, mode, isLocked, onLockedAction, groups, setGroups, saveGroupsToExtension, lastStyleRef
+    nodes, viewport, containerSize, mode, isLocked, onLockedAction, groups, setGroups, saveGroupsToExtension, lastStyleRef
   );
 
   const deleteGroup = useDeleteGroup(

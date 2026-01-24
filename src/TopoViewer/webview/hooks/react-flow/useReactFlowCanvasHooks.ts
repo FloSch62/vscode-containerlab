@@ -7,7 +7,7 @@ import type { Node, Edge, ReactFlowInstance } from '@xyflow/react';
 import type { CyElement } from '../../../shared/types/topology';
 import { convertElements } from '../../components/react-flow-canvas/conversion';
 import { applyLayout, hasPresetPositions, type LayoutName } from '../../components/react-flow-canvas/layout';
-import { sendCommandToExtension } from '../../utils/extensionMessaging';
+import { createLink, deleteNode, deleteLink, saveNodePositions, type LinkSaveData } from '../../services';
 import { log } from '../../utils/logger';
 
 /**
@@ -46,6 +46,17 @@ export function useElementConversion(
   }, [elements, setNodes, setEdges, isInitialized]);
 }
 
+function edgeToLinkSaveData(edge: Edge): LinkSaveData {
+  const edgeData = edge.data as Record<string, unknown> | undefined;
+  return {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceEndpoint: (edgeData?.sourceEndpoint as string) || '',
+    targetEndpoint: (edgeData?.targetEndpoint as string) || ''
+  };
+}
+
 /**
  * Hook for delete node/edge handlers
  */
@@ -63,8 +74,11 @@ export function useDeleteHandlers(
     log.info(`[ReactFlowCanvas] Deleting node: ${nodeId}`);
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-    sendCommandToExtension('panel-delete-node', { nodeId });
-    onNodeDelete?.(nodeId);
+    if (onNodeDelete) {
+      onNodeDelete(nodeId);
+    } else {
+      void deleteNode(nodeId);
+    }
     selectNode(null);
     closeContextMenu();
   }, [setNodes, setEdges, selectNode, onNodeDelete, closeContextMenu]);
@@ -75,18 +89,12 @@ export function useDeleteHandlers(
     setEdges((eds) => eds.filter((e) => e.id !== edgeId));
 
     if (edge) {
-      const edgeData = edge.data as Record<string, unknown> | undefined;
-      sendCommandToExtension('panel-delete-link', {
-        edgeId,
-        linkData: {
-          source: edge.source,
-          target: edge.target,
-          sourceEndpoint: edgeData?.sourceEndpoint || '',
-          targetEndpoint: edgeData?.targetEndpoint || ''
-        }
-      });
+      if (onEdgeDelete) {
+        onEdgeDelete(edgeId);
+      } else {
+        void deleteLink(edgeToLinkSaveData(edge));
+      }
     }
-    onEdgeDelete?.(edgeId);
     selectEdge(null);
     closeContextMenu();
   }, [edges, setEdges, selectEdge, onEdgeDelete, closeContextMenu]);
@@ -98,7 +106,8 @@ export function useDeleteHandlers(
  * Hook for link creation mode
  */
 export function useLinkCreation(
-  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>,
+  addEdge?: (edge: CyElement) => void
 ) {
   const [linkSourceNode, setLinkSourceNode] = useState<string | null>(null);
 
@@ -119,14 +128,12 @@ export function useLinkCreation(
     log.info(`[ReactFlowCanvas] Completing ${isLoopLink ? 'loop ' : ''}link: ${linkSourceNode} -> ${targetNodeId}`);
     const edgeId = `${linkSourceNode}-${targetNodeId}-${Date.now()}`;
 
-    sendCommandToExtension('create-link', {
-      linkData: {
-        id: edgeId,
-        source: linkSourceNode,
-        target: targetNodeId,
-        sourceEndpoint: 'eth1',
-        targetEndpoint: 'eth1'
-      }
+    void createLink({
+      id: edgeId,
+      source: linkSourceNode,
+      target: targetNodeId,
+      sourceEndpoint: 'eth1',
+      targetEndpoint: 'eth1'
     });
 
     const newEdge = {
@@ -138,8 +145,18 @@ export function useLinkCreation(
     };
 
     setEdges((eds) => [...eds, newEdge]);
+    addEdge?.({
+      group: 'edges',
+      data: {
+        id: edgeId,
+        source: linkSourceNode,
+        target: targetNodeId,
+        sourceEndpoint: 'eth1',
+        targetEndpoint: 'eth1'
+      }
+    });
     setLinkSourceNode(null);
-  }, [linkSourceNode, setEdges]);
+  }, [linkSourceNode, setEdges, addEdge]);
 
   useEffect(() => {
     if (!linkSourceNode) return;
@@ -255,7 +272,7 @@ export function useCanvasRefMethods(
     getEdges: () => edges,
     setNodePositions: (positions: PositionEntry[]) => {
       setNodes(createPositionUpdater(positions));
-      sendCommandToExtension('save-node-positions', { positions });
+      void saveNodePositions(positions);
     },
     updateNodes: (updater: (nodes: Node[]) => Node[]) => setNodes(updater),
     updateEdges: (updater: (edges: Edge[]) => Edge[]) => setEdges(updater)

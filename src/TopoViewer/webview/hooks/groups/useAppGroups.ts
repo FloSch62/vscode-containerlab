@@ -30,19 +30,28 @@ type MembershipEntry = { nodeId: string; groupId: string };
 function extractMemberships(nodeAnnotations: NodeAnnotation[] | undefined): MembershipEntry[] {
   if (!nodeAnnotations) return [];
   return nodeAnnotations
-    .filter(ann => ann.group && ann.level)
-    .map(ann => ({ nodeId: ann.id, groupId: buildGroupId(ann.group!, ann.level!) }));
+    .map(ann => {
+      if (ann.groupId) {
+        return { nodeId: ann.id, groupId: ann.groupId };
+      }
+      if (ann.group && ann.level) {
+        return { nodeId: ann.id, groupId: buildGroupId(ann.group, ann.level) };
+      }
+      return null;
+    })
+    .filter((entry): entry is MembershipEntry => entry !== null);
 }
 
-// [MIGRATION] TODO: Add canBeGrouped filter when ReactFlow node selection is implemented
+  // [MIGRATION] TODO: Add canBeGrouped filter when ReactFlow node selection is implemented
 // Will filter out annotation nodes (freeText, freeShape) from group membership
 
 interface UseAppGroupsOptions {
-  /** [MIGRATION] Replace with ReactFlowInstance from @xyflow/react */
-  cyInstance?: unknown;
   mode: 'edit' | 'view';
   isLocked: boolean;
   onLockedAction?: () => void;
+  nodes?: Array<{ id: string; position: { x: number; y: number }; data: Record<string, unknown> }>;
+  viewport?: { x: number; y: number; zoom: number };
+  containerSize?: { width: number; height: number };
 }
 
 /**
@@ -72,13 +81,13 @@ function useGroupDataLoader(
 }
 
 export function useAppGroups(options: UseAppGroupsOptions) {
-  const { cyInstance, mode, isLocked, onLockedAction } = options;
+  const { mode, isLocked, onLockedAction, nodes, viewport, containerSize } = options;
 
-  const groupsHook = useGroups({ cyInstance, mode, isLocked, onLockedAction });
+  const groupsHook = useGroups({ mode, isLocked, onLockedAction, nodes, viewport, containerSize });
   useGroupDataLoader(groupsHook.loadGroups, groupsHook.initializeMembership);
 
   const handleAddGroup = useCallback(() => {
-    // [MIGRATION] Use ReactFlow selection instead of cyInstance
+    // [MIGRATION] Use ReactFlow selection instead of legacy selection
     const groupId = groupsHook.createGroup();
     if (groupId) groupsHook.editGroup(groupId);
   }, [groupsHook]);

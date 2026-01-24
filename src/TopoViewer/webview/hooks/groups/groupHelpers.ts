@@ -3,6 +3,8 @@
  * Groups are rendered as HTML/SVG overlays, not Cytoscape nodes.
  */
 import type { GroupStyleAnnotation } from '../../../shared/types/topology';
+import { log } from '../../utils/logger';
+import { getAnnotationsIO, getTopologyIO, isServicesInitialized } from '../../services';
 import {
   DEFAULT_GROUP_STYLE,
   DEFAULT_GROUP_WIDTH,
@@ -38,6 +40,56 @@ export function generateGroupId(existingGroups: GroupStyleAnnotation[]): string 
 export function parseGroupId(groupId: string): { name: string; level: string } {
   const [name, level] = groupId.split(':');
   return { name: name || '', level: level || '1' };
+}
+
+/**
+ * Save node membership to annotations file.
+ */
+export function saveNodeMembership(
+  nodeId: string,
+  group: { id: string; name?: string; level?: string } | null
+): void {
+  if (!isServicesInitialized()) {
+    log.warn('[Groups] Services not initialized for membership save');
+    return;
+  }
+
+  const annotationsIO = getAnnotationsIO();
+  const topologyIO = getTopologyIO();
+
+  const yamlPath = topologyIO.getYamlFilePath();
+  if (!yamlPath) {
+    log.warn('[Groups] No YAML path for membership save');
+    return;
+  }
+
+  const groupId = group?.id ?? null;
+  const groupName = group?.name ?? null;
+  const groupLevel = group?.level ?? null;
+
+  annotationsIO.modifyAnnotations(yamlPath, annotations => {
+    if (!annotations.nodeAnnotations) {
+      annotations.nodeAnnotations = [];
+    }
+
+    const existing = annotations.nodeAnnotations.find(n => n.id === nodeId);
+    if (existing) {
+      existing.groupId = groupId ?? undefined;
+      existing.group = groupName ?? undefined;
+      existing.level = groupLevel ?? undefined;
+    } else {
+      annotations.nodeAnnotations.push({
+        id: nodeId,
+        groupId: groupId ?? undefined,
+        group: groupName ?? undefined,
+        level: groupLevel ?? undefined
+      });
+    }
+
+    return annotations;
+  }).catch(err => {
+    log.error(`[Groups] Failed to save membership: ${err}`);
+  });
 }
 
 /**

@@ -3,8 +3,6 @@
  * Handles loading, state management, and callbacks for the App component
  */
 import React from 'react';
-// [MIGRATION] Replace with ReactFlow types from @xyflow/react
-type CyCore = { zoom: () => number; pan: () => { x: number; y: number }; container: () => HTMLElement | null };
 import { FreeTextAnnotation } from '../../../shared/types/topology';
 import { useFreeTextAnnotations } from './useFreeTextAnnotations';
 
@@ -20,7 +18,6 @@ interface TopologyDataMessage {
 }
 
 interface UseAppFreeTextAnnotationsOptions {
-  cyInstance: CyCore | null;
   mode: 'edit' | 'view';
   isLocked: boolean;
   onLockedAction: () => void;
@@ -74,10 +71,9 @@ export interface UseAppFreeTextAnnotationsReturn {
  * Handles initialization from __INITIAL_DATA__ and message listeners
  */
 export function useAppFreeTextAnnotations(options: UseAppFreeTextAnnotationsOptions): UseAppFreeTextAnnotationsReturn {
-  const { cyInstance, mode, isLocked, onLockedAction } = options;
+  const { mode, isLocked, onLockedAction } = options;
 
   const freeTextAnnotations = useFreeTextAnnotations({
-    cyInstance,
     mode,
     isLocked,
     onLockedAction

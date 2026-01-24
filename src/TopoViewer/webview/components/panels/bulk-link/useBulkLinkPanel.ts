@@ -2,8 +2,7 @@
  * Hook for bulk link panel state and handlers
  */
 import React from 'react';
-// [MIGRATION] Replace with ReactFlow types from @xyflow/react
-type CyCore = { zoom: () => number; pan: () => { x: number; y: number }; container: () => HTMLElement | null };
+import type { Node, Edge } from '@xyflow/react';
 import type { GraphChangeEntry } from '../../../hooks';
 import type { LinkCandidate } from './bulkLinkUtils';
 import { computeAndValidateCandidates, confirmAndCreateLinks } from './bulkLinkHandlers';
@@ -12,7 +11,9 @@ interface UseBulkLinkPanelOptions {
   isVisible: boolean;
   mode: 'edit' | 'view';
   isLocked: boolean;
-  cy: CyCore | null;
+  getNodes: () => Node[];
+  getEdges: () => Edge[];
+  updateEdges: (updater: (edges: Edge[]) => Edge[]) => void;
   onClose: () => void;
   recordGraphChanges?: (before: GraphChangeEntry[], after: GraphChangeEntry[]) => void;
 }
@@ -21,7 +22,9 @@ export function useBulkLinkPanel({
   isVisible,
   mode,
   isLocked,
-  cy,
+  getNodes,
+  getEdges,
+  updateEdges,
   onClose,
   recordGraphChanges
 }: UseBulkLinkPanelOptions) {
@@ -48,20 +51,29 @@ export function useBulkLinkPanel({
   }, [onClose]);
 
   const handleCompute = React.useCallback(() => {
-    computeAndValidateCandidates(cy, sourcePattern, targetPattern, setStatus, setPendingCandidates);
-  }, [cy, sourcePattern, targetPattern]);
+    computeAndValidateCandidates(
+      getNodes(),
+      getEdges(),
+      sourcePattern,
+      targetPattern,
+      setStatus,
+      setPendingCandidates
+    );
+  }, [getNodes, getEdges, sourcePattern, targetPattern]);
 
   const handleConfirmCreate = React.useCallback(() => {
     confirmAndCreateLinks({
-      cy,
+      nodes: getNodes(),
+      edges: getEdges(),
       pendingCandidates,
       canApply,
+      updateEdges,
       recordGraphChanges,
       setStatus,
       setPendingCandidates,
       onClose
     });
-  }, [cy, pendingCandidates, canApply, recordGraphChanges, onClose]);
+  }, [getNodes, getEdges, pendingCandidates, canApply, updateEdges, recordGraphChanges, onClose]);
 
   const handleDismissConfirm = React.useCallback(() => {
     setPendingCandidates(null);

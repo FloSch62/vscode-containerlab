@@ -1,9 +1,8 @@
 /**
  * Handler functions for bulk link operations
  */
-// [MIGRATION] Replace with ReactFlow types from @xyflow/react
-type CyCore = { zoom: () => number; pan: () => { x: number; y: number }; container: () => HTMLElement | null };
-import { sendCommandToExtension } from '../../../utils/extensionMessaging';
+import type { Edge, Node } from '@xyflow/react';
+import { beginBatch, endBatch, createLink } from '../../../services';
 import type { GraphChangeEntry } from '../../../hooks';
 import { computeCandidates, buildBulkEdges, buildUndoRedoEntries, type LinkCandidate } from './bulkLinkUtils';
 import type { CyElement } from '../../../../shared/types/messages';
@@ -11,34 +10,50 @@ import type { CyElement } from '../../../../shared/types/messages';
 type SetStatus = (status: string | null) => void;
 type SetCandidates = (candidates: LinkCandidate[] | null) => void;
 
-export function sendBulkEdgesToExtension(edges: CyElement[]): void {
-  sendCommandToExtension('begin-graph-batch', {});
+type UpdateEdges = (updater: (edges: Edge[]) => Edge[]) => void;
+
+function cyEdgeToReactFlow(edge: CyElement): Edge {
+  const data = edge.data as Record<string, unknown>;
+  return {
+    id: String(data.id || ''),
+    source: String(data.source || ''),
+    target: String(data.target || ''),
+    type: 'topology-edge',
+    data: {
+      sourceEndpoint: String(data.sourceEndpoint || ''),
+      targetEndpoint: String(data.targetEndpoint || ''),
+      linkStatus: 'unknown'
+    }
+  };
+}
+
+export async function sendBulkEdgesToExtension(edges: CyElement[]): Promise<void> {
+  beginBatch();
   try {
     for (const edge of edges) {
       const data = edge.data as Record<string, unknown>;
-      sendCommandToExtension('create-link', {
-        linkData: {
-          id: String(data.id || ''),
-          source: String(data.source || ''),
-          target: String(data.target || ''),
-          sourceEndpoint: String(data.sourceEndpoint || ''),
-          targetEndpoint: String(data.targetEndpoint || '')
-        }
+      await createLink({
+        id: String(data.id || ''),
+        source: String(data.source || ''),
+        target: String(data.target || ''),
+        sourceEndpoint: String(data.sourceEndpoint || ''),
+        targetEndpoint: String(data.targetEndpoint || '')
       });
     }
   } finally {
-    sendCommandToExtension('end-graph-batch', {});
+    await endBatch();
   }
 }
 
 export function computeAndValidateCandidates(
-  cy: CyCore | null,
+  nodes: Node[],
+  edges: Edge[],
   sourcePattern: string,
   targetPattern: string,
   setStatus: SetStatus,
   setPendingCandidates: SetCandidates
 ): void {
-  if (!cy) {
+  if (!nodes.length) {
     setStatus('Topology not ready yet.');
     return;
   }
@@ -47,7 +62,7 @@ export function computeAndValidateCandidates(
     return;
   }
 
-  const candidates = computeCandidates(cy, sourcePattern.trim(), targetPattern.trim());
+  const candidates = computeCandidates(nodes, edges, sourcePattern.trim(), targetPattern.trim());
   if (candidates.length === 0) {
     setStatus('No new links would be created with the specified patterns.');
     return;
@@ -58,9 +73,11 @@ export function computeAndValidateCandidates(
 }
 
 interface ConfirmCreateParams {
-  cy: CyCore | null;
+  nodes: Node[];
+  edges: Edge[];
   pendingCandidates: LinkCandidate[] | null;
   canApply: boolean;
+  updateEdges?: UpdateEdges;
   recordGraphChanges?: (before: GraphChangeEntry[], after: GraphChangeEntry[]) => void;
   setStatus: SetStatus;
   setPendingCandidates: SetCandidates;
@@ -68,30 +85,33 @@ interface ConfirmCreateParams {
 }
 
 export function confirmAndCreateLinks({
-  cy,
+  nodes,
+  edges,
   pendingCandidates,
   canApply,
+  updateEdges,
   recordGraphChanges,
   setStatus,
   setPendingCandidates,
   onClose
 }: ConfirmCreateParams): void {
-  if (!cy || !pendingCandidates) return;
+  if (!pendingCandidates) return;
   if (!canApply) {
     setStatus('Unlock the lab to create links.');
     setPendingCandidates(null);
     return;
   }
 
-  const edges = buildBulkEdges(cy, pendingCandidates);
-  if (edges.length === 0) {
+  const newEdges = buildBulkEdges(nodes, edges, pendingCandidates);
+  if (newEdges.length === 0) {
     setStatus('No new links to create.');
     setPendingCandidates(null);
     return;
   }
 
-  const { before, after } = buildUndoRedoEntries(edges);
-  sendBulkEdgesToExtension(edges);
+  const { before, after } = buildUndoRedoEntries(newEdges);
+  void sendBulkEdgesToExtension(newEdges);
+  updateEdges?.((current) => [...current, ...newEdges.map(cyEdgeToReactFlow)]);
   recordGraphChanges?.(before, after);
 
   setPendingCandidates(null);

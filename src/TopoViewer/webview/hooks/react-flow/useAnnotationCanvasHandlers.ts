@@ -12,6 +12,7 @@ import { isLineHandleActive } from '../../components/react-flow-canvas/nodes/Ann
 /** Node type constants */
 const FREE_TEXT_NODE_TYPE = 'free-text-node';
 const FREE_SHAPE_NODE_TYPE = 'free-shape-node';
+const GROUP_NODE_TYPE = 'group-node';
 
 interface UseAnnotationCanvasHandlersOptions {
   mode: 'view' | 'edit';
@@ -158,6 +159,19 @@ function useWrappedNodeDragStop(
       const snappedPosition = snapToGrid(node.position);
       log.info(`[ReactFlowCanvas] Updated free shape position: ${node.id}`);
       annotationHandlers.onUpdateFreeShapePosition(node.id, snappedPosition);
+      return;
+    }
+
+    if (node.type === GROUP_NODE_TYPE && annotationHandlers?.onUpdateGroupPosition) {
+      const width = (node.data as { width?: number } | undefined)?.width ?? node.width ?? 0;
+      const height = (node.data as { height?: number } | undefined)?.height ?? node.height ?? 0;
+      const snappedTopLeft = snapToGrid(node.position);
+      const centerPosition = {
+        x: snappedTopLeft.x + width / 2,
+        y: snappedTopLeft.y + height / 2
+      };
+      log.info(`[ReactFlowCanvas] Updated group position: ${node.id}`);
+      annotationHandlers.onUpdateGroupPosition(node.id, centerPosition);
       return;
     }
 

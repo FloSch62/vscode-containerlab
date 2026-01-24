@@ -330,10 +330,9 @@ const LinkLabelMenu: React.FC<LinkLabelMenuProps> = ({
 
 const LAYOUT_OPTIONS: { value: LayoutOption; label: string }[] = [
   { value: 'preset', label: 'Preset' },
-  { value: 'cose', label: 'Force-Directed (COSE)' },
-  { value: 'cola', label: 'Cola' },
-  { value: 'radial', label: 'Radial' },
-  { value: 'hierarchical', label: 'Hierarchical' },
+  { value: 'force', label: 'Force-Directed' },
+  { value: 'grid', label: 'Grid' },
+  { value: 'circle', label: 'Circle' },
   { value: 'geo', label: 'Geo Map' }
 ];
 

@@ -32,6 +32,9 @@ interface FreeShapeAnnotationsAPI {
 interface UseAnnotationCanvasPropsOptions {
   freeTextAnnotations: FreeTextAnnotationsAPI;
   freeShapeAnnotations: FreeShapeAnnotationsAPI;
+  groupAnnotations?: {
+    updatePosition: (id: string, position: { x: number; y: number }) => void;
+  };
 }
 
 interface UseAnnotationCanvasPropsReturn {
@@ -45,7 +48,7 @@ interface UseAnnotationCanvasPropsReturn {
 export function useAnnotationCanvasProps(
   options: UseAnnotationCanvasPropsOptions
 ): UseAnnotationCanvasPropsReturn {
-  const { freeTextAnnotations, freeShapeAnnotations } = options;
+  const { freeTextAnnotations, freeShapeAnnotations, groupAnnotations } = options;
 
   const annotationMode = useMemo<AnnotationModeState>(() => ({
     isAddTextMode: freeTextAnnotations.isAddTextMode,
@@ -72,9 +75,10 @@ export function useAnnotationCanvasProps(
     onUpdateFreeShapeRotation: freeShapeAnnotations.updateRotation,
     onUpdateFreeShapeEndPosition: freeShapeAnnotations.updateEndPosition,
     onUpdateFreeShapeStartPosition: freeShapeAnnotations.updateStartPosition,
+    onUpdateGroupPosition: groupAnnotations?.updatePosition,
     disableAddTextMode: freeTextAnnotations.disableAddTextMode,
     disableAddShapeMode: freeShapeAnnotations.disableAddShapeMode
-  }), [freeTextAnnotations, freeShapeAnnotations]);
+  }), [freeTextAnnotations, freeShapeAnnotations, groupAnnotations]);
 
   return { annotationMode, annotationHandlers };
 }

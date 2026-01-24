@@ -1,9 +1,9 @@
 /**
  * Group management hooks for React TopoViewer.
  *
- * [MIGRATION] Migrate to @xyflow/react - deleted Cytoscape-specific hooks:
+ * [MIGRATION] React Flow migration removed legacy hooks:
  * - useNodeReparent
- * - useGroupLayer (cytoscape-layers plugin)
+ * - useGroupLayer
  */
 
 export * from './groupTypes';

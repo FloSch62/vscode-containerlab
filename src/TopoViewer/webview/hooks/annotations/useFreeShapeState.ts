@@ -3,7 +3,7 @@
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { FreeShapeAnnotation } from '../../../shared/types/topology';
-import { sendCommandToExtension } from '../../utils/extensionMessaging';
+import { saveFreeShapeAnnotations } from '../../services';
 import { log } from '../../utils/logger';
 import {
   SAVE_DEBOUNCE_MS,
@@ -50,14 +50,14 @@ export function useFreeShapeState(): UseFreeShapeStateReturn {
   const saveAnnotationsToExtension = useCallback((updatedAnnotations: FreeShapeAnnotation[]) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
-      sendCommandToExtension('save-free-shape-annotations', { annotations: updatedAnnotations });
+      void saveFreeShapeAnnotations(updatedAnnotations);
       log.info(`[FreeShape] Saved ${updatedAnnotations.length} annotations`);
     }, SAVE_DEBOUNCE_MS);
   }, []);
 
   const saveAnnotationsImmediate = useCallback((updatedAnnotations: FreeShapeAnnotation[]) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    sendCommandToExtension('save-free-shape-annotations', { annotations: updatedAnnotations });
+    void saveFreeShapeAnnotations(updatedAnnotations);
     log.info(`[FreeShape] Saved ${updatedAnnotations.length} annotations (immediate)`);
   }, []);
 
@@ -476,4 +476,3 @@ export function useFreeShapeActions(options: UseFreeShapeActionsOptions): UseFre
     ...copyPasteActions
   };
 }
-
