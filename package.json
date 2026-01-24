@@ -195,6 +195,12 @@
         "category": "Containerlab"
       },
       {
+        "command": "containerlab.lab.graph.topoViewerNew",
+        "title": "Graph (TopoViewer New/ReactFlow)",
+        "icon": "$(beaker)",
+        "category": "Containerlab"
+      },
+      {
         "command": "containerlab.editor.topoViewerEditor",
         "title": "New topology file",
         "icon": "$(new-file)",
@@ -1428,6 +1434,7 @@
     "@testing-library/react": "^16.3.1",
     "@types/chai": "^5.2.3",
     "@types/cytoscape-cxtmenu": "^3.4.5",
+    "@types/d3-force": "^3.0.10",
     "@types/cytoscape-edgehandles": "^4.0.5",
     "@types/dockerode": "^3.3.47",
     "@types/jsdom": "^27.0.0",
@@ -1488,6 +1495,8 @@
     "yaml": "^2.8.2"
   },
   "dependencies": {
-    "cytoscape-layers": "^3.1.0"
+    "@xyflow/react": "^12.10.0",
+    "cytoscape-layers": "^3.1.0",
+    "d3-force": "^3.0.0"
   }
 }

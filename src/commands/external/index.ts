@@ -7,7 +7,9 @@ export {
   graphDrawIOVertical,
   graphDrawIOInteractive,
   graphTopoviewer,
+  graphTopoViewerNew,
   getCurrentTopoViewer,
+  getCurrentNewTopoViewer,
   notifyCurrentTopoViewerOfCommandSuccess,
   notifyCurrentTopoViewerOfCommandFailure
 } from "../graph";

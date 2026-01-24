@@ -7,6 +7,8 @@ import * as vscode from "vscode";
 import type { ClabLabTreeNode } from "../treeView/common";
 import type { ReactTopoViewer} from "../reactTopoViewer";
 import { ReactTopoViewerProvider } from "../reactTopoViewer";
+import type { TopoViewer } from "../TopoViewer/extension/TopoViewerProvider";
+import { TopoViewerProvider } from "../TopoViewer/extension/TopoViewerProvider";
 import { getSelectedLabNode } from "../utils/utils";
 import * as ins from "../treeView/inspector";
 
@@ -225,4 +227,51 @@ export async function notifyCurrentTopoViewerOfCommandFailure(
 ): Promise<void> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   await postLifecycleStatus(commandType, 'error', errorMessage);
+}
+
+/**
+ * Graph Lab (New ReactFlow-based TopoViewer)
+ * This is an experimental version using ReactFlow instead of Cytoscape.js
+ */
+
+let currentNewTopoViewer: TopoViewer | undefined;
+
+export async function graphTopoViewerNew(node?: ClabLabTreeNode, context?: vscode.ExtensionContext) {
+  // Get node if not provided
+  node = await getSelectedLabNode(node);
+
+  const labInfo = resolveLabInfo(node);
+  if (!labInfo) {
+    return;
+  }
+  const { labPath, isViewMode } = labInfo;
+
+  if (!context) {
+    vscode.window.showErrorMessage('Extension context not available');
+    return;
+  }
+
+  // Derive the lab name
+  const labName =
+    node?.name ||
+    (labPath
+      ? path.basename(labPath).replace(/\.clab\.(yml|yaml)$/i, '')
+      : 'Unknown Lab');
+
+  // Use the new TopoViewer provider
+  const provider = TopoViewerProvider.getInstance(context);
+  const viewer = await provider.openViewer(labPath, labName, isViewMode);
+
+  currentNewTopoViewer = viewer;
+
+  // Handle disposal
+  if (viewer.currentPanel) {
+    viewer.currentPanel.onDidDispose(() => {
+      currentNewTopoViewer = undefined;
+    });
+  }
+}
+
+export function getCurrentNewTopoViewer(): TopoViewer | undefined {
+  return currentNewTopoViewer;
 }

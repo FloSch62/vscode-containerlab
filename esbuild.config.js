@@ -66,24 +66,38 @@ async function buildCss() {
     'npx postcss src/reactTopoViewer/webview/styles/tailwind.css -o dist/reactTopoViewerStyles.css',
     { stdio: 'inherit' }
   );
+  // Build TopoViewer CSS (reuses same source for now)
+  execSync(
+    'npx postcss src/TopoViewer/webview/styles/tailwind.css -o dist/topoViewerStyles.css',
+    { stdio: 'inherit' }
+  );
 
   // Fix font paths - rewrite node_modules paths to webfonts/
-  const cssPath = path.join(__dirname, 'dist/reactTopoViewerStyles.css');
-  let css = await fs.promises.readFile(cssPath, 'utf8');
+  const cssFiles = [
+    'dist/reactTopoViewerStyles.css',
+    'dist/topoViewerStyles.css'
+  ];
 
-  // Replace all node_modules font paths with relative webfonts/ paths
-  css = css.replace(
-    /url\([^)]*node_modules\/@fortawesome\/fontawesome-free\/webfonts\/([^)]+)\)/g,
-    'url(webfonts/$1)'
-  );
+  for (const cssFile of cssFiles) {
+    const cssPath = path.join(__dirname, cssFile);
+    if (!fs.existsSync(cssPath)) continue;
 
-  // Also handle maplibre-gl font references if any
-  css = css.replace(
-    /url\([^)]*node_modules\/maplibre-gl\/[^)]*\/([^/)]+\.(woff2?|ttf|eot))\)/g,
-    'url(webfonts/$1)'
-  );
+    let css = await fs.promises.readFile(cssPath, 'utf8');
 
-  await fs.promises.writeFile(cssPath, css);
+    // Replace all node_modules font paths with relative webfonts/ paths
+    css = css.replace(
+      /url\([^)]*node_modules\/@fortawesome\/fontawesome-free\/webfonts\/([^)]+)\)/g,
+      'url(webfonts/$1)'
+    );
+
+    // Also handle maplibre-gl font references if any
+    css = css.replace(
+      /url\([^)]*node_modules\/maplibre-gl\/[^)]*\/([^/)]+\.(woff2?|ttf|eot))\)/g,
+      'url(webfonts/$1)'
+    );
+
+    await fs.promises.writeFile(cssPath, css);
+  }
 }
 
 async function build() {
@@ -134,10 +148,32 @@ async function build() {
     },
   });
 
+  // Build new TopoViewer webview (ReactFlow-based) - CSS handled separately
+  const topoViewerBuild = esbuild.build({
+    ...commonOptions,
+    entryPoints: ['src/TopoViewer/webview/index.tsx'],
+    platform: 'browser',
+    format: 'iife',
+    target: ['es2020', 'chrome90', 'firefox90', 'safari14'],
+    outfile: 'dist/topoViewerWebview.js',
+    plugins: [ignoreCssPlugin],
+    jsx: 'automatic',
+    loader: {
+      '.svg': 'dataurl',
+      '.png': 'dataurl',
+      '.jpg': 'dataurl',
+      '.gif': 'dataurl',
+    },
+    define: {
+      'process.env.NODE_ENV': isDev ? '"development"' : '"production"',
+    },
+  });
+
   // Run all builds in parallel
   await Promise.all([
     extensionBuild,
     webviewBuild,
+    topoViewerBuild,
     copyFonts(),
     buildCss(),
   ]);
@@ -176,7 +212,24 @@ async function build() {
       },
     });
 
-    await Promise.all([extCtx.watch(), webCtx.watch()]);
+    const topoCtx = await esbuild.context({
+      ...commonOptions,
+      entryPoints: ['src/TopoViewer/webview/index.tsx'],
+      platform: 'browser',
+      format: 'iife',
+      target: ['es2020', 'chrome90', 'firefox90', 'safari14'],
+      outfile: 'dist/topoViewerWebview.js',
+      plugins: [ignoreCssPlugin],
+      jsx: 'automatic',
+      loader: {
+        '.svg': 'dataurl',
+        '.png': 'dataurl',
+        '.jpg': 'dataurl',
+        '.gif': 'dataurl',
+      },
+    });
+
+    await Promise.all([extCtx.watch(), webCtx.watch(), topoCtx.watch()]);
 
     // Watch CSS files and rebuild
     const cssWatcher = watch('src/reactTopoViewer/webview/styles/**/*.css', {

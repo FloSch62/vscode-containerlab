@@ -23,9 +23,9 @@ export default defineConfig({
       // CRITICAL: Force single React instance by explicit paths
       'react': path.resolve(nodeModules, 'react'),
       'react-dom': path.resolve(nodeModules, 'react-dom'),
-      // Allow importing from the actual webview source
-      '@webview': path.resolve(__dirname, '../src/reactTopoViewer/webview'),
-      '@shared': path.resolve(__dirname, '../src/reactTopoViewer/shared'),
+      // Allow importing from the actual webview source (new ReactFlow-based TopoViewer)
+      '@webview': path.resolve(__dirname, '../src/TopoViewer/webview'),
+      '@shared': path.resolve(__dirname, '../src/TopoViewer/shared'),
     },
     dedupe: ['react', 'react-dom'],
   },

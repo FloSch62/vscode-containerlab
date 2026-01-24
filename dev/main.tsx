@@ -20,10 +20,10 @@ import type { CustomNodeTemplate } from '@shared/types/editors';
 import '@webview/styles/tailwind.css';
 
 // File system adapter for dev server
-import { HttpFsAdapter } from '../src/reactTopoViewer/webview/adapters/HttpFsAdapter';
-import { initializeServices, getTopologyIO, getAnnotationsIO } from '../src/reactTopoViewer/webview/services';
-import { TopologyParser } from '../src/reactTopoViewer/shared/parsing';
-import type { TopologyAnnotations } from '../src/reactTopoViewer/shared/types/topology';
+import { HttpFsAdapter } from '../src/TopoViewer/webview/adapters/HttpFsAdapter';
+import { initializeServices, getTopologyIO, getAnnotationsIO } from '../src/TopoViewer/webview/services';
+import { TopologyParser } from '../src/TopoViewer/shared/parsing';
+import type { TopologyAnnotations } from '../src/TopoViewer/shared/types/topology';
 
 // Mock state for mode/deployment (not file-based)
 import { DevStateManager } from './mock/DevState';
