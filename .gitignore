@@ -52,3 +52,8 @@ memory/**
 .claude-flow/**
 patch.sh
 report/
+
+test-results/
+playwright-report/
+dist-dev/
+jscpd-report.json

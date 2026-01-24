@@ -8,7 +8,8 @@ import React, {
   forwardRef,
   useCallback,
   useMemo,
-  useEffect
+  useEffect,
+  useState
 } from 'react';
 import {
   ReactFlow,
@@ -30,6 +31,8 @@ import { isLineHandleActive } from './nodes/AnnotationHandles';
 import { useTopoViewer } from '../../context/TopoViewerContext';
 import { LinkCreationProvider } from '../../context/LinkCreationContext';
 import { AnnotationHandlersProvider } from '../../context/AnnotationHandlersContext';
+import { EdgeInfoProvider } from '../../context/EdgeInfoContext';
+import { EdgeRenderConfigProvider } from '../../context/EdgeRenderConfigContext';
 import { ContextMenu, type ContextMenuItem } from '../context-menu/ContextMenu';
 import { buildNodeContextMenu, buildEdgeContextMenu, buildPaneContextMenu } from './contextMenuBuilders';
 import {
@@ -44,8 +47,12 @@ import {
   GRID_SIZE
 } from '../../hooks/react-flow';
 import type { Node, Edge } from '@xyflow/react';
+import { rafThrottle } from '../../utils/throttle';
 
-/** Hook for building context menu items */
+/**
+ * Hook for building context menu items.
+ * Uses refs to access nodes/edges without causing re-renders during drag.
+ */
 function useContextMenuItems(
   handlers: ReturnType<typeof useCanvasHandlers>,
   state: { mode: 'view' | 'edit'; isLocked: boolean },
@@ -53,21 +60,24 @@ function useContextMenuItems(
   editEdge: (id: string | null) => void,
   handleDeleteNode: (nodeId: string) => void,
   handleDeleteEdge: (edgeId: string) => void,
-  nodes: Node[],
-  edges: Edge[],
+  nodesRef: React.RefObject<Node[]>,
+  edgesRef: React.RefObject<Edge[]>,
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>,
   linkSourceNode: string | null,
   startLinkCreation: (nodeId: string) => void,
   cancelLinkCreation: () => void,
   annotationHandlers?: import('./types').AnnotationHandlers
 ): ContextMenuItem[] {
+  // Only recalculate when context menu state changes, not on every node position update
+  const { type, targetId } = handlers.contextMenu;
+
   return useMemo(() => {
-    const { type, targetId } = handlers.contextMenu;
     const isEditMode = state.mode === 'edit';
     const isLocked = state.isLocked;
+    const nodes = nodesRef.current ?? [];
+    const edges = edgesRef.current ?? [];
 
     if (type === 'node' && targetId) {
-      // Find the node to get its type
       const targetNode = nodes.find(n => n.id === targetId);
       const targetNodeType = targetNode?.type;
 
@@ -92,7 +102,7 @@ function useContextMenuItems(
       });
     }
     return [];
-  }, [handlers, state.mode, state.isLocked, editNode, editEdge, handleDeleteNode, handleDeleteEdge, nodes, edges, setNodes, linkSourceNode, startLinkCreation, cancelLinkCreation, annotationHandlers]);
+  }, [type, targetId, state.mode, state.isLocked, handlers.closeContextMenu, handlers.reactFlowInstance, editNode, editEdge, handleDeleteNode, handleDeleteEdge, nodesRef, edgesRef, setNodes, linkSourceNode, startLinkCreation, cancelLinkCreation, annotationHandlers]);
 }
 
 /** Hook for wrapped node click handling */
@@ -244,11 +254,18 @@ function useSyncAnnotationNodes(
 }
 
 const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasProps>(
-  ({ elements, annotationNodes, annotationMode, annotationHandlers, onNodeDelete, onEdgeDelete, onMoveComplete }, ref) => {
+  ({ elements, annotationNodes, annotationMode, annotationHandlers, onNodeDelete, onEdgeDelete, onMoveComplete, linkLabelMode = 'show-all' }, ref) => {
     const { state, selectNode, selectEdge, editNode, editEdge } = useTopoViewer();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const floatingPanelRef = useRef<{ triggerShake: () => void } | null>(null);
+    const [isNodeDragging, setIsNodeDragging] = useState(false);
+
+    // Refs to access latest nodes/edges without causing re-renders in context menu
+    const nodesRef = useRef<Node[]>(nodes);
+    const edgesRef = useRef<Edge[]>(edges);
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
 
     const handlers = useCanvasHandlers({
       selectNode, selectEdge, editNode, editEdge,
@@ -262,7 +279,7 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
     useElementConversion(elements, setNodes, setEdges);
     useSyncAnnotationNodes(annotationNodes, setNodes);
 
-    const { linkSourceNode, mousePosition, startLinkCreation, completeLinkCreation, cancelLinkCreation } = useLinkCreation(setEdges);
+    const { linkSourceNode, startLinkCreation, completeLinkCreation, cancelLinkCreation } = useLinkCreation(setEdges);
     const { handleDeleteNode, handleDeleteEdge } = useDeleteHandlers(edges, setNodes, setEdges, selectNode, selectEdge, handlers.closeContextMenu, onNodeDelete, onEdgeDelete);
     const sourceNodePosition = useSourceNodePosition(linkSourceNode, nodes);
 
@@ -272,7 +289,8 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
     useImperativeHandle(ref, () => refMethods, [refMethods]);
 
     const wrappedOnNodeClick = useWrappedNodeClick(linkSourceNode, completeLinkCreation, handlers.onNodeClick);
-    const contextMenuItems = useContextMenuItems(handlers, state, editNode, editEdge, handleDeleteNode, handleDeleteEdge, nodes, edges, setNodes, linkSourceNode, startLinkCreation, cancelLinkCreation, annotationHandlers);
+    // Use refs to avoid re-computing context menu on every position change
+    const contextMenuItems = useContextMenuItems(handlers, state, editNode, editEdge, handleDeleteNode, handleDeleteEdge, nodesRef, edgesRef, setNodes, linkSourceNode, startLinkCreation, cancelLinkCreation, annotationHandlers);
 
     // Use annotation canvas handlers hook for annotation-related interactions
     const { wrappedOnPaneClick, wrappedOnNodeDoubleClick, wrappedOnNodeDragStop, isInAddMode, addModeMessage } = useAnnotationCanvasHandlers({
@@ -281,11 +299,28 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
       baseOnPaneClick: handlers.onPaneClick, baseOnNodeDoubleClick: handlers.onNodeDoubleClick, baseOnNodeDragStop: handlers.onNodeDragStop
     });
 
+    const handleNodeDragStart = useCallback((event: React.MouseEvent, node: Node) => {
+      setIsNodeDragging(true);
+      handlers.onNodeDragStart(event, node);
+    }, [handlers.onNodeDragStart]);
+
+    const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+      wrappedOnNodeDragStop(event, node);
+      setIsNodeDragging(false);
+    }, [wrappedOnNodeDragStop]);
+
+    const edgeRenderConfig = useMemo(() => ({
+      labelMode: linkLabelMode,
+      suppressLabels: isNodeDragging
+    }), [linkLabelMode, isNodeDragging]);
+
     return (
       <div style={canvasStyle} className="react-flow-canvas">
-        <AnnotationHandlersProvider handlers={annotationHandlers}>
-          <LinkCreationProvider linkSourceNode={linkSourceNode}>
-            <ReactFlow
+        <EdgeRenderConfigProvider value={edgeRenderConfig}>
+          <EdgeInfoProvider>
+            <AnnotationHandlersProvider handlers={annotationHandlers}>
+              <LinkCreationProvider linkSourceNode={linkSourceNode}>
+                <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
@@ -295,8 +330,8 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
             onInit={handlers.onInit}
             onNodeClick={wrappedOnNodeClick}
             onNodeDoubleClick={wrappedOnNodeDoubleClick}
-            onNodeDragStart={handlers.onNodeDragStart}
-            onNodeDragStop={wrappedOnNodeDragStop}
+            onNodeDragStart={handleNodeDragStart}
+            onNodeDragStop={handleNodeDragStop}
             onNodeContextMenu={handlers.onNodeContextMenu}
             onEdgeClick={handlers.onEdgeClick}
             onEdgeDoubleClick={handlers.onEdgeDoubleClick}
@@ -310,6 +345,7 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
             defaultViewport={defaultViewport}
             minZoom={0.1}
             maxZoom={Infinity}
+            onlyRenderVisibleElements
             selectionMode={SelectionMode.Partial}
             selectNodesOnDrag={false}
             panOnDrag={!isInAddMode}
@@ -323,10 +359,12 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
             nodesConnectable={state.mode === 'edit' && !state.isLocked}
             elementsSelectable
             >
-              <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} color="#555" />
-            </ReactFlow>
-          </LinkCreationProvider>
-        </AnnotationHandlersProvider>
+                <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} color="#555" />
+              </ReactFlow>
+            </LinkCreationProvider>
+          </AnnotationHandlersProvider>
+        </EdgeInfoProvider>
+      </EdgeRenderConfigProvider>
 
         <ContextMenu
           isVisible={handlers.contextMenu.type !== null}
@@ -335,10 +373,9 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
           onClose={handlers.closeContextMenu}
         />
 
-        {linkSourceNode && mousePosition && sourceNodePosition && handlers.reactFlowInstance.current && (
+        {linkSourceNode && sourceNodePosition && handlers.reactFlowInstance.current && (
           <LinkCreationLine
             sourcePosition={sourceNodePosition}
-            mousePosition={mousePosition}
             reactFlowInstance={handlers.reactFlowInstance.current}
           />
         )}
@@ -399,40 +436,75 @@ const LinkCreationIndicator: React.FC<{ linkSourceNode: string }> = ({ linkSourc
   </div>
 );
 
-/** Visual line component for link creation mode */
+/** Visual line component for link creation mode - memoized for performance */
 interface LinkCreationLineProps {
   sourcePosition: { x: number; y: number };
-  mousePosition: { x: number; y: number };
   reactFlowInstance: ReactFlowInstance;
 }
 
-const LinkCreationLine: React.FC<LinkCreationLineProps> = ({
+// Constant SVG style to avoid object recreation
+const LINK_LINE_SVG_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  pointerEvents: 'none',
+  zIndex: 999
+};
+
+// Cache container bounds to avoid getBoundingClientRect on every frame
+let cachedContainerBounds: DOMRect | null = null;
+let boundsLastUpdated = 0;
+const BOUNDS_CACHE_DURATION = 100; // ms
+
+function getContainerBounds(): DOMRect | null {
+  const now = Date.now();
+  if (cachedContainerBounds && now - boundsLastUpdated < BOUNDS_CACHE_DURATION) {
+    return cachedContainerBounds;
+  }
+  const container = document.querySelector('.react-flow-canvas');
+  if (!container) return null;
+  cachedContainerBounds = container.getBoundingClientRect();
+  boundsLastUpdated = now;
+  return cachedContainerBounds;
+}
+
+const LinkCreationLine = React.memo<LinkCreationLineProps>(({
   sourcePosition,
-  mousePosition,
   reactFlowInstance
 }) => {
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const throttledSetPosition = rafThrottle((x: number, y: number) => {
+      setMousePosition({ x, y });
+    });
+
+    const handleMouseMove = (e: MouseEvent) => {
+      throttledSetPosition(e.clientX, e.clientY);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      throttledSetPosition.cancel();
+    };
+  }, []);
+
+  if (!mousePosition) return null;
+
   const viewport = reactFlowInstance.getViewport();
   const screenSourceX = sourcePosition.x * viewport.zoom + viewport.x;
   const screenSourceY = sourcePosition.y * viewport.zoom + viewport.y;
 
-  const container = document.querySelector('.react-flow-canvas');
-  if (!container) return null;
-  const bounds = container.getBoundingClientRect();
+  const bounds = getContainerBounds();
+  if (!bounds) return null;
   const relativeMouseX = mousePosition.x - bounds.left;
   const relativeMouseY = mousePosition.y - bounds.top;
 
   return (
-    <svg
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 999
-      }}
-    >
+    <svg style={LINK_LINE_SVG_STYLE}>
       <line
         x1={screenSourceX}
         y1={screenSourceY}
@@ -445,7 +517,7 @@ const LinkCreationLine: React.FC<LinkCreationLineProps> = ({
       <circle cx={relativeMouseX} cy={relativeMouseY} r={6} fill="#007acc" opacity={0.7} />
     </svg>
   );
-};
+});
 
 ReactFlowCanvasComponent.displayName = 'ReactFlowCanvas';
 

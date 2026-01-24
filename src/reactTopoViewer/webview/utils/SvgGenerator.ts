@@ -23,13 +23,29 @@ export type NodeType =
   | "bridge";      // Bridge
 
 /**
+ * Module-level cache for generated SVG data URIs.
+ * Key format: `${nodeType}-${fillColor}`
+ * This avoids regenerating the same SVG for nodes with identical type and color.
+ */
+const svgCache = new Map<string, string>();
+
+/**
  * Generates an encoded SVG data URI for a given node type and fill color.
+ * Results are cached to avoid redundant SVG generation and encoding.
  *
  * @param nodeType - The type of network node to generate SVG for
  * @param fillColor - The fill color for the SVG background (e.g., "#FF0000", "blue")
  * @returns Encoded SVG data URI suitable for use as CSS background-image
  */
+/* eslint-disable complexity, aggregate-complexity/aggregate-complexity -- Large switch is unavoidable for node type lookup */
 export function generateEncodedSVG(nodeType: NodeType, fillColor: string): string {
+  // Check cache first
+  const cacheKey = `${nodeType}-${fillColor}`;
+  const cached = svgCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   let svgString = "";
 
   function renderLeafOrDcgw(fill: string): string {
@@ -548,6 +564,9 @@ export function generateEncodedSVG(nodeType: NodeType, fillColor: string): strin
                     </svg>`;
   }
 
-  // Encode the final selected SVG for Cytoscape.js
-  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svgString);
+  // Encode the final selected SVG and cache it
+  const encoded = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgString);
+  svgCache.set(cacheKey, encoded);
+  return encoded;
 }
+/* eslint-enable complexity, aggregate-complexity/aggregate-complexity */

@@ -1,7 +1,8 @@
 /**
  * TopologyNode - Custom React Flow node for network devices (router, switch, etc.)
+ * Performance optimized: CSS hover, reduced handles, memoized styles
  */
-import React, { useMemo, memo, useState } from 'react';
+import React, { useMemo, memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { TopologyNodeData } from '../types';
 import { SELECTION_COLOR, DEFAULT_ICON_COLOR } from '../types';
@@ -18,118 +19,129 @@ function getRoleSvgType(role: string): NodeType {
   return 'pe'; // Default to PE router icon
 }
 
+// Constant styles extracted outside component to avoid recreation on every render
+const CONTAINER_STYLE_BASE: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  position: 'relative'
+};
+
+const CONTAINER_STYLE_LINK_TARGET: React.CSSProperties = {
+  ...CONTAINER_STYLE_BASE,
+  cursor: 'crosshair'
+};
+
+const LABEL_STYLE: React.CSSProperties = {
+  marginTop: -2,
+  fontSize: '0.7rem',
+  fontWeight: 500,
+  color: '#F5F5F5',
+  textAlign: 'center',
+  textShadow: '0 0 3px #3C3E41',
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  padding: '1px 4px',
+  borderRadius: 3,
+  maxWidth: 80,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap'
+};
+
+// Hidden handle style - only need one source and one target handle
+// The floating edge calculates its own connection points
+const HIDDEN_HANDLE_STYLE: React.CSSProperties = {
+  opacity: 0,
+  pointerEvents: 'none',
+  width: 1,
+  height: 1
+};
+
+// Icon style constants
+const ICON_SIZE = 40;
+const ICON_STYLE_BASE: React.CSSProperties = {
+  width: ICON_SIZE,
+  height: ICON_SIZE,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+  transition: 'border 0.15s ease, box-shadow 0.15s ease'
+};
+
+// Selection styles
+const SELECTED_BORDER = `3px solid ${SELECTION_COLOR}`;
+const SELECTED_BOX_SHADOW = `0 0 0 3px ${SELECTION_COLOR}33`;
+// Hover highlight for link creation uses CSS :hover (see topology-node-icon.link-target:hover in CSS)
+
 /**
  * TopologyNode component renders network device nodes with SVG icons
  */
-const TopologyNodeComponent: React.FC<NodeProps<TopologyNodeData>> = ({ id, data, selected }) => {
+const TopologyNodeComponent: React.FC<NodeProps<TopologyNodeData>> = ({ data, selected }) => {
   const { label, role, iconColor, iconCornerRadius } = data;
   const { linkSourceNode } = useLinkCreationContext();
-  const [isHovered, setIsHovered] = useState(false);
 
   // Check if this node is a valid link target (in link creation mode)
-  // Source node can also be a target for loop/self-referencing links
   const isLinkTarget = linkSourceNode !== null;
-  const showLinkTargetHighlight = isLinkTarget && isHovered;
 
-  // Generate the SVG icon URL
+  // Generate the SVG icon URL (cached at module level in SvgGenerator)
   const svgUrl = useMemo(() => {
     const svgType = getRoleSvgType(role);
     const color = iconColor || DEFAULT_ICON_COLOR;
     return generateEncodedSVG(svgType, color);
   }, [role, iconColor]);
 
-  // Node container styles
-  const containerStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    position: 'relative',
-    cursor: isLinkTarget ? 'crosshair' : undefined
-  };
-
-  // Determine border and shadow based on state
-  const getBorderAndShadow = () => {
-    if (showLinkTargetHighlight) {
-      return {
-        border: `3px solid ${SELECTION_COLOR}`,
-        boxShadow: `0 0 12px 4px ${SELECTION_COLOR}88`
-      };
-    }
-    if (selected) {
-      return {
-        border: `3px solid ${SELECTION_COLOR}`,
-        boxShadow: `0 0 0 3px ${SELECTION_COLOR}33`
-      };
-    }
-    return {
-      border: 'none',
-      boxShadow: 'none'
+  // Build icon style with dynamic properties
+  const iconStyle = useMemo((): React.CSSProperties => {
+    const style: React.CSSProperties = {
+      ...ICON_STYLE_BASE,
+      backgroundImage: `url(${svgUrl})`,
+      borderRadius: iconCornerRadius ? `${iconCornerRadius}px` : 0
     };
-  };
 
-  const { border, boxShadow } = getBorderAndShadow();
+    if (selected) {
+      style.border = SELECTED_BORDER;
+      style.boxShadow = SELECTED_BOX_SHADOW;
+    } else {
+      style.border = 'none';
+      style.boxShadow = 'none';
+    }
 
-  // Icon styles
-  const iconStyle: React.CSSProperties = {
-    width: 40,
-    height: 40,
-    backgroundImage: `url(${svgUrl})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat',
-    borderRadius: iconCornerRadius ? `${iconCornerRadius}px` : 0,
-    border,
-    boxShadow,
-    transition: 'border 0.15s ease, box-shadow 0.15s ease'
-  };
+    return style;
+  }, [svgUrl, iconCornerRadius, selected]);
 
-  // Label styles
-  const labelStyle: React.CSSProperties = {
-    marginTop: -2,
-    fontSize: '0.7rem',
-    fontWeight: 500,
-    color: '#F5F5F5',
-    textAlign: 'center',
-    textShadow: '0 0 3px #3C3E41',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: '1px 4px',
-    borderRadius: 3,
-    maxWidth: 80,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
-  };
+  // Container style based on link target mode
+  const containerStyle = isLinkTarget ? CONTAINER_STYLE_LINK_TARGET : CONTAINER_STYLE_BASE;
 
-  // Hidden handle style - needed for edge connections but not interactive
-  const hiddenHandleStyle: React.CSSProperties = {
-    opacity: 0,
-    pointerEvents: 'none',
-    width: 1,
-    height: 1
-  };
+  // Build class names for CSS-based hover effects
+  const iconClassName = isLinkTarget
+    ? 'topology-node-icon link-target'
+    : 'topology-node-icon';
 
   return (
-    <div
-      style={containerStyle}
-      className="topology-node"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Hidden handles for edge connections - not interactive */}
-      <Handle type="source" position={Position.Top} id="top" style={hiddenHandleStyle} isConnectable={false} />
-      <Handle type="source" position={Position.Right} id="right" style={hiddenHandleStyle} isConnectable={false} />
-      <Handle type="source" position={Position.Bottom} id="bottom" style={hiddenHandleStyle} isConnectable={false} />
-      <Handle type="source" position={Position.Left} id="left" style={hiddenHandleStyle} isConnectable={false} />
-      <Handle type="target" position={Position.Top} id="top-target" style={hiddenHandleStyle} isConnectable={false} />
-      <Handle type="target" position={Position.Right} id="right-target" style={hiddenHandleStyle} isConnectable={false} />
-      <Handle type="target" position={Position.Bottom} id="bottom-target" style={hiddenHandleStyle} isConnectable={false} />
-      <Handle type="target" position={Position.Left} id="left-target" style={hiddenHandleStyle} isConnectable={false} />
+    <div style={containerStyle} className="topology-node">
+      {/* Single source and target handles for edge connections.
+          The floating edge style calculates actual connection points dynamically,
+          so we only need one handle per type. */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="source"
+        style={HIDDEN_HANDLE_STYLE}
+        isConnectable={false}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="target"
+        style={HIDDEN_HANDLE_STYLE}
+        isConnectable={false}
+      />
 
-      {/* Node icon */}
-      <div style={iconStyle} className="topology-node-icon" />
+      {/* Node icon - hover effect for link creation handled via CSS */}
+      <div style={iconStyle} className={iconClassName} />
 
       {/* Node label */}
-      <div style={labelStyle} className="topology-node-label">
+      <div style={LABEL_STYLE} className="topology-node-label">
         {label}
       </div>
     </div>

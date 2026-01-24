@@ -1561,4 +1561,15 @@
 .free-text-markdown .hljs-formula {
   background: #1e2227;
 }
+
+/* ============================================================================
+ * Topology Node Performance Optimization Styles
+ * CSS-based hover effects to avoid React re-renders
+ * ============================================================================ */
+
+/* Link creation mode hover highlight - uses CSS instead of React state */
+.topology-node-icon.link-target:hover {
+  border: 3px solid #007acc !important;
+  box-shadow: 0 0 12px 4px rgba(0, 122, 204, 0.53) !important;
+}
 }

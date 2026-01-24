@@ -101,7 +101,6 @@ export function useLinkCreation(
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>
 ) {
   const [linkSourceNode, setLinkSourceNode] = useState<string | null>(null);
-  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
 
   const startLinkCreation = useCallback((nodeId: string) => {
     log.info(`[ReactFlowCanvas] Starting link creation from: ${nodeId}`);
@@ -111,7 +110,6 @@ export function useLinkCreation(
   const cancelLinkCreation = useCallback(() => {
     log.info('[ReactFlowCanvas] Cancelling link creation');
     setLinkSourceNode(null);
-    setMousePosition(null);
   }, []);
 
   const completeLinkCreation = useCallback((targetNodeId: string) => {
@@ -141,27 +139,19 @@ export function useLinkCreation(
 
     setEdges((eds) => [...eds, newEdge]);
     setLinkSourceNode(null);
-    setMousePosition(null);
   }, [linkSourceNode, setEdges]);
 
-  // Track mouse movement when in link creation mode
   useEffect(() => {
     if (!linkSourceNode) return;
-
-    const handleMouseMove = (e: MouseEvent) => setMousePosition({ x: e.clientX, y: e.clientY });
-    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') cancelLinkCreation(); };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('keydown', handleKeyDown);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cancelLinkCreation();
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [linkSourceNode, cancelLinkCreation]);
 
   return {
     linkSourceNode,
-    mousePosition,
     startLinkCreation,
     completeLinkCreation,
     cancelLinkCreation
@@ -169,20 +159,34 @@ export function useLinkCreation(
 }
 
 /**
- * Hook for calculating source node position for link creation line
+ * Hook for calculating source node position for link creation line.
+ * Only recalculates when linkSourceNode changes, not on every node position update.
+ * Uses the node's initial position when link creation starts.
  */
 export function useSourceNodePosition(linkSourceNode: string | null, nodes: Node[]) {
-  return useMemo(() => {
-    if (!linkSourceNode) return null;
-    const node = nodes.find(n => n.id === linkSourceNode);
-    if (!node) return null;
-    const nodeWidth = 60;
-    const nodeHeight = 60;
-    return {
-      x: node.position.x + nodeWidth / 2,
-      y: node.position.y + nodeHeight / 2
-    };
-  }, [linkSourceNode, nodes]);
+  // Store position and the linkSourceNode it was calculated for
+  const positionRef = useRef<{ x: number; y: number } | null>(null);
+  const lastSourceNodeRef = useRef<string | null>(null);
+
+  // Only update position when linkSourceNode changes (not on every node position update)
+  if (linkSourceNode !== lastSourceNodeRef.current) {
+    lastSourceNodeRef.current = linkSourceNode;
+    if (!linkSourceNode) {
+      positionRef.current = null;
+    } else {
+      const node = nodes.find(n => n.id === linkSourceNode);
+      if (node) {
+        const nodeWidth = 60;
+        const nodeHeight = 60;
+        positionRef.current = {
+          x: node.position.x + nodeWidth / 2,
+          y: node.position.y + nodeHeight / 2
+        };
+      }
+    }
+  }
+
+  return positionRef.current;
 }
 
 /**

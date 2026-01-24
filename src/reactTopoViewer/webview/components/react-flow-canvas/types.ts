@@ -2,6 +2,7 @@
  * TypeScript types for React Flow canvas components
  */
 import type { Node, Edge, ReactFlowInstance } from '@xyflow/react';
+import type { EdgeLabelMode } from '../../context/EdgeRenderConfigContext';
 
 /**
  * Node data for topology nodes (routers, switches, etc.)
@@ -217,6 +218,8 @@ export interface ReactFlowCanvasProps {
   annotationMode?: AnnotationModeState;
   /** Annotation event handlers */
   annotationHandlers?: AnnotationHandlers;
+  /** Edge label rendering mode */
+  linkLabelMode?: EdgeLabelMode;
   onNodeSelect?: (nodeId: string | null) => void;
   onEdgeSelect?: (edgeId: string | null) => void;
   onNodeDoubleClick?: (nodeId: string) => void;

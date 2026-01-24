@@ -6,11 +6,12 @@ import React, { memo, useMemo } from 'react';
 import {
   EdgeLabelRenderer,
   useInternalNode,
-  useEdges,
   type EdgeProps
 } from '@xyflow/react';
 import type { TopologyEdgeData } from '../types';
 import { SELECTION_COLOR } from '../types';
+import { useEdgeInfo } from '../../../context/EdgeInfoContext';
+import { useEdgeRenderConfig } from '../../../context/EdgeRenderConfigContext';
 
 // Edge style constants matching Cytoscape
 const EDGE_COLOR_DEFAULT = '#969799';
@@ -178,44 +179,7 @@ function getLabelPosition(
   };
 }
 
-/**
- * Get parallel edge info - finds all edges between the same node pair
- * and returns the current edge's index, total count, and direction info
- */
-interface ParallelEdgeInfo {
-  index: number;
-  total: number;
-  /** True if the edge direction matches the canonical direction (alphabetically smaller node → larger node) */
-  isCanonicalDirection: boolean;
-}
-
-function getParallelEdgeInfo(
-  edgeId: string,
-  source: string,
-  target: string,
-  allEdges: { id: string; source: string; target: string }[]
-): ParallelEdgeInfo {
-  // Determine canonical direction: alphabetically smaller node ID is the "canonical source"
-  // This ensures consistent curvature regardless of how the edge was defined in the YAML
-  const isCanonicalDirection = source.localeCompare(target) <= 0;
-
-  // Find all edges between the same node pair (in either direction)
-  const parallelEdges = allEdges.filter(
-    (e) =>
-      (e.source === source && e.target === target) ||
-      (e.source === target && e.target === source)
-  );
-
-  // Sort by ID for consistent ordering
-  parallelEdges.sort((a, b) => a.id.localeCompare(b.id));
-
-  const index = parallelEdges.findIndex((e) => e.id === edgeId);
-  return {
-    index: index === -1 ? 0 : index,
-    total: parallelEdges.length,
-    isCanonicalDirection
-  };
-}
+// ParallelEdgeInfo type is now imported from EdgeInfoContext
 
 /**
  * Calculate the bezier control point for a curved edge
@@ -321,134 +285,130 @@ function calculateLoopEdgeGeometry(
   };
 }
 
-/**
- * Get loop edge info - finds all loop edges on the same node
- * and returns the current edge's index
- */
-function getLoopEdgeIndex(
-  edgeId: string,
-  nodeId: string,
-  allEdges: { id: string; source: string; target: string }[]
-): number {
-  // Find all loop edges on this node
-  const loopEdges = allEdges.filter(e => e.source === nodeId && e.target === nodeId);
+// Loop edge info is now pre-computed in EdgeInfoContext
 
-  // Sort by ID for consistent ordering
-  loopEdges.sort((a, b) => a.id.localeCompare(b.id));
-
-  const index = loopEdges.findIndex(e => e.id === edgeId);
-  return index === -1 ? 0 : index;
-}
+// Constant label style (extracted for performance - avoids object creation per render)
+const LABEL_STYLE_BASE: React.CSSProperties = {
+  position: 'absolute',
+  fontSize: LABEL_FONT_SIZE,
+  fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+  color: LABEL_TEXT_COLOR,
+  backgroundColor: LABEL_BG_COLOR,
+  padding: LABEL_PADDING,
+  borderRadius: 4,
+  pointerEvents: 'none',
+  whiteSpace: 'nowrap',
+  textShadow: `0 0 2px ${LABEL_OUTLINE_COLOR}, 0 0 2px ${LABEL_OUTLINE_COLOR}, 0 0 3px ${LABEL_OUTLINE_COLOR}`,
+  lineHeight: 1.2,
+  zIndex: 1
+};
 
 /**
  * Label component for endpoint text
+ * Uses CSS transform for positioning (only dynamic part)
  */
-function EndpointLabel({ text, x, y }: Readonly<{ text: string; x: number; y: number }>) {
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
-    fontSize: LABEL_FONT_SIZE,
-    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-    color: LABEL_TEXT_COLOR,
-    backgroundColor: LABEL_BG_COLOR,
-    padding: LABEL_PADDING,
-    borderRadius: 4,
-    pointerEvents: 'none',
-    whiteSpace: 'nowrap',
-    textShadow: `
-      0 0 2px ${LABEL_OUTLINE_COLOR},
-      0 0 2px ${LABEL_OUTLINE_COLOR},
-      0 0 3px ${LABEL_OUTLINE_COLOR}
-    `,
-    lineHeight: 1.2,
-    zIndex: 1
-  };
+const EndpointLabel = memo(function EndpointLabel({ text, x, y }: Readonly<{ text: string; x: number; y: number }>) {
+  // Only the transform is dynamic, base style is constant
+  const style = useMemo((): React.CSSProperties => ({
+    ...LABEL_STYLE_BASE,
+    transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`
+  }), [x, y]);
 
   return (
     <div style={style} className="topology-edge-label nodrag nopan">
       {text}
     </div>
   );
+});
+
+/** Edge geometry result type */
+interface EdgeGeometry {
+  points: { sx: number; sy: number; tx: number; ty: number };
+  path: string;
+  controlPoint: { x: number; y: number } | null;
+  sourceLabelPos: { x: number; y: number };
+  targetLabelPos: { x: number; y: number };
+}
+
+/** Calculate loop edge geometry */
+function computeLoopGeometry(
+  sourcePos: { x: number; y: number },
+  sourceNodeWidth: number,
+  loopIndex: number
+): EdgeGeometry {
+  const loopGeometry = calculateLoopEdgeGeometry(
+    sourcePos.x + (sourceNodeWidth - NODE_ICON_SIZE) / 2,
+    sourcePos.y,
+    NODE_ICON_SIZE,
+    NODE_ICON_SIZE,
+    loopIndex
+  );
+  return {
+    points: { sx: 0, sy: 0, tx: 0, ty: 0 },
+    path: loopGeometry.path,
+    controlPoint: null,
+    sourceLabelPos: loopGeometry.sourceLabelPos,
+    targetLabelPos: loopGeometry.targetLabelPos
+  };
+}
+
+/** Calculate regular edge geometry with parallel edge support */
+function computeRegularGeometry(
+  sourcePos: { x: number; y: number },
+  targetPos: { x: number; y: number },
+  sourceNodeWidth: number,
+  targetNodeWidth: number,
+  parallelInfo: { index: number; total: number; isCanonicalDirection: boolean } | null
+): EdgeGeometry {
+  const points = getEdgePoints(
+    { x: sourcePos.x + (sourceNodeWidth - NODE_ICON_SIZE) / 2, y: sourcePos.y, width: NODE_ICON_SIZE, height: NODE_ICON_SIZE },
+    { x: targetPos.x + (targetNodeWidth - NODE_ICON_SIZE) / 2, y: targetPos.y, width: NODE_ICON_SIZE, height: NODE_ICON_SIZE }
+  );
+
+  const index = parallelInfo?.index ?? 0;
+  const total = parallelInfo?.total ?? 1;
+  const isCanonicalDirection = parallelInfo?.isCanonicalDirection ?? true;
+
+  const controlPoint = calculateControlPoint(points.sx, points.sy, points.tx, points.ty, index, total, isCanonicalDirection);
+
+  const path = controlPoint
+    ? `M ${points.sx} ${points.sy} Q ${controlPoint.x} ${controlPoint.y} ${points.tx} ${points.ty}`
+    : `M ${points.sx} ${points.sy} L ${points.tx} ${points.ty}`;
+
+  return {
+    points,
+    path,
+    controlPoint,
+    sourceLabelPos: getLabelPosition(points.sx, points.sy, points.tx, points.ty, LABEL_OFFSET, controlPoint ?? undefined),
+    targetLabelPos: getLabelPosition(points.tx, points.ty, points.sx, points.sy, LABEL_OFFSET, controlPoint ?? undefined)
+  };
 }
 
 /** Hook for calculating edge geometry with bezier curves for parallel edges */
 function useEdgeGeometry(edgeId: string, source: string, target: string) {
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
-  const allEdges = useEdges();
+  const { getParallelInfo, getLoopInfo } = useEdgeInfo();
 
-  return useMemo(() => {
+  const parallelInfo = getParallelInfo(edgeId);
+  const loopInfo = getLoopInfo(edgeId);
+
+  return useMemo((): EdgeGeometry | null => {
     if (!sourceNode || !targetNode) return null;
 
     const sourcePos = sourceNode.internals.positionAbsolute;
     const sourceNodeWidth = sourceNode.measured?.width ?? NODE_ICON_SIZE;
 
     // Handle loop edges (source === target)
-    if (source === target) {
-      const loopIndex = getLoopEdgeIndex(edgeId, source, allEdges);
-      const loopGeometry = calculateLoopEdgeGeometry(
-        sourcePos.x + (sourceNodeWidth - NODE_ICON_SIZE) / 2,
-        sourcePos.y,
-        NODE_ICON_SIZE,
-        NODE_ICON_SIZE,
-        loopIndex
-      );
-      return {
-        points: { sx: 0, sy: 0, tx: 0, ty: 0 }, // Not used for loop edges
-        path: loopGeometry.path,
-        controlPoint: null,
-        sourceLabelPos: loopGeometry.sourceLabelPos,
-        targetLabelPos: loopGeometry.targetLabelPos
-      };
+    if (source === target && loopInfo) {
+      return computeLoopGeometry(sourcePos, sourceNodeWidth, loopInfo.loopIndex);
     }
 
     const targetPos = targetNode.internals.positionAbsolute;
     const targetNodeWidth = targetNode.measured?.width ?? NODE_ICON_SIZE;
 
-    // Edge connects to icon center, not full node center
-    // Icon is horizontally centered in node, and is NODE_ICON_SIZE x NODE_ICON_SIZE at the top
-    const points = getEdgePoints(
-      {
-        x: sourcePos.x + (sourceNodeWidth - NODE_ICON_SIZE) / 2,
-        y: sourcePos.y,
-        width: NODE_ICON_SIZE,
-        height: NODE_ICON_SIZE
-      },
-      {
-        x: targetPos.x + (targetNodeWidth - NODE_ICON_SIZE) / 2,
-        y: targetPos.y,
-        width: NODE_ICON_SIZE,
-        height: NODE_ICON_SIZE
-      }
-    );
-
-    // Get parallel edge info for this edge
-    const parallelInfo = getParallelEdgeInfo(edgeId, source, target, allEdges);
-
-    // Calculate control point for bezier curve (null for single edges)
-    const controlPoint = calculateControlPoint(
-      points.sx,
-      points.sy,
-      points.tx,
-      points.ty,
-      parallelInfo.index,
-      parallelInfo.total,
-      parallelInfo.isCanonicalDirection
-    );
-
-    // Generate path: straight line for single edges, quadratic bezier for parallel edges
-    const path = controlPoint
-      ? `M ${points.sx} ${points.sy} Q ${controlPoint.x} ${controlPoint.y} ${points.tx} ${points.ty}`
-      : `M ${points.sx} ${points.sy} L ${points.tx} ${points.ty}`;
-
-    return {
-      points,
-      path,
-      controlPoint,
-      sourceLabelPos: getLabelPosition(points.sx, points.sy, points.tx, points.ty, LABEL_OFFSET, controlPoint ?? undefined),
-      targetLabelPos: getLabelPosition(points.tx, points.ty, points.sx, points.sy, LABEL_OFFSET, controlPoint ?? undefined)
-    };
-  }, [sourceNode, targetNode, allEdges, edgeId, source, target]);
+    return computeRegularGeometry(sourcePos, targetPos, sourceNodeWidth, targetNodeWidth, parallelInfo);
+  }, [sourceNode, targetNode, parallelInfo, loopInfo, source, target]);
 }
 
 /** Get stroke styling based on selection and link status */
@@ -468,6 +428,11 @@ const TopologyEdgeComponent: React.FC<EdgeProps<TopologyEdgeData>> = ({ id, sour
   const geometry = useEdgeGeometry(id, source, target);
   if (!geometry) return null;
 
+  const { labelMode, suppressLabels } = useEdgeRenderConfig();
+  const shouldRenderLabels = !suppressLabels && (
+    labelMode === 'show-all' || (labelMode === 'on-select' && !!selected)
+  );
+
   const stroke = getStrokeStyle(data?.linkStatus, selected ?? false);
 
   return (
@@ -475,8 +440,12 @@ const TopologyEdgeComponent: React.FC<EdgeProps<TopologyEdgeData>> = ({ id, sour
       <path id={`${id}-interaction`} d={geometry.path} fill="none" stroke="transparent" strokeWidth={20} style={{ cursor: 'pointer' }} />
       <path id={id} d={geometry.path} fill="none" style={{ cursor: 'pointer', opacity: stroke.opacity, strokeWidth: stroke.width, stroke: stroke.color }} className="react-flow__edge-path" />
       <EdgeLabelRenderer>
-        {data?.sourceEndpoint && <EndpointLabel text={data.sourceEndpoint} x={geometry.sourceLabelPos.x} y={geometry.sourceLabelPos.y} />}
-        {data?.targetEndpoint && <EndpointLabel text={data.targetEndpoint} x={geometry.targetLabelPos.x} y={geometry.targetLabelPos.y} />}
+        {shouldRenderLabels && data?.sourceEndpoint && (
+          <EndpointLabel text={data.sourceEndpoint} x={geometry.sourceLabelPos.x} y={geometry.sourceLabelPos.y} />
+        )}
+        {shouldRenderLabels && data?.targetEndpoint && (
+          <EndpointLabel text={data.targetEndpoint} x={geometry.targetLabelPos.x} y={geometry.targetLabelPos.y} />
+        )}
       </EdgeLabelRenderer>
     </>
   );

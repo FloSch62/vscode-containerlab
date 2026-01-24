@@ -585,6 +585,7 @@ const AppContent: React.FC = () => {
           annotationNodes={annotationNodes}
           annotationMode={annotationMode}
           annotationHandlers={annotationHandlers}
+          linkLabelMode={state.linkLabelMode}
           onMoveComplete={handleMoveComplete}
         />
         {/* Group, FreeText, and FreeShape layers are now rendered as React Flow nodes */}
