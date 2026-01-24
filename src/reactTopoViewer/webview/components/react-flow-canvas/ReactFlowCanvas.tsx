@@ -19,6 +19,7 @@ import {
   BackgroundVariant,
   SelectionMode,
   ConnectionMode,
+  useStore,
   type ReactFlowInstance,
   type ConnectionLineComponentProps
 } from '@xyflow/react';
@@ -33,6 +34,7 @@ import { LinkCreationProvider } from '../../context/LinkCreationContext';
 import { AnnotationHandlersProvider } from '../../context/AnnotationHandlersContext';
 import { EdgeInfoProvider } from '../../context/EdgeInfoContext';
 import { EdgeRenderConfigProvider } from '../../context/EdgeRenderConfigContext';
+import { NodeRenderConfigProvider } from '../../context/NodeRenderConfigContext';
 import { ContextMenu, type ContextMenuItem } from '../context-menu/ContextMenu';
 import { buildNodeContextMenu, buildEdgeContextMenu, buildPaneContextMenu } from './contextMenuBuilders';
 import {
@@ -181,6 +183,11 @@ const defaultViewport = { x: 0, y: 0, zoom: 1 };
 // Fit view options
 const fitViewOptions = { padding: 0.2 };
 
+// Low-detail rendering thresholds
+const LOW_DETAIL_ZOOM_THRESHOLD = 0.5;
+const LARGE_GRAPH_NODE_THRESHOLD = 600;
+const LARGE_GRAPH_EDGE_THRESHOLD = 900;
+
 /**
  * ReactFlowCanvas component
  */
@@ -283,6 +290,15 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
     const { handleDeleteNode, handleDeleteEdge } = useDeleteHandlers(edges, setNodes, setEdges, selectNode, selectEdge, handlers.closeContextMenu, onNodeDelete, onEdgeDelete);
     const sourceNodePosition = useSourceNodePosition(linkSourceNode, nodes);
 
+    const isLargeGraph = nodes.length >= LARGE_GRAPH_NODE_THRESHOLD || edges.length >= LARGE_GRAPH_EDGE_THRESHOLD;
+    const isLowDetail = useStore(
+      useCallback((store) => {
+        const zoom = store.transform[2];
+        return isLargeGraph && zoom <= LOW_DETAIL_ZOOM_THRESHOLD;
+      }, [isLargeGraph]),
+      (left, right) => left === right
+    );
+
     useKeyboardDeleteHandlers(state.mode, state.isLocked, state.selectedNode, state.selectedEdge, handleDeleteNode, handleDeleteEdge);
 
     const refMethods = useCanvasRefMethods(handlers.reactFlowInstance, nodes, edges, setNodes, setEdges);
@@ -311,16 +327,22 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
 
     const edgeRenderConfig = useMemo(() => ({
       labelMode: linkLabelMode,
-      suppressLabels: isNodeDragging
-    }), [linkLabelMode, isNodeDragging]);
+      suppressLabels: isNodeDragging || isLowDetail,
+      suppressHitArea: isLowDetail
+    }), [linkLabelMode, isNodeDragging, isLowDetail]);
+
+    const nodeRenderConfig = useMemo(() => ({
+      suppressLabels: isLowDetail
+    }), [isLowDetail]);
 
     return (
       <div style={canvasStyle} className="react-flow-canvas">
-        <EdgeRenderConfigProvider value={edgeRenderConfig}>
-          <EdgeInfoProvider>
-            <AnnotationHandlersProvider handlers={annotationHandlers}>
-              <LinkCreationProvider linkSourceNode={linkSourceNode}>
-                <ReactFlow
+        <NodeRenderConfigProvider value={nodeRenderConfig}>
+          <EdgeRenderConfigProvider value={edgeRenderConfig}>
+            <EdgeInfoProvider>
+              <AnnotationHandlersProvider handlers={annotationHandlers}>
+                <LinkCreationProvider linkSourceNode={linkSourceNode}>
+                  <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
@@ -345,7 +367,7 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
             defaultViewport={defaultViewport}
             minZoom={0.1}
             maxZoom={Infinity}
-            onlyRenderVisibleElements
+            onlyRenderVisibleElements={!isLowDetail}
             selectionMode={SelectionMode.Partial}
             selectNodesOnDrag={false}
             panOnDrag={!isInAddMode}
@@ -359,12 +381,15 @@ const ReactFlowCanvasComponent = forwardRef<ReactFlowCanvasRef, ReactFlowCanvasP
             nodesConnectable={state.mode === 'edit' && !state.isLocked}
             elementsSelectable
             >
-                <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} color="#555" />
-              </ReactFlow>
-            </LinkCreationProvider>
-          </AnnotationHandlersProvider>
-        </EdgeInfoProvider>
-      </EdgeRenderConfigProvider>
+                    {!isLowDetail && (
+                      <Background variant={BackgroundVariant.Dots} gap={GRID_SIZE} size={1} color="#555" />
+                    )}
+                  </ReactFlow>
+                </LinkCreationProvider>
+              </AnnotationHandlersProvider>
+            </EdgeInfoProvider>
+          </EdgeRenderConfigProvider>
+        </NodeRenderConfigProvider>
 
         <ContextMenu
           isVisible={handlers.contextMenu.type !== null}

@@ -375,6 +375,15 @@ declare global {
       toggleSplitView: () => void;
       getYaml: () => string;
       getAnnotationsJson: () => string;
+      // Performance utilities
+      perf: {
+        getRenderStats: (componentName?: string) => unknown;
+        getTimingStats: () => unknown;
+        clearLogs: () => void;
+        toggle: (enabled?: boolean) => void;
+        exportLogs: () => string;
+      };
+      runPerfTest: () => Promise<void>;
     };
   }
 }
@@ -490,6 +499,53 @@ window.__DEV__ = {
     const json = JSON.stringify(devState.currentAnnotations, null, 2);
     console.log(json);
     return json;
+  },
+
+  /**
+   * Performance logging utilities
+   * Usage: __DEV__.perf.getRenderStats()
+   */
+  perf: {
+    getRenderStats: (componentName?: string) => {
+      return window.__PERF__?.getRenderStats(componentName) ?? { error: 'Perf logger not initialized' };
+    },
+    getTimingStats: () => {
+      return window.__PERF__?.getTimingStats() ?? { error: 'Perf logger not initialized' };
+    },
+    clearLogs: () => {
+      window.__PERF__?.clearLogs();
+    },
+    toggle: (enabled?: boolean) => {
+      window.__PERF__?.toggle(enabled);
+    },
+    exportLogs: () => {
+      return window.__PERF__?.exportLogs() ?? '{}';
+    }
+  },
+
+  /**
+   * Run performance test with 1000 nodes
+   * Usage: __DEV__.runPerfTest()
+   */
+  runPerfTest: async () => {
+    console.log('%c[Perf Test] Starting...', 'color: #2196F3; font-weight: bold;');
+
+    // Clear logs and load topology
+    window.__PERF__?.clearLogs();
+    const start = performance.now();
+
+    window.__DEV__.loadTopology('large1000');
+
+    // Wait for React to settle
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    const duration = performance.now() - start;
+    console.log(
+      `%c[Perf Test] 1000 nodes loaded in ${duration.toFixed(0)}ms`,
+      'color: #2196F3; font-weight: bold;'
+    );
+    console.log('%c[Perf Test] Render stats:', 'color: #2196F3;', window.__PERF__?.getRenderStats());
+    console.log('%c[Perf Test] Timing stats:', 'color: #2196F3;', window.__PERF__?.getTimingStats());
   }
 };
 
@@ -505,6 +561,13 @@ console.log('  __DEV__.setDeploymentState("deployed" | "undeployed" | "unknown")
 console.log('  __DEV__.toggleSplitView()     - Toggle split view (clab.yml + annotations)');
 console.log('  __DEV__.getYaml()             - Get current topology as YAML');
 console.log('  __DEV__.getAnnotationsJson()  - Get current annotations as JSON');
+console.log('');
+console.log('Performance utilities:');
+console.log('  __DEV__.perf.getRenderStats() - View render counts by component');
+console.log('  __DEV__.perf.getTimingStats() - View operation timings');
+console.log('  __DEV__.perf.clearLogs()      - Clear all perf logs');
+console.log('  __DEV__.perf.toggle()         - Enable/disable logging');
+console.log('  __DEV__.runPerfTest()         - Load 1000 nodes and report stats');
 
 const container = document.getElementById('root');
 if (!container) {

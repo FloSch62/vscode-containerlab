@@ -7,6 +7,7 @@ import type { CloudNodeData } from '../types';
 import { SELECTION_COLOR } from '../types';
 import { generateEncodedSVG } from '../../../utils/SvgGenerator';
 import { useLinkCreationContext } from '../../../context/LinkCreationContext';
+import { useNodeRenderConfig } from '../../../context/NodeRenderConfigContext';
 
 /**
  * Get icon color based on node type
@@ -34,6 +35,7 @@ function getNodeTypeColor(nodeType: string): string {
 const CloudNodeComponent: React.FC<NodeProps<CloudNodeData>> = ({ id, data, selected }) => {
   const { label, nodeType } = data;
   const { linkSourceNode } = useLinkCreationContext();
+  const { suppressLabels } = useNodeRenderConfig();
   const [isHovered, setIsHovered] = useState(false);
 
   // Check if this node is a valid link target (in link creation mode and not the source node)
@@ -139,12 +141,21 @@ const CloudNodeComponent: React.FC<NodeProps<CloudNodeData>> = ({ id, data, sele
       <div style={iconStyle} className="cloud-node-icon" />
 
       {/* Node label */}
-      <div style={labelStyle} className="cloud-node-label">
-        {label}
-      </div>
+      {!suppressLabels && (
+        <div style={labelStyle} className="cloud-node-label">
+          {label}
+        </div>
+      )}
     </div>
   );
 };
 
+function areCloudNodePropsEqual(
+  prev: NodeProps<CloudNodeData>,
+  next: NodeProps<CloudNodeData>
+): boolean {
+  return prev.data === next.data && prev.selected === next.selected;
+}
+
 // Memoize to prevent unnecessary re-renders
-export const CloudNode = memo(CloudNodeComponent);
+export const CloudNode = memo(CloudNodeComponent, areCloudNodePropsEqual);

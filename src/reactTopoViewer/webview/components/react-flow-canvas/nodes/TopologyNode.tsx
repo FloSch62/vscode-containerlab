@@ -9,6 +9,7 @@ import { SELECTION_COLOR, DEFAULT_ICON_COLOR } from '../types';
 import { generateEncodedSVG, type NodeType } from '../../../utils/SvgGenerator';
 import { ROLE_SVG_MAP } from '../conversion';
 import { useLinkCreationContext } from '../../../context/LinkCreationContext';
+import { useNodeRenderConfig } from '../../../context/NodeRenderConfigContext';
 
 /**
  * Map role to SVG node type
@@ -79,6 +80,7 @@ const SELECTED_BOX_SHADOW = `0 0 0 3px ${SELECTION_COLOR}33`;
 const TopologyNodeComponent: React.FC<NodeProps<TopologyNodeData>> = ({ data, selected }) => {
   const { label, role, iconColor, iconCornerRadius } = data;
   const { linkSourceNode } = useLinkCreationContext();
+  const { suppressLabels } = useNodeRenderConfig();
 
   // Check if this node is a valid link target (in link creation mode)
   const isLinkTarget = linkSourceNode !== null;
@@ -141,12 +143,21 @@ const TopologyNodeComponent: React.FC<NodeProps<TopologyNodeData>> = ({ data, se
       <div style={iconStyle} className={iconClassName} />
 
       {/* Node label */}
-      <div style={LABEL_STYLE} className="topology-node-label">
-        {label}
-      </div>
+      {!suppressLabels && (
+        <div style={LABEL_STYLE} className="topology-node-label">
+          {label}
+        </div>
+      )}
     </div>
   );
 };
 
+function areTopologyNodePropsEqual(
+  prev: NodeProps<TopologyNodeData>,
+  next: NodeProps<TopologyNodeData>
+): boolean {
+  return prev.data === next.data && prev.selected === next.selected;
+}
+
 // Memoize to prevent unnecessary re-renders
-export const TopologyNode = memo(TopologyNodeComponent);
+export const TopologyNode = memo(TopologyNodeComponent, areTopologyNodePropsEqual);

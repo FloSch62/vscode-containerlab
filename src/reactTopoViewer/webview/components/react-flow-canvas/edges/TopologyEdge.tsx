@@ -2,10 +2,10 @@
  * TopologyEdge - Custom React Flow edge with endpoint labels
  * Uses floating/straight edge style matching Cytoscape
  */
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import {
   EdgeLabelRenderer,
-  useInternalNode,
+  useStore,
   type EdgeProps
 } from '@xyflow/react';
 import type { TopologyEdgeData } from '../types';
@@ -39,6 +39,37 @@ const LOOP_EDGE_OFFSET = 10; // Offset between multiple loop edges
 
 // Node icon dimensions (edges connect to icon center, not the label)
 const NODE_ICON_SIZE = 40;
+
+interface NodeGeometry {
+  position: { x: number; y: number };
+  width: number;
+  height: number;
+}
+
+function areNodeGeometriesEqual(left: NodeGeometry | null, right: NodeGeometry | null): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return left.position.x === right.position.x &&
+    left.position.y === right.position.y &&
+    left.width === right.width &&
+    left.height === right.height;
+}
+
+function useNodeGeometry(nodeId: string): NodeGeometry | null {
+  return useStore(
+    useCallback((state) => {
+      const node = state.nodeLookup.get(nodeId);
+      if (!node) return null;
+      const position = node.internals.positionAbsolute;
+      return {
+        position: { x: position.x, y: position.y },
+        width: node.measured?.width ?? NODE_ICON_SIZE,
+        height: node.measured?.height ?? NODE_ICON_SIZE
+      };
+    }, [nodeId]),
+    areNodeGeometriesEqual
+  );
+}
 
 /**
  * Get stroke color based on link status
@@ -386,26 +417,28 @@ function computeRegularGeometry(
 
 /** Hook for calculating edge geometry with bezier curves for parallel edges */
 function useEdgeGeometry(edgeId: string, source: string, target: string) {
-  const sourceNode = useInternalNode(source);
-  const targetNode = useInternalNode(target);
+  const sourceNode = useNodeGeometry(source);
+  const targetNode = useNodeGeometry(target);
   const { getParallelInfo, getLoopInfo } = useEdgeInfo();
 
   const parallelInfo = getParallelInfo(edgeId);
   const loopInfo = getLoopInfo(edgeId);
 
   return useMemo((): EdgeGeometry | null => {
-    if (!sourceNode || !targetNode) return null;
+    if (!sourceNode) return null;
 
-    const sourcePos = sourceNode.internals.positionAbsolute;
-    const sourceNodeWidth = sourceNode.measured?.width ?? NODE_ICON_SIZE;
+    const sourcePos = sourceNode.position;
+    const sourceNodeWidth = sourceNode.width;
 
     // Handle loop edges (source === target)
     if (source === target && loopInfo) {
       return computeLoopGeometry(sourcePos, sourceNodeWidth, loopInfo.loopIndex);
     }
 
-    const targetPos = targetNode.internals.positionAbsolute;
-    const targetNodeWidth = targetNode.measured?.width ?? NODE_ICON_SIZE;
+    if (!targetNode) return null;
+
+    const targetPos = targetNode.position;
+    const targetNodeWidth = targetNode.width;
 
     return computeRegularGeometry(sourcePos, targetPos, sourceNodeWidth, targetNodeWidth, parallelInfo);
   }, [sourceNode, targetNode, parallelInfo, loopInfo, source, target]);
@@ -426,9 +459,10 @@ function getStrokeStyle(linkStatus: string | undefined, selected: boolean) {
  */
 const TopologyEdgeComponent: React.FC<EdgeProps<TopologyEdgeData>> = ({ id, source, target, data, selected }) => {
   const geometry = useEdgeGeometry(id, source, target);
+
   if (!geometry) return null;
 
-  const { labelMode, suppressLabels } = useEdgeRenderConfig();
+  const { labelMode, suppressLabels, suppressHitArea } = useEdgeRenderConfig();
   const shouldRenderLabels = !suppressLabels && (
     labelMode === 'show-all' || (labelMode === 'on-select' && !!selected)
   );
@@ -437,16 +471,20 @@ const TopologyEdgeComponent: React.FC<EdgeProps<TopologyEdgeData>> = ({ id, sour
 
   return (
     <>
-      <path id={`${id}-interaction`} d={geometry.path} fill="none" stroke="transparent" strokeWidth={20} style={{ cursor: 'pointer' }} />
+      {!suppressHitArea && (
+        <path id={`${id}-interaction`} d={geometry.path} fill="none" stroke="transparent" strokeWidth={20} style={{ cursor: 'pointer' }} />
+      )}
       <path id={id} d={geometry.path} fill="none" style={{ cursor: 'pointer', opacity: stroke.opacity, strokeWidth: stroke.width, stroke: stroke.color }} className="react-flow__edge-path" />
-      <EdgeLabelRenderer>
-        {shouldRenderLabels && data?.sourceEndpoint && (
-          <EndpointLabel text={data.sourceEndpoint} x={geometry.sourceLabelPos.x} y={geometry.sourceLabelPos.y} />
-        )}
-        {shouldRenderLabels && data?.targetEndpoint && (
-          <EndpointLabel text={data.targetEndpoint} x={geometry.targetLabelPos.x} y={geometry.targetLabelPos.y} />
-        )}
-      </EdgeLabelRenderer>
+      {shouldRenderLabels && (
+        <EdgeLabelRenderer>
+          {data?.sourceEndpoint && (
+            <EndpointLabel text={data.sourceEndpoint} x={geometry.sourceLabelPos.x} y={geometry.sourceLabelPos.y} />
+          )}
+          {data?.targetEndpoint && (
+            <EndpointLabel text={data.targetEndpoint} x={geometry.targetLabelPos.x} y={geometry.targetLabelPos.y} />
+          )}
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 };

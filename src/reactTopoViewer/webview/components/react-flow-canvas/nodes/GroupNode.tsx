@@ -5,6 +5,7 @@ import React, { memo } from 'react';
 import { type NodeProps } from '@xyflow/react';
 import type { GroupNodeData } from '../types';
 import { SELECTION_COLOR } from '../types';
+import { useNodeRenderConfig } from '../../../context/NodeRenderConfigContext';
 
 /**
  * GroupNode component renders group container nodes
@@ -24,6 +25,7 @@ const GroupNodeComponent: React.FC<NodeProps<GroupNodeData>> = ({ data, selected
     labelColor = '#333',
     labelPosition = 'top-left'
   } = data;
+  const { suppressLabels } = useNodeRenderConfig();
 
   // Container styles
   const containerStyle: React.CSSProperties = {
@@ -75,12 +77,21 @@ const GroupNodeComponent: React.FC<NodeProps<GroupNodeData>> = ({ data, selected
   return (
     <div style={containerStyle} className="group-node">
       {/* Group label */}
-      <div style={getLabelPosition()} className="group-node-label">
-        {label}
-      </div>
+      {!suppressLabels && (
+        <div style={getLabelPosition()} className="group-node-label">
+          {label}
+        </div>
+      )}
     </div>
   );
 };
 
+function areGroupNodePropsEqual(
+  prev: NodeProps<GroupNodeData>,
+  next: NodeProps<GroupNodeData>
+): boolean {
+  return prev.data === next.data && prev.selected === next.selected;
+}
+
 // Memoize to prevent unnecessary re-renders
-export const GroupNode = memo(GroupNodeComponent);
+export const GroupNode = memo(GroupNodeComponent, areGroupNodePropsEqual);
