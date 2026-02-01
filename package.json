@@ -1400,6 +1400,8 @@
     "build:dev": "node esbuild.config.js --dev",
     "dev": "vite --config dev/vite.config.ts",
     "dev:build": "vite build --config dev/vite.config.ts",
+    "standalone": "vite --config standalone/vite.config.ts",
+    "standalone:build": "vite build --config standalone/vite.config.ts",
     "bundle": "node esbuild.config.js",
     "package": "rm -rf dist && npm run lint && vsce package",
     "vscode:prepublish": "node esbuild.config.js",

@@ -6,6 +6,7 @@ import type { Node } from "@xyflow/react";
 
 import type { NodeType } from "../../../icons/SvgGenerator";
 import { generateEncodedSVG } from "../../../icons/SvgGenerator";
+import { decodeAndSanitizeSvgDataUri } from "../../../utils/svgSanitize";
 
 import {
   NODE_ICON_SIZE,
@@ -47,11 +48,7 @@ interface NetworkNodeData {
  * Returns the SVG content ready for embedding
  */
 function decodeSvgDataUri(dataUri: string): string {
-  if (!dataUri.startsWith("data:image/svg+xml")) {
-    return "";
-  }
-  const encoded = dataUri.replace(/^data:image\/svg\+xml[^,]*,/, "");
-  return decodeURIComponent(encoded);
+  return decodeAndSanitizeSvgDataUri(dataUri);
 }
 
 /**

@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React TopoViewer - Standalone</title>
+    <style>
+      :root {
+        --vscode-editor-background: #1e1e1e;
+        --vscode-editor-foreground: #cccccc;
+        --vscode-sideBar-background: #252526;
+        --vscode-sideBar-foreground: #cccccc;
+        --vscode-panel-background: #1e1e1e;
+        --vscode-panel-border: #3c3c3c;
+        --vscode-button-background: #0e639c;
+        --vscode-button-foreground: #ffffff;
+        --vscode-button-hoverBackground: #1177bb;
+        --vscode-button-secondaryBackground: #3a3d41;
+        --vscode-button-secondaryForeground: #ffffff;
+        --vscode-button-secondaryHoverBackground: #45494e;
+        --vscode-input-background: #3c3c3c;
+        --vscode-input-foreground: #cccccc;
+        --vscode-input-border: #3c3c3c;
+        --vscode-input-placeholderForeground: #a6a6a6;
+        --vscode-dropdown-background: #3c3c3c;
+        --vscode-dropdown-foreground: #f0f0f0;
+        --vscode-dropdown-border: #3c3c3c;
+        --vscode-focusBorder: #007fd4;
+        --vscode-foreground: #cccccc;
+        --vscode-descriptionForeground: #9d9d9d;
+        --vscode-errorForeground: #f48771;
+        --vscode-icon-foreground: #c5c5c5;
+        --vscode-list-hoverBackground: #2a2d2e;
+        --vscode-list-activeSelectionBackground: #094771;
+        --vscode-list-activeSelectionForeground: #ffffff;
+        --vscode-badge-background: #4d4d4d;
+        --vscode-badge-foreground: #ffffff;
+        --vscode-scrollbarSlider-background: rgba(121, 121, 121, 0.4);
+        --vscode-scrollbarSlider-hoverBackground: rgba(100, 100, 100, 0.7);
+        --vscode-scrollbarSlider-activeBackground: rgba(191, 191, 191, 0.4);
+        --vscode-statusBar-background: #007acc;
+        --vscode-statusBar-foreground: #ffffff;
+        --vscode-tab-activeBackground: #1e1e1e;
+        --vscode-tab-activeForeground: #ffffff;
+        --vscode-tab-inactiveBackground: #2d2d2d;
+        --vscode-tab-inactiveForeground: #ffffff80;
+        --vscode-textLink-foreground: #3794ff;
+        --vscode-textLink-activeForeground: #3794ff;
+        --vscode-settings-textInputBackground: #292929;
+        --vscode-settings-textInputForeground: #cccccc;
+        --vscode-settings-textInputBorder: transparent;
+        --vscode-notifications-background: #252526;
+        --vscode-notifications-border: #3c3c3c;
+      }
+
+      html.light {
+        --vscode-editor-background: #ffffff;
+        --vscode-editor-foreground: #333333;
+        --vscode-sideBar-background: #f3f3f3;
+        --vscode-sideBar-foreground: #333333;
+        --vscode-panel-background: #ffffff;
+        --vscode-panel-border: #e7e7e7;
+        --vscode-button-background: #007acc;
+        --vscode-button-foreground: #ffffff;
+        --vscode-button-hoverBackground: #0062a3;
+        --vscode-button-secondaryBackground: #5f6a79;
+        --vscode-button-secondaryForeground: #ffffff;
+        --vscode-button-secondaryHoverBackground: #4c5561;
+        --vscode-input-background: #ffffff;
+        --vscode-input-foreground: #333333;
+        --vscode-input-border: #cecece;
+        --vscode-input-placeholderForeground: #767676;
+        --vscode-dropdown-background: #ffffff;
+        --vscode-dropdown-foreground: #333333;
+        --vscode-dropdown-border: #cecece;
+        --vscode-focusBorder: #0090f1;
+        --vscode-foreground: #333333;
+        --vscode-descriptionForeground: #717171;
+        --vscode-errorForeground: #a1260d;
+        --vscode-icon-foreground: #424242;
+        --vscode-list-hoverBackground: #e8e8e8;
+        --vscode-list-activeSelectionBackground: #0060c0;
+        --vscode-list-activeSelectionForeground: #ffffff;
+        --vscode-badge-background: #c4c4c4;
+        --vscode-badge-foreground: #333333;
+        --vscode-scrollbarSlider-background: rgba(100, 100, 100, 0.4);
+        --vscode-scrollbarSlider-hoverBackground: rgba(100, 100, 100, 0.7);
+        --vscode-scrollbarSlider-activeBackground: rgba(0, 0, 0, 0.6);
+        --vscode-statusBar-background: #007acc;
+        --vscode-statusBar-foreground: #ffffff;
+        --vscode-tab-activeBackground: #ffffff;
+        --vscode-tab-activeForeground: #333333;
+        --vscode-tab-inactiveBackground: #ececec;
+        --vscode-tab-inactiveForeground: #33333380;
+        --vscode-textLink-foreground: #006ab1;
+        --vscode-textLink-activeForeground: #006ab1;
+        --vscode-settings-textInputBackground: #ffffff;
+        --vscode-settings-textInputForeground: #333333;
+        --vscode-settings-textInputBorder: #cecece;
+        --vscode-notifications-background: #f3f3f3;
+        --vscode-notifications-border: #e7e7e7;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        background-color: var(--vscode-editor-background);
+        color: var(--vscode-editor-foreground);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+          sans-serif;
+      }
+
+      #root {
+        width: 70%;
+        height: 100%;
+      }
+
+      /* Split View Panel - positioned below navbar (4.5rem = 72px) */
+      #splitViewPanel {
+        position: fixed;
+        top: 4.5rem;
+        right: 0;
+        width: 30%;
+        height: calc(100% - 4.5rem);
+        background: var(--vscode-sideBar-background);
+        border-left: 1px solid var(--vscode-panel-border);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        z-index: 40;
+      }
+      .split-view-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: var(--vscode-tab-activeBackground);
+        border-bottom: 1px solid var(--vscode-panel-border);
+      }
+      .split-view-header span {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--vscode-foreground);
+      }
+      .split-view-content {
+        flex: 1;
+        overflow: hidden;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .split-view-section {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .split-view-section-label {
+        padding: 6px 10px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--vscode-descriptionForeground);
+        background: var(--vscode-editor-background);
+        border-bottom: 1px solid var(--vscode-panel-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .split-view-label-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .split-view-dirty {
+        color: #f4b400;
+        font-size: 12px;
+        visibility: hidden;
+      }
+      .split-view-save {
+        background: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
+        border: 1px solid transparent;
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0;
+        cursor: pointer;
+      }
+      .split-view-save:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .split-view-save-all {
+        margin-left: 8px;
+      }
+      .split-view-editor {
+        flex: 1 1 auto;
+        min-height: 140px;
+        background: var(--vscode-editor-background);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="splitViewPanel">
+      <div class="split-view-header">
+        <div style="display: flex; align-items: center; gap: 6px">
+          <span id="splitViewFilePath">No file loaded</span>
+          <button class="split-view-save split-view-save-all" id="splitViewSaveAll" title="Save all">
+            Save All
+          </button>
+          <button class="split-view-save split-view-save-all" id="splitViewExport" title="Export">
+            Export
+          </button>
+        </div>
+        <button class="split-view-save" id="splitViewClearLab" title="Clear lab">
+          Clear Lab
+        </button>
+      </div>
+      <div class="split-view-content">
+        <div class="split-view-section">
+          <div class="split-view-section-label">
+            <span class="split-view-label-text" id="splitViewYamlLabel">topology.clab.yml</span>
+            <span class="split-view-dirty" id="splitViewYamlDirty" aria-hidden="true">●</span>
+            <button class="split-view-save" id="splitViewYamlSave" title="Save YAML">Save</button>
+          </div>
+          <div class="split-view-editor" id="yamlEditor"></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

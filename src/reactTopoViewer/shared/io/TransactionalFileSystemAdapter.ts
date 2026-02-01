@@ -6,11 +6,18 @@
  * to behave as a single transaction from the host's perspective.
  */
 
-import { randomUUID } from "crypto";
-
 import type { FileSystemAdapter } from "./types";
 
 type PendingEntry = { path: string; content: string | null };
+
+function createRandomId(): string {
+  const cryptoObj = (globalThis as { crypto?: Crypto }).crypto;
+  if (cryptoObj?.randomUUID) {
+    return cryptoObj.randomUUID();
+  }
+  const rand = Math.random().toString(16).slice(2);
+  return `uuid-${Date.now().toString(16)}-${rand}`;
+}
 
 export class TransactionalFileSystemAdapter implements FileSystemAdapter {
   private base: FileSystemAdapter;
@@ -115,7 +122,7 @@ export class TransactionalFileSystemAdapter implements FileSystemAdapter {
   // ---------------------------------------------------------------------------
 
   private buildTempPath(dir: string, base: string, prefix: "tmp" | "bak"): string {
-    return this.base.join(dir, `.${prefix}-${randomUUID()}-${base}`);
+    return this.base.join(dir, `.${prefix}-${createRandomId()}-${base}`);
   }
 
   private async writeTempFiles(entries: PendingEntry[]): Promise<Map<string, string>> {

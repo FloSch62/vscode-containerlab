@@ -31,9 +31,18 @@ let started = false;
 let windowListener: ((event: TypedMessageEvent) => void) | null = null;
 const subscribers = new Set<Subscriber>();
 
+function isTrustedMessage(event: TypedMessageEvent): boolean {
+  if (event.source !== window && event.source !== null) return false;
+  if (event.origin !== window.location.origin) return false;
+  if (typeof event.data !== "object" || event.data === null) return false;
+  const data = event.data as Record<string, unknown>;
+  return typeof data.type === "string";
+}
+
 function ensureStarted(): void {
   if (started) return;
   windowListener = (event: TypedMessageEvent) => {
+    if (!isTrustedMessage(event)) return;
     for (const sub of Array.from(subscribers)) {
       if (!sub.predicate || sub.predicate(event)) {
         sub.handler(event);

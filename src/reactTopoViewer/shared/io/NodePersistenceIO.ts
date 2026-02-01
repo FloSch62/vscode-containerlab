@@ -23,6 +23,7 @@ function getNodesMapOrError(
   if (!nodesMap || !YAML.isMap(nodesMap)) {
     return { error: { success: false, error: ERROR_NODES_NOT_MAP } };
   }
+  nodesMap.flow = false;
   return { nodesMap };
 }
 

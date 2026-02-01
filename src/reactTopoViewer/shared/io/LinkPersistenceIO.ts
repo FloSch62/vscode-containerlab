@@ -21,6 +21,7 @@ function getLinksSeqOrError(
   if (!linksSeq || !YAML.isSeq(linksSeq)) {
     return { error: { success: false, error: ERROR_LINKS_NOT_SEQ } };
   }
+  linksSeq.flow = false;
   return { linksSeq };
 }
 
@@ -547,6 +548,8 @@ export function addLinkToDoc(
       } else {
         return { success: false, error: "YAML topology is not a map" };
       }
+    } else if (YAML.isSeq(linksSeq)) {
+      linksSeq.flow = false;
     }
 
     // Check for duplicate
