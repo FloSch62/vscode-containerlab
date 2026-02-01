@@ -328,7 +328,37 @@ export function BasePanel(props: Readonly<BasePanelProps>): React.ReactElement |
           </IconButton>
         </Box>
         <Divider />
-        <Box sx={{ p: 2, overflow: "auto", flex: 1, minHeight: 0 }}>{children}</Box>
+        <Box
+          sx={{
+            p: 2,
+            overflow: "auto",
+            flex: 1,
+            minHeight: 0,
+            scrollbarWidth: "thin",
+            scrollbarColor: "var(--vscode-scrollbarSlider-background) transparent",
+            scrollbarGutter: "stable",
+            "&::-webkit-scrollbar": {
+              width: 10
+            },
+            "&::-webkit-scrollbar:horizontal": {
+              display: "none"
+            },
+            "&::-webkit-scrollbar-track": {
+              background: "transparent"
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: "var(--vscode-scrollbarSlider-background)",
+              borderRadius: 999,
+              border: "2px solid transparent",
+              backgroundClip: "content-box"
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              backgroundColor: "var(--vscode-scrollbarSlider-hoverBackground)"
+            }
+          }}
+        >
+          {children}
+        </Box>
         {btn.footer && (
           <>
             <Divider />

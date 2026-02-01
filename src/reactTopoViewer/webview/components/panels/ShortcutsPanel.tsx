@@ -3,7 +3,7 @@
  * Migrated from legacy TopoViewer shortcuts-modal.html
  */
 import React from "react";
-import { Chip, List, ListItem, Stack, Typography } from "@mui/material";
+import { Box, Chip, List, ListItem, Stack, Typography } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -39,20 +39,46 @@ const ShortcutRow: React.FC<ShortcutRowProps> = ({ label, shortcut }) => (
     sx={{ py: 0.5, display: "flex", justifyContent: "space-between" }}
   >
     <Typography variant="body2">{label}</Typography>
-    <Chip label={formatKey(shortcut)} size="small" />
+    <Chip label={formatKey(shortcut)} size="small" className="shortcut-chip" />
   </ListItem>
 );
 
 interface ShortcutSectionProps {
   title: string;
   icon: React.ReactNode;
+  accentColor?: string;
   children: React.ReactNode;
 }
 
-const ShortcutSection: React.FC<ShortcutSectionProps> = ({ title, icon, children }) => (
-  <Box>
+const ShortcutSection: React.FC<ShortcutSectionProps> = ({
+  title,
+  icon,
+  accentColor = "var(--vscode-textLink-foreground)",
+  children
+}) => (
+  <Box
+    sx={{
+      p: 1.25,
+      borderRadius: 1.5,
+      border: "1px solid var(--vscode-panel-border)",
+      bgcolor: "var(--vscode-panel-background)",
+      backgroundImage: `linear-gradient(135deg, ${accentColor}22 0%, transparent 70%)`,
+      "& .shortcut-section-icon": {
+        color: accentColor,
+        display: "flex",
+        alignItems: "center"
+      },
+      "& .shortcut-chip": {
+        backgroundColor: "var(--vscode-keybindingLabel-background, rgba(128, 128, 128, 0.17))",
+        color: "var(--vscode-keybindingLabel-foreground, var(--vscode-editor-foreground))",
+        border: `1px solid ${accentColor}`,
+        fontWeight: 600,
+        letterSpacing: 0.3
+      }
+    }}
+  >
     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-      {icon}
+      <Box className="shortcut-section-icon">{icon}</Box>
       <Typography variant="subtitle2">{title}</Typography>
     </Stack>
     <List dense disablePadding>
@@ -76,14 +102,22 @@ export const ShortcutsPanel: React.FC<ShortcutsPanelProps> = ({ isVisible, onClo
       minHeight={200}
     >
       <Stack spacing={2}>
-        <ShortcutSection title="Viewer Mode" icon={<VisibilityIcon fontSize="small" />}>
+        <ShortcutSection
+          title="Viewer Mode"
+          icon={<VisibilityIcon fontSize="small" />}
+          accentColor="var(--vscode-charts-blue)"
+        >
           <ShortcutRow label="Select node/link" shortcut="Left Click" />
           <ShortcutRow label="Node actions" shortcut="Right Click" />
           <ShortcutRow label="Capture packets" shortcut="Right Click + Link" />
           <ShortcutRow label="Move nodes" shortcut="Drag" />
         </ShortcutSection>
 
-        <ShortcutSection title="Editor Mode" icon={<EditIcon fontSize="small" />}>
+        <ShortcutSection
+          title="Editor Mode"
+          icon={<EditIcon fontSize="small" />}
+          accentColor="var(--vscode-charts-green)"
+        >
           <ShortcutRow label="Add node" shortcut="Shift + Click" />
           <ShortcutRow label="Create link" shortcut="Shift + Click node" />
           <ShortcutRow label="Delete element" shortcut="Alt + Click" />
@@ -99,20 +133,31 @@ export const ShortcutsPanel: React.FC<ShortcutsPanelProps> = ({ isVisible, onClo
           <ShortcutRow label="Delete selected" shortcut="Del" />
         </ShortcutSection>
 
-        <ShortcutSection title="Navigation" icon={<SettingsIcon fontSize="small" />}>
+        <ShortcutSection
+          title="Navigation"
+          icon={<SettingsIcon fontSize="small" />}
+          accentColor="var(--vscode-charts-yellow)"
+        >
           <ShortcutRow label="Deselect all" shortcut="Esc" />
         </ShortcutSection>
 
-        <ShortcutSection title="Tips" icon={<LightbulbIcon fontSize="small" />}>
+        <ShortcutSection
+          title="Tips"
+          icon={<LightbulbIcon fontSize="small" />}
+          accentColor="var(--vscode-charts-blue)"
+        >
           <List dense disablePadding>
             <ListItem disableGutters>
               <Typography variant="body2">Use layout algorithms to auto-arrange</Typography>
             </ListItem>
             <ListItem disableGutters>
               <Typography variant="body2">
-                Box select nodes, then <Chip label="Ctrl" size="small" sx={{ mx: 0.5 }} /> +{" "}
-                <Chip label="G" size="small" sx={{ mx: 0.5 }} /> to group or{" "}
-                <Chip label="Del" size="small" sx={{ mx: 0.5 }} /> to delete
+                Box select nodes, then{" "}
+                <Chip label="Ctrl" size="small" className="shortcut-chip" sx={{ mx: 0.5 }} /> +{" "}
+                <Chip label="G" size="small" className="shortcut-chip" sx={{ mx: 0.5 }} /> to group
+                or{" "}
+                <Chip label="Del" size="small" className="shortcut-chip" sx={{ mx: 0.5 }} /> to
+                delete
               </Typography>
             </ListItem>
             <ListItem disableGutters>
