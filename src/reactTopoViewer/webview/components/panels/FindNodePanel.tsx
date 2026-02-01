@@ -4,6 +4,20 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { ReactFlowInstance } from "@xyflow/react";
+import {
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  InputAdornment,
+  List,
+  ListItem,
+  Stack,
+  TextField,
+  Typography
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 
 import { BasePanel } from "../ui/editor/BasePanel";
 import { useGraphState } from "../../stores/graphStore";
@@ -60,14 +74,15 @@ function formatResultMessage(count: number): string {
 }
 
 /** Component to display search result status */
-const SearchResultStatus: React.FC<{ count: number }> = ({ count }) => {
-  const colorClass = count > 0 ? "text-green-500" : "text-orange-500";
-  return (
-    <span className={`text-sm ${colorClass}`} data-testid="find-node-result">
-      {formatResultMessage(count)}
-    </span>
-  );
-};
+const SearchResultStatus: React.FC<{ count: number }> = ({ count }) => (
+  <Typography
+    variant="body2"
+    sx={{ color: count > 0 ? "var(--vscode-charts-green)" : "var(--vscode-charts-yellow)" }}
+    data-testid="find-node-result"
+  >
+    {formatResultMessage(count)}
+  </Typography>
+);
 
 /**
  * Filter nodes using a custom filter function
@@ -192,67 +207,67 @@ export const FindNodePanel: React.FC<FindNodePanelProps> = ({ isVisible, onClose
       minHeight={150}
       testId="find-node-panel"
     >
-      <div className="space-y-3">
-        <div>
-          <p className="text-secondary text-sm mb-2">Search for nodes in the topology by name.</p>
-        </div>
+      <Stack spacing={2}>
+        <Typography variant="body2" color="text.secondary">
+          Search for nodes in the topology by name.
+        </Typography>
 
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search for nodes ..."
-            className="input-field pl-8 pr-8 text-sm w-full"
-            autoFocus
-            data-testid="find-node-input"
-          />
-          <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-secondary">
-            <i className="fas fa-search" aria-hidden="true"></i>
-          </span>
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={handleClearClick}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-secondary hover:text-default"
-              title="Clear search"
-            >
-              <i className="fas fa-times" aria-hidden="true"></i>
-            </button>
-          )}
-        </div>
+        <TextField
+          inputRef={inputRef}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Search for nodes ..."
+          size="small"
+          autoFocus
+          data-testid="find-node-input"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+            endAdornment: searchTerm ? (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={handleClearClick} title="Clear search">
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : undefined
+          }}
+        />
 
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            className="btn btn-primary btn-small"
-            onClick={handleSearch}
-            data-testid="find-node-search-btn"
-          >
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+          <Button variant="contained" size="small" onClick={handleSearch} data-testid="find-node-search-btn">
             Search
-          </button>
-
+          </Button>
           {matchCount !== null && <SearchResultStatus count={matchCount} />}
-        </div>
+        </Stack>
 
-        <div className="text-xs text-secondary mt-2">
-          <p className="font-semibold mb-1">Search tips:</p>
-          <ul className="list-disc list-inside space-y-0.5">
-            <li>
-              Use <kbd className="shortcuts-kbd-inline">*</kbd> for wildcard (e.g.,{" "}
-              <code>srl*</code>)
-            </li>
-            <li>
-              Use <kbd className="shortcuts-kbd-inline">+</kbd> prefix for starts-with
-            </li>
-            <li>
-              Press <kbd className="shortcuts-kbd-inline">Enter</kbd> to search
-            </li>
-          </ul>
-        </div>
-      </div>
+        <Box>
+          <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
+            Search tips:
+          </Typography>
+          <List dense disablePadding>
+            <ListItem disableGutters>
+              <Typography variant="body2">
+                Use <Chip label="*" size="small" sx={{ mx: 0.5 }} /> for wildcard (e.g.,{" "}
+                <code>srl*</code>)
+              </Typography>
+            </ListItem>
+            <ListItem disableGutters>
+              <Typography variant="body2">
+                Use <Chip label="+" size="small" sx={{ mx: 0.5 }} /> prefix for starts-with
+              </Typography>
+            </ListItem>
+            <ListItem disableGutters>
+              <Typography variant="body2">
+                Press <Chip label="Enter" size="small" sx={{ mx: 0.5 }} /> to search
+              </Typography>
+            </ListItem>
+          </List>
+        </Box>
+      </Stack>
     </BasePanel>
   );
 };

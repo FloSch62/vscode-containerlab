@@ -1,8 +1,15 @@
 /**
- * Context Menu Component
- * Displays a dropdown context menu at a specified position
+ * Context Menu Component - MUI Menu.
  */
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useRef, useState } from "react";
+import {
+  Divider,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem
+} from "@mui/material";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 export interface ContextMenuItem {
   id: string;
@@ -23,168 +30,164 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
+function renderMenuIcon(item: ContextMenuItem): React.ReactElement | null {
+  if (item.iconComponent) return <>{item.iconComponent}</>;
+  if (item.icon) return <i className={item.icon} />;
+  return null;
+}
+
+interface ContextMenuListProps {
+  items: ContextMenuItem[];
+  onCloseAll: () => void;
+}
+
+const ContextMenuList: React.FC<ContextMenuListProps> = ({ items, onCloseAll }) => (
+  <>
+    {items.map((item) => {
+      if (item.divider) {
+        return <Divider key={item.id} />;
+      }
+      const icon = renderMenuIcon(item);
+      const hasChildren = Boolean(item.children && item.children.length > 0);
+      return (
+        <MenuItem
+          key={item.id}
+          disabled={item.disabled}
+          onClick={
+            hasChildren
+              ? undefined
+              : () => {
+                  if (!item.disabled && item.onClick) {
+                    item.onClick();
+                  }
+                  onCloseAll();
+                }
+          }
+          data-menu-item-id={item.id}
+          sx={item.danger ? { color: "var(--vscode-errorForeground)" } : undefined}
+        >
+          {icon && <ListItemIcon>{icon}</ListItemIcon>}
+          <ListItemText primary={item.label} />
+          {hasChildren && <ChevronRightIcon fontSize="small" />}
+        </MenuItem>
+      );
+    })}
+  </>
+);
+
+interface ContextMenuLevelProps {
+  open: boolean;
+  anchorPosition?: { top: number; left: number };
+  anchorEl?: HTMLElement | null;
+  items: ContextMenuItem[];
+  onCloseAll: () => void;
+  minWidth?: number;
+  onParentHover?: () => void;
+}
+
+const ContextMenuLevel: React.FC<ContextMenuLevelProps> = ({
+  open,
+  anchorPosition,
+  anchorEl,
+  items,
+  onCloseAll,
+  minWidth = 220,
+  onParentHover
+}) => {
+  const [submenuAnchor, setSubmenuAnchor] = useState<HTMLElement | null>(null);
+  const [submenuItems, setSubmenuItems] = useState<ContextMenuItem[] | null>(null);
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    onParentHover?.();
+  };
+
+  const scheduleClose = () => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setSubmenuAnchor(null);
+      setSubmenuItems(null);
+      setActiveItemId(null);
+      closeTimerRef.current = null;
+    }, 160);
+  };
+
+  const closeSubmenu = () => {
+    clearCloseTimer();
+    setSubmenuAnchor(null);
+    setSubmenuItems(null);
+    setActiveItemId(null);
+  };
+
+  const handleItemHover = (event: React.MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    const itemEl = target?.closest("[data-menu-item-id]") as HTMLElement | null;
+    const id = itemEl?.getAttribute("data-menu-item-id");
+    const item = items.find((entry) => entry.id === id);
+    if (!item) return;
+    if (id === activeItemId) return;
+    setActiveItemId(id);
+    if (!item.children || item.children.length === 0 || item.disabled) {
+      closeSubmenu();
+      return;
+    }
+    if (submenuAnchor === itemEl && submenuItems === item.children) return;
+    setSubmenuAnchor(itemEl);
+    setSubmenuItems(item.children);
+  };
+
+  return (
+    <>
+      <Menu
+        open={open}
+        onClose={onCloseAll}
+        anchorReference={anchorPosition ? "anchorPosition" : "anchorEl"}
+        anchorPosition={anchorPosition}
+        anchorEl={anchorEl}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        MenuListProps={{
+          onMouseEnter: clearCloseTimer,
+          onMouseLeave: scheduleClose,
+          onMouseMove: handleItemHover
+        }}
+        slotProps={{ paper: { sx: { minWidth } } }}
+      >
+        <ContextMenuList items={items} onCloseAll={onCloseAll} />
+      </Menu>
+      {submenuItems && submenuAnchor && (
+        <ContextMenuLevel
+          open={true}
+          anchorEl={submenuAnchor}
+          items={submenuItems}
+          onCloseAll={onCloseAll}
+          minWidth={200}
+          onParentHover={clearCloseTimer}
+        />
+      )}
+    </>
+  );
+};
+
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   isVisible,
   position,
   items,
   onClose
 }) => {
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu on click outside
-  const handleClickOutside = useCallback(
-    (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  // Close on escape key
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (!isVisible) return;
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isVisible, handleClickOutside, handleKeyDown]);
-
   if (!isVisible || items.length === 0) return null;
 
   return (
-    <div
-      ref={menuRef}
-      className="context-menu"
-      role="menu"
-      data-testid="context-menu"
-      style={{
-        position: "fixed",
-        left: position.x,
-        top: position.y,
-        zIndex: 10000
-      }}
-    >
-      {items.map((item) => {
-        if (item.divider) {
-          return <div key={item.id} className="context-menu-divider" />;
-        }
-        if (item.children && item.children.length > 0) {
-          return <MenuItemWithSubmenu key={item.id} item={item} onClose={onClose} />;
-        }
-        return <MenuItemButton key={item.id} item={item} onClose={onClose} />;
-      })}
-    </div>
-  );
-};
-
-/**
- * Individual menu item component
- */
-interface MenuItemComponentProps {
-  item: ContextMenuItem;
-  onClose: () => void;
-}
-
-function renderMenuIcon(item: ContextMenuItem): React.ReactElement {
-  if (item.iconComponent) {
-    return <span className="context-menu-icon">{item.iconComponent}</span>;
-  }
-  if (item.icon) {
-    return (
-      <span className="context-menu-icon">
-        <i className={item.icon} />
-      </span>
-    );
-  }
-  return <span className="context-menu-icon-placeholder" />;
-}
-
-function getMenuItemClassNames(item: ContextMenuItem, extraClasses: string[] = []) {
-  return [
-    "context-menu-item",
-    item.disabled ? "disabled" : "",
-    item.danger ? "danger" : "",
-    ...extraClasses
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-interface MenuButtonProps {
-  item: ContextMenuItem;
-  onClick?: () => void;
-  showCaret?: boolean;
-}
-
-const ContextMenuButton: React.FC<MenuButtonProps> = ({ item, onClick, showCaret = false }) => {
-  const classNames = getMenuItemClassNames(item, showCaret ? ["has-submenu"] : []);
-  return (
-    <button
-      className={classNames}
-      role="menuitem"
-      onClick={onClick}
-      disabled={item.disabled}
-      data-testid={`context-menu-item-${item.id}`}
-    >
-      {renderMenuIcon(item)}
-      <span>{item.label}</span>
-      {showCaret && <span className="context-menu-submenu-caret">▸</span>}
-    </button>
-  );
-};
-
-function useMenuItemClick(item: ContextMenuItem, onClose: () => void) {
-  return useCallback(() => {
-    if (!item.disabled && item.onClick) {
-      item.onClick();
-      onClose();
-    }
-  }, [item, onClose]);
-}
-
-const MenuItemButton: React.FC<MenuItemComponentProps> = ({ item, onClose }) => {
-  const handleClick = useMenuItemClick(item, onClose);
-
-  return <ContextMenuButton item={item} onClick={handleClick} />;
-};
-
-const MenuItemWithSubmenu: React.FC<MenuItemComponentProps> = ({ item, onClose }) => {
-  const handleClick = useMenuItemClick(item, onClose);
-
-  const wrapperClassNames = ["context-menu-item-wrapper", item.disabled ? "disabled" : ""]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <div className={wrapperClassNames}>
-      <ContextMenuButton
-        item={item}
-        onClick={item.onClick ? handleClick : undefined}
-        showCaret
-      />
-      <div className="context-menu context-submenu" role="menu">
-        {item.children?.map((child) => {
-          if (child.divider) {
-            return <div key={child.id} className="context-menu-divider" />;
-          }
-          if (child.children && child.children.length > 0) {
-            return <MenuItemWithSubmenu key={child.id} item={child} onClose={onClose} />;
-          }
-          return <MenuItemButton key={child.id} item={child} onClose={onClose} />;
-        })}
-      </div>
-    </div>
+    <ContextMenuLevel
+      open={isVisible}
+      anchorPosition={{ top: position.y, left: position.x }}
+      items={items}
+      onCloseAll={onClose}
+    />
   );
 };

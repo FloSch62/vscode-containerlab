@@ -8,6 +8,7 @@ import { App } from "./App";
 import { log } from "./utils/logger";
 import "./styles/tailwind.css";
 import { subscribeToWebviewMessages } from "./messaging/webviewMessageBus";
+import { MuiThemeProvider } from "./MuiThemeProvider";
 
 // Get the initial data from the window object (injected by extension)
 const initialData = window.__INITIAL_DATA__ ?? {};
@@ -62,7 +63,9 @@ function bootstrap(): void {
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
-      <App initialData={initialData} />
+      <MuiThemeProvider>
+        <App initialData={initialData} />
+      </MuiThemeProvider>
     </React.StrictMode>
   );
 }

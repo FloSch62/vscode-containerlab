@@ -3,6 +3,7 @@
  */
 import { createRoot, type Root as ReactRoot } from "react-dom/client";
 import { App } from "@webview/App";
+import { MuiThemeProvider } from "@webview/MuiThemeProvider";
 import type { CustomNodeTemplate } from "@shared/types/editors";
 import type { CustomIconInfo } from "@shared/types/icons";
 import "@webview/styles/tailwind.css";
@@ -114,7 +115,11 @@ function renderApp(): void {
   }
 
   renderKey++;
-  reactRoot.render(<App key={renderKey} initialData={initialData} />);
+  reactRoot.render(
+    <MuiThemeProvider>
+      <App key={renderKey} initialData={initialData} />
+    </MuiThemeProvider>
+  );
 }
 
 // ============================================================================

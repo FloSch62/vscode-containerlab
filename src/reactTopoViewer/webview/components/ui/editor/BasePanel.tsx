@@ -1,162 +1,34 @@
 /**
- * BasePanel - Core draggable and resizable panel component
+ * BasePanel - MUI-based floating panel.
  */
 import type { ReactNode } from "react";
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Box,
+  Button,
+  Divider,
+  IconButton,
+  Paper,
+  Portal,
+  Stack,
+  Typography
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
-import { usePanelDrag } from "../../../hooks/ui/usePanelDrag";
+const DEFAULT_POSITION = { x: 24, y: 88 };
+const DEFAULT_WIDTH = 420;
+const MIN_WIDTH = 280;
+const MIN_HEIGHT = 180;
+const DEFAULT_PANEL_HEIGHT = 360;
 
-import { PanelHeader, PanelFooter, ResizeHandle, Backdrop } from "./BasePanelComponents";
-
-const DEFAULT_POSITION = { x: 20, y: 80 };
-const DEFAULT_WIDTH = 400;
-const MIN_WIDTH = 200;
-const MIN_HEIGHT = 150;
-
-interface Size {
-  width: number;
-  height: number | undefined;
-}
-interface Pos {
+interface Position {
   x: number;
   y: number;
 }
 
-function constrainSize(
-  w: number,
-  h: number,
-  pos: Pos,
-  minW: number,
-  minH: number
-): { width: number; height: number } {
-  return {
-    width: Math.max(minW, Math.min(w, window.innerWidth - pos.x - 20)),
-    height: Math.max(minH, Math.min(h, window.innerHeight - pos.y - 20))
-  };
-}
-
-function loadSize(
-  key: string | undefined,
-  defaultSize: Size,
-  pos: Pos,
-  minW: number,
-  minH: number
-): Size {
-  if (!key) return defaultSize;
-  try {
-    const saved = window.localStorage.getItem(`panel-size-${key}`);
-    if (saved) {
-      const p = JSON.parse(saved) as { width?: number; height?: number };
-      if (typeof p.width === "number" && typeof p.height === "number") {
-        return constrainSize(p.width, p.height, pos, minW, minH);
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-  return defaultSize;
-}
-
-function saveSize(key: string | undefined, size: { width: number; height: number }): void {
-  if (key)
-    try {
-      window.localStorage.setItem(`panel-size-${key}`, JSON.stringify(size));
-    } catch {
-      /* ignore */
-    }
-}
-
-function useResizeEvents(isResizing: boolean, onMove: (e: MouseEvent) => void, onEnd: () => void) {
-  useEffect(() => {
-    if (!isResizing) return;
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onEnd);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onEnd);
-    };
-  }, [isResizing, onMove, onEnd]);
-}
-
-function useWindowResize(
-  minW: number,
-  minH: number,
-  posRef: React.RefObject<Pos>,
-  setSize: React.Dispatch<React.SetStateAction<Size>>
-) {
-  useEffect(() => {
-    const fn = () =>
-      setSize((prev) =>
-        prev.height === undefined
-          ? prev
-          : constrainSize(prev.width, prev.height, posRef.current!, minW, minH)
-      );
-    window.addEventListener("resize", fn);
-    return () => window.removeEventListener("resize", fn);
-  }, [minW, minH, posRef, setSize]);
-}
-
-function usePanelResize(
-  storageKey?: string,
-  initialWidth = DEFAULT_WIDTH,
-  initialHeight: number | undefined = undefined,
-  position = DEFAULT_POSITION,
-  minW = MIN_WIDTH,
-  minH = MIN_HEIGHT,
-  panelRef?: React.RefObject<HTMLDivElement | null>
-) {
-  const [size, setSize] = useState<Size>(() =>
-    loadSize(storageKey, { width: initialWidth, height: initialHeight }, position, minW, minH)
-  );
-  const [isResizing, setIsResizing] = useState(false);
-  const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
-  const posRef = useRef(position);
-  posRef.current = position;
-
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Measure actual height if not yet set (first resize)
-      let startH = size.height;
-      if (startH === undefined) {
-        startH = panelRef?.current?.getBoundingClientRect().height ?? 300;
-        setSize((prev) => ({ ...prev, height: startH }));
-      }
-
-      setIsResizing(true);
-      startRef.current = { x: e.clientX, y: e.clientY, w: size.width, h: startH };
-    },
-    [size, panelRef]
-  );
-
-  const handleResizeMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isResizing) return;
-      setSize(
-        constrainSize(
-          startRef.current.w + e.clientX - startRef.current.x,
-          startRef.current.h + e.clientY - startRef.current.y,
-          posRef.current,
-          minW,
-          minH
-        )
-      );
-    },
-    [isResizing, minW, minH]
-  );
-
-  const handleResizeEnd = useCallback(() => {
-    if (isResizing && size.height !== undefined)
-      saveSize(storageKey, { width: size.width, height: size.height });
-    setIsResizing(false);
-  }, [isResizing, size, storageKey]);
-
-  useResizeEvents(isResizing, handleResizeMove, handleResizeEnd);
-  useWindowResize(minW, minH, posRef, setSize);
-
-  return { size, isResizing, handleResizeStart, setSize };
+interface Size {
+  width: number;
+  height: number | undefined;
 }
 
 export interface BasePanelProps {
@@ -184,6 +56,95 @@ export interface BasePanelProps {
 
 const noop = () => {};
 
+function resolvePosition(
+  initialPosition: BasePanelProps["initialPosition"],
+  width: number
+): Position {
+  if (initialPosition) return initialPosition;
+  const x = Math.max(24, (window.innerWidth - width) / 2);
+  const y = DEFAULT_POSITION.y;
+  return { x, y };
+}
+
+function clampPosition(pos: Position, size: Size): Position {
+  const width = size.width;
+  const height = size.height ?? DEFAULT_PANEL_HEIGHT;
+  return {
+    x: Math.max(12, Math.min(pos.x, window.innerWidth - Math.max(80, width))),
+    y: Math.max(12, Math.min(pos.y, window.innerHeight - Math.max(60, height)))
+  };
+}
+
+function clampSize(size: Size, minWidth: number, minHeight: number, pos: Position): Size {
+  return {
+    width: Math.max(minWidth, Math.min(size.width, window.innerWidth - pos.x - 12)),
+    height:
+      size.height === undefined
+        ? undefined
+        : Math.max(minHeight, Math.min(size.height, window.innerHeight - pos.y - 12))
+  };
+}
+
+function loadPanelState(
+  storageKey: string | undefined,
+  fallbackPosition: Position,
+  fallbackSize: Size,
+  minWidth: number,
+  minHeight: number
+): { position: Position; size: Size } {
+  if (!storageKey) {
+    return {
+      position: clampPosition(fallbackPosition, fallbackSize),
+      size: clampSize(fallbackSize, minWidth, minHeight, fallbackPosition)
+    };
+  }
+  try {
+    const raw = window.localStorage.getItem(`panel-state-${storageKey}`);
+    if (!raw) {
+      return {
+        position: clampPosition(fallbackPosition, fallbackSize),
+        size: clampSize(fallbackSize, minWidth, minHeight, fallbackPosition)
+      };
+    }
+    const parsed = JSON.parse(raw) as {
+      position?: Position;
+      size?: Size;
+    };
+    const position = parsed.position ?? fallbackPosition;
+    const size = parsed.size ?? fallbackSize;
+    return {
+      position: clampPosition(position, size),
+      size: clampSize(size, minWidth, minHeight, position)
+    };
+  } catch {
+    return {
+      position: clampPosition(fallbackPosition, fallbackSize),
+      size: clampSize(fallbackSize, minWidth, minHeight, fallbackPosition)
+    };
+  }
+}
+
+function savePanelState(
+  storageKey: string | undefined,
+  position: Position,
+  size: Size
+): void {
+  if (!storageKey) return;
+  try {
+    window.localStorage.setItem(
+      `panel-state-${storageKey}`,
+      JSON.stringify({ position, size })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function shouldIgnoreDrag(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("button, [role='button'], input, textarea, select"));
+}
+
 function getButtonDefaults(p: BasePanelProps) {
   return {
     onPrimaryClick: p.onPrimaryClick ?? noop,
@@ -195,74 +156,217 @@ function getButtonDefaults(p: BasePanelProps) {
   };
 }
 
-function getSizeDefaults(p: BasePanelProps) {
-  return {
-    width: p.width ?? DEFAULT_WIDTH,
-    initialPosition: p.initialPosition, // undefined = center the panel
-    backdrop: p.backdrop ?? false,
-    zIndex: p.zIndex ?? 21,
-    resizable: p.resizable ?? true,
-    minWidth: p.minWidth ?? MIN_WIDTH,
-    minHeight: p.minHeight ?? MIN_HEIGHT
-  };
-}
-
 export function BasePanel(props: Readonly<BasePanelProps>): React.ReactElement | null {
-  const { title, isVisible, onClose, children, storageKey, height, testId } = props;
-  const btn = getButtonDefaults(props);
-  const sz = getSizeDefaults(props);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const { position, isDragging, handleMouseDown } = usePanelDrag({
-    storageKey,
-    initialPosition: sz.initialPosition,
-    panelWidth: sz.width
-  });
-  const { size, isResizing, handleResizeStart } = usePanelResize(
-    storageKey,
-    sz.width,
+  const {
+    title,
+    isVisible,
+    onClose,
+    children,
     height,
-    position,
-    sz.minWidth,
-    sz.minHeight,
-    panelRef
+    width = DEFAULT_WIDTH,
+    minWidth = MIN_WIDTH,
+    minHeight = MIN_HEIGHT,
+    initialPosition,
+    backdrop = false,
+    zIndex = 1300,
+    testId,
+    storageKey,
+    resizable = true
+  } = props;
+  const btn = getButtonDefaults(props);
+
+  const fallbackPosition = useMemo(
+    () => resolvePosition(initialPosition, width),
+    [initialPosition, width]
   );
+  const fallbackSize = useMemo<Size>(() => ({ width, height }), [width, height]);
+  const initialState = useMemo(
+    () => loadPanelState(storageKey, fallbackPosition, fallbackSize, minWidth, minHeight),
+    [storageKey, fallbackPosition, fallbackSize, minWidth, minHeight]
+  );
+
+  const [position, setPosition] = useState<Position>(initialState.position);
+  const [size, setSize] = useState<Size>(initialState.size);
+  const positionRef = useRef(position);
+  const sizeRef = useRef(size);
+  const setPositionSafe = (next: Position) => {
+    positionRef.current = next;
+    setPosition(next);
+  };
+
+  const setSizeSafe = (next: Size) => {
+    sizeRef.current = next;
+    setSize(next);
+  };
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const dragRef = useRef<{ startX: number; startY: number; origin: Position } | null>(null);
+  const resizeRef = useRef<{ startX: number; startY: number; origin: Size } | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setPositionSafe(clampPosition(positionRef.current, sizeRef.current));
+      setSizeSafe(clampSize(sizeRef.current, minWidth, minHeight, positionRef.current));
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [minWidth, minHeight]);
+
+  const handleDragStart = (event: React.PointerEvent) => {
+    if (event.button !== 0) return;
+    if (shouldIgnoreDrag(event.target)) return;
+    event.preventDefault();
+    setIsDragging(true);
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: positionRef.current
+    };
+    const handleMove = (moveEvent: PointerEvent) => {
+      if (!dragRef.current) return;
+      const next = {
+        x: dragRef.current.origin.x + (moveEvent.clientX - dragRef.current.startX),
+        y: dragRef.current.origin.y + (moveEvent.clientY - dragRef.current.startY)
+      };
+      setPositionSafe(clampPosition(next, sizeRef.current));
+    };
+    const handleUp = () => {
+      setIsDragging(false);
+      dragRef.current = null;
+      savePanelState(storageKey, positionRef.current, sizeRef.current);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  };
+
+  const handleResizeStart = (event: React.PointerEvent) => {
+    if (!resizable || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setIsResizing(true);
+    resizeRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: sizeRef.current
+    };
+    const handleMove = (moveEvent: PointerEvent) => {
+      if (!resizeRef.current) return;
+      const deltaX = moveEvent.clientX - resizeRef.current.startX;
+      const deltaY = moveEvent.clientY - resizeRef.current.startY;
+      const nextSize: Size = {
+        width: resizeRef.current.origin.width + deltaX,
+        height:
+          (resizeRef.current.origin.height ?? DEFAULT_PANEL_HEIGHT) + deltaY
+      };
+      setSizeSafe(clampSize(nextSize, minWidth, minHeight, positionRef.current));
+    };
+    const handleUp = () => {
+      setIsResizing(false);
+      resizeRef.current = null;
+      savePanelState(storageKey, positionRef.current, sizeRef.current);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  };
 
   if (!isVisible) return null;
 
-  const maxH = size.height ? undefined : `calc(100vh - ${position.y}px - 20px)`;
-  const style = {
-    left: position.x,
-    top: position.y,
-    width: size.width,
-    height: size.height,
-    maxHeight: maxH,
-    zIndex: sz.zIndex
-  };
-  const cls = `panel panel-overlay panel-editor fixed overflow-hidden flex flex-col${isResizing ? " panel-resizing" : ""}`;
-
   return (
-    <>
-      {sz.backdrop && <Backdrop zIndex={sz.zIndex} onClick={onClose} />}
-      <div ref={panelRef} className={cls} style={style} data-testid={testId}>
-        <PanelHeader
-          title={title}
-          isDragging={isDragging}
-          onMouseDown={handleMouseDown}
-          onClose={onClose}
+    <Portal>
+      {backdrop && (
+        <Box
+          onClick={onClose}
+          sx={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.3)",
+            zIndex: zIndex - 1
+          }}
         />
-        <div className="panel-block p-4 overflow-y-auto flex-1 min-h-0">{children}</div>
+      )}
+      <Paper
+        elevation={8}
+        data-testid={testId}
+        sx={{
+          position: "fixed",
+          left: position.x,
+          top: position.y,
+          width: size.width,
+          height: size.height ?? "auto",
+          maxHeight: `calc(100vh - ${position.y + 16}px)`,
+          minWidth,
+          minHeight,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          border: "1px solid var(--vscode-panel-border)",
+          userSelect: isDragging || isResizing ? "none" : "auto",
+          zIndex
+        }}
+      >
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: isDragging ? "grabbing" : "grab"
+          }}
+          onPointerDown={handleDragStart}
+        >
+          <Typography variant="subtitle1" fontWeight={600}>
+            {title}
+          </Typography>
+          <IconButton size="small" onClick={onClose} aria-label="Close">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+        <Divider />
+        <Box sx={{ p: 2, overflow: "auto", flex: 1, minHeight: 0 }}>{children}</Box>
         {btn.footer && (
-          <PanelFooter
-            hasChanges={btn.hasChanges}
-            onPrimary={btn.onPrimaryClick}
-            onSecondary={btn.onSecondaryClick}
-            primary={btn.primaryLabel}
-            secondary={btn.secondaryLabel}
+          <>
+            <Divider />
+            <Stack direction="row" spacing={1} sx={{ p: 2, justifyContent: "flex-end" }}>
+              <Button
+                variant={btn.hasChanges ? "contained" : "outlined"}
+                color={btn.hasChanges ? "warning" : "secondary"}
+                onClick={btn.onSecondaryClick}
+                data-testid="panel-apply-btn"
+              >
+                {btn.secondaryLabel}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={btn.onPrimaryClick}
+                data-testid="panel-ok-btn"
+              >
+                {btn.primaryLabel}
+              </Button>
+            </Stack>
+          </>
+        )}
+        {resizable && (
+          <Box
+            onPointerDown={handleResizeStart}
+            sx={{
+              position: "absolute",
+              right: 6,
+              bottom: 6,
+              width: 14,
+              height: 14,
+              cursor: "nwse-resize",
+              borderRight: "2px solid var(--vscode-panel-border)",
+              borderBottom: "2px solid var(--vscode-panel-border)"
+            }}
           />
         )}
-        {sz.resizable && <ResizeHandle onMouseDown={handleResizeStart} />}
-      </div>
-    </>
+      </Paper>
+    </Portal>
   );
 }

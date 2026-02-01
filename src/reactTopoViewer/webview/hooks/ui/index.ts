@@ -13,13 +13,9 @@ export {
 export type { DeploymentCommands, PanelVisibility } from "./usePanelCommands";
 
 // ============================================================================
-// Panel Visibility & Drag
+// Panel Visibility & Feedback
 // ============================================================================
-export {
-  usePanelDrag,
-  useShakeAnimation
-} from "./usePanelDrag";
-export type { Position, UsePanelDragOptions, UsePanelDragReturn } from "./usePanelDrag";
+export { useShakeAnimation } from "./useShakeAnimation";
 
 // ============================================================================
 // Keyboard & Shortcuts
@@ -53,11 +49,6 @@ export type {
   DropdownKeyboardActions,
   DropdownKeyboardState
 } from "./useDropdown";
-export { useFilterableDropdown } from "./useFilterableDropdown";
-export type {
-  FilterableDropdownOption,
-  UseFilterableDropdownReturn
-} from "./useFilterableDropdown";
 
 // ============================================================================
 // App State (Layout & Context Menu)

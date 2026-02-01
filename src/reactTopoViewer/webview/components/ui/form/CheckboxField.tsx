@@ -2,6 +2,7 @@
  * CheckboxField - Checkbox with label
  */
 import React from "react";
+import { Checkbox, FormControlLabel } from "@mui/material";
 
 interface CheckboxFieldProps {
   id: string;
@@ -20,17 +21,17 @@ export const CheckboxField: React.FC<CheckboxFieldProps> = ({
   className = "",
   disabled
 }) => (
-  <div className={`flex items-center ${className}`}>
-    <input
-      type="checkbox"
-      id={id}
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      className="vscode-checkbox mr-2"
-      disabled={disabled}
-    />
-    <label htmlFor={id} className="checkbox-label">
-      {label}
-    </label>
-  </div>
+  <FormControlLabel
+    className={className}
+    control={
+      <Checkbox
+        id={id}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        size="small"
+      />
+    }
+    label={label}
+  />
 );

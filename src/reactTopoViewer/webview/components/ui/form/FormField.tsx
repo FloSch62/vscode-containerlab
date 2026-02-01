@@ -2,6 +2,8 @@
  * FormField - Label wrapper with optional tooltip and inheritance badge
  */
 import React from "react";
+import { FormControl, FormLabel, IconButton, Tooltip } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import { InheritanceBadge } from "./Badge";
 
@@ -25,32 +27,33 @@ export const FormField: React.FC<FormFieldProps> = ({
   required,
   inherited
 }) => (
-  <div className={`form-group ${className}`}>
-    <label className="block field-label mb-1">
+  <FormControl fullWidth className={className} sx={{ gap: 0.5 }}>
+    <FormLabel
+      sx={{
+        color: "var(--vscode-descriptionForeground)",
+        display: "flex",
+        alignItems: "center",
+        gap: 0.5,
+        fontSize: 12
+      }}
+    >
       {label}
-      {unit && <span className="ml-1 normal-case">({unit})</span>}
-      {required && <span className="text-[var(--vscode-editorError-foreground)] ml-0.5">*</span>}
+      {unit && <span>({unit})</span>}
+      {required && <span style={{ color: "var(--vscode-editorError-foreground)" }}>*</span>}
       {inherited && <InheritanceBadge />}
       {tooltip && <TooltipIcon tooltip={tooltip} label={label} />}
-    </label>
+    </FormLabel>
     {children}
-  </div>
+  </FormControl>
 );
 
 /**
  * Tooltip icon with hover popup
  */
 const TooltipIcon: React.FC<{ tooltip: string; label: string }> = ({ tooltip, label }) => (
-  <span className="relative inline-flex items-center ml-1 group">
-    <button
-      type="button"
-      className="inline-flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-      aria-label={`${label} help`}
-    >
-      <i className="fas fa-info-circle text-xs" aria-hidden="true"></i>
-    </button>
-    <span className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-sm border border-[var(--vscode-editorHoverWidget-border)] bg-[var(--vscode-editorHoverWidget-background)] px-3 py-2 text-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-      {tooltip}
-    </span>
-  </span>
+  <Tooltip title={tooltip} placement="top">
+    <IconButton size="small" aria-label={`${label} help`}>
+      <InfoOutlinedIcon fontSize="inherit" />
+    </IconButton>
+  </Tooltip>
 );

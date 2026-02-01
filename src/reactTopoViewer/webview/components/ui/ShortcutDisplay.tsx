@@ -1,8 +1,8 @@
 /**
- * ShortcutDisplay - Visual feedback for keyboard/mouse shortcuts
- * Displays detected input events as floating labels
+ * ShortcutDisplay - MUI chip stack for shortcut feedback.
  */
 import React from "react";
+import { Chip, Stack } from "@mui/material";
 
 interface ShortcutDisplayItem {
   id: number;
@@ -17,15 +17,30 @@ export const ShortcutDisplay: React.FC<ShortcutDisplayProps> = ({ shortcuts }) =
   if (shortcuts.length === 0) return null;
 
   return (
-    <div className="shortcut-display fixed bottom-4 left-4 flex flex-col-reverse items-start gap-1 z-[100000] pointer-events-none">
+    <Stack
+      spacing={1}
+      direction="column-reverse"
+      sx={{
+        position: "fixed",
+        bottom: 16,
+        left: 16,
+        zIndex: 100000,
+        pointerEvents: "none",
+        alignItems: "flex-start"
+      }}
+    >
       {shortcuts.map((shortcut) => (
-        <div
+        <Chip
           key={shortcut.id}
-          className="shortcut-display-item px-4 py-1.5 rounded-lg shadow-md font-sans text-sm tracking-wide animate-shortcut-fade"
-        >
-          {shortcut.text}
-        </div>
+          label={shortcut.text}
+          size="small"
+          sx={{
+            fontSize: 12,
+            backgroundColor: "var(--vscode-editorHoverWidget-background)",
+            color: "var(--vscode-editor-foreground)"
+          }}
+        />
       ))}
-    </div>
+    </Stack>
   );
 };

@@ -1,7 +1,8 @@
 /**
- * Toast Component - Simple notification toast
+ * Toast Component - MUI Snackbar/Alert notifications.
  */
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useState } from "react";
+import { Alert, Snackbar } from "@mui/material";
 
 export interface ToastMessage {
   id: string;
@@ -13,37 +14,29 @@ export interface ToastMessage {
 interface ToastProps {
   toast: ToastMessage;
   onDismiss: (id: string) => void;
+  offset: number;
 }
 
-const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
-  const [isExiting, setIsExiting] = useState(false);
-  const duration = toast.duration ?? 3000;
-
-  useEffect(() => {
-    const exitTimer = setTimeout(() => {
-      setIsExiting(true);
-    }, duration - 200);
-
-    const dismissTimer = setTimeout(() => {
+const Toast: React.FC<ToastProps> = ({ toast, onDismiss, offset }) => (
+  <Snackbar
+    open
+    autoHideDuration={toast.duration ?? 3000}
+    onClose={(_, reason) => {
+      if (reason === "clickaway") return;
       onDismiss(toast.id);
-    }, duration);
-
-    return () => {
-      clearTimeout(exitTimer);
-      clearTimeout(dismissTimer);
-    };
-  }, [toast.id, duration, onDismiss]);
-
-  const typeClass = `toast--${toast.type ?? "info"}`;
-  const exitClass = isExiting ? "toast--exiting" : "";
-
-  return (
-    <div className={`toast ${typeClass} ${exitClass}`} role="alert" data-testid="toast">
-      <i className="toast-icon fas fa-info-circle" aria-hidden="true" />
-      <span className="toast-message">{toast.message}</span>
-    </div>
-  );
-};
+    }}
+    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+    sx={{ mb: offset }}
+  >
+    <Alert
+      severity={toast.type ?? "info"}
+      variant="filled"
+      onClose={() => onDismiss(toast.id)}
+    >
+      {toast.message}
+    </Alert>
+  </Snackbar>
+);
 
 interface ToastContainerProps {
   toasts: ToastMessage[];
@@ -54,11 +47,11 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
   if (toasts.length === 0) return null;
 
   return (
-    <div className="toast-container" data-testid="toast-container">
-      {toasts.map((toast) => (
-        <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />
+    <>
+      {toasts.map((toast, index) => (
+        <Toast key={toast.id} toast={toast} onDismiss={onDismiss} offset={index * 7} />
       ))}
-    </div>
+    </>
   );
 };
 

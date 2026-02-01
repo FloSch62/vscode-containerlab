@@ -2,6 +2,7 @@
  * InputField - Text or number input
  */
 import React from "react";
+import { TextField } from "@mui/material";
 
 interface InputFieldProps {
   id: string;
@@ -28,16 +29,16 @@ export const InputField: React.FC<InputFieldProps> = ({
   className = "",
   disabled
 }) => (
-  <input
-    type={type}
+  <TextField
     id={id}
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className={`input-field w-full ${className}`}
     placeholder={placeholder}
-    min={min}
-    max={max}
-    step={step}
+    type={type}
+    size="small"
+    className={className}
+    inputProps={{ min, max, step }}
     disabled={disabled}
+    fullWidth
   />
 );

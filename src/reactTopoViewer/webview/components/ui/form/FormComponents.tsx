@@ -3,6 +3,7 @@
  * Used by FreeShape, FreeText, and Group editors
  */
 import React from "react";
+import { Box, InputAdornment, MenuItem, Slider, TextField, ToggleButton } from "@mui/material";
 
 import { normalizeHexColor } from "../../../utils/color";
 
@@ -14,17 +15,18 @@ export const Toggle: React.FC<{
   onClick: () => void;
   children: React.ReactNode;
 }> = ({ active, onClick, children }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`px-3 py-1.5 text-[11px] font-medium rounded-sm transition-all duration-150 ${
-      active
-        ? "bg-[var(--accent)] text-white shadow-sm"
-        : "bg-white/5 text-[var(--vscode-foreground)] hover:bg-white/10 border border-white/10"
-    }`}
+  <ToggleButton
+    value="toggle"
+    selected={active}
+    size="small"
+    onChange={onClick}
+    sx={{
+      textTransform: "none",
+      fontSize: 11
+    }}
   >
     {children}
-  </button>
+  </ToggleButton>
 );
 
 /**
@@ -38,20 +40,27 @@ export const ColorSwatch: React.FC<{
 }> = ({ label, value, onChange, disabled }) => {
   const inputValue = normalizeHexColor(value);
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="field-label">{label}</span>
-      <div
-        className={`relative w-[30px] h-[30px] rounded-sm overflow-hidden border border-white/10 hover:border-white/20 transition-colors ${disabled ? "opacity-40" : ""}`}
-      >
-        <input
-          type="color"
-          value={inputValue}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer border-0"
-        />
-      </div>
-    </div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Box component="span" sx={{ fontSize: 12, color: "var(--vscode-descriptionForeground)" }}>
+        {label}
+      </Box>
+      <Box
+        component="input"
+        type="color"
+        value={inputValue}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        sx={{
+          width: 32,
+          height: 32,
+          cursor: "pointer",
+          border: "1px solid var(--vscode-input-border)",
+          borderRadius: 1,
+          backgroundColor: "var(--vscode-input-background)",
+          opacity: disabled ? 0.4 : 1
+        }}
+      />
+    </Box>
   );
 };
 
@@ -67,25 +76,17 @@ export const NumberInput: React.FC<{
   step?: number;
   unit?: string;
 }> = ({ label, value, onChange, min = 0, max = 999, step = 1, unit }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="field-label">{label}</span>
-    <div className="relative">
-      <input
-        type="number"
-        className="w-full px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs text-center hover:border-white/20 transition-colors"
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        min={min}
-        max={max}
-        step={step}
-      />
-      {unit && (
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--vscode-descriptionForeground)] pointer-events-none">
-          {unit}
-        </span>
-      )}
-    </div>
-  </div>
+  <TextField
+    label={label}
+    size="small"
+    type="number"
+    value={value}
+    onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+    inputProps={{ min, max, step }}
+    InputProps={{
+      endAdornment: unit ? <InputAdornment position="end">{unit}</InputAdornment> : undefined
+    }}
+  />
 );
 
 /**
@@ -97,16 +98,13 @@ export const TextInput: React.FC<{
   onChange: (v: string) => void;
   placeholder?: string;
 }> = ({ label, value, onChange, placeholder }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="field-label">{label}</span>
-    <input
-      type="text"
-      className="w-full px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs hover:border-white/20 transition-colors"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-    />
-  </div>
+  <TextField
+    label={label}
+    size="small"
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    placeholder={placeholder}
+  />
 );
 
 /**
@@ -118,20 +116,19 @@ export const SelectInput: React.FC<{
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }> = ({ label, value, onChange, options }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="field-label">{label}</span>
-    <select
-      className="w-full px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs cursor-pointer hover:border-white/20 transition-colors"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
-  </div>
+  <TextField
+    label={label}
+    size="small"
+    select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+  >
+    {options.map((opt) => (
+      <MenuItem key={opt.value} value={opt.value}>
+        {opt.label}
+      </MenuItem>
+    ))}
+  </TextField>
 );
 
 /**
@@ -145,25 +142,22 @@ export const RangeSlider: React.FC<{
   max?: number;
   unit?: string;
 }> = ({ label, value, onChange, min = 0, max = 100, unit = "%" }) => (
-  <div className="flex flex-col gap-0.5 flex-1 min-w-[120px]">
-    <div className="flex justify-between">
-      <span className="field-label">{label}</span>
-      <span className="field-label">
+  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 140, flex: 1 }}>
+    <Box sx={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+      <span>{label}</span>
+      <span>
         {value}
         {unit}
       </span>
-    </div>
-    <div className="flex items-center h-[30px]">
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value))}
-        className="w-full h-2 bg-white/10 rounded-sm appearance-none cursor-pointer"
-      />
-    </div>
-  </div>
+    </Box>
+    <Slider
+      size="small"
+      min={min}
+      max={max}
+      value={value}
+      onChange={(_, newValue) => onChange(newValue as number)}
+    />
+  </Box>
 );
 
 /**

@@ -50,7 +50,8 @@
   --error: var(--vscode-charts-red);
   --info: var(--vscode-charts-blue);
   /* Navbar height for viewport offset */
-  --navbar-height: 4.5rem;
+  --navbar-height: 52px;
+  --navbar-offset: var(--navbar-height);
 }
 
 @layer base {

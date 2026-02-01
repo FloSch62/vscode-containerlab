@@ -2,6 +2,7 @@
  * Section - Bordered section with title and optional inheritance badge
  */
 import React from "react";
+import { Box, Typography } from "@mui/material";
 
 import { InheritanceBadge } from "./Badge";
 
@@ -21,14 +22,21 @@ export const Section: React.FC<SectionProps> = ({
   hasBorder = true,
   inherited
 }) => (
-  <div
-    className={`${hasBorder ? "border-b pb-3 mb-3" : ""} ${className}`}
-    style={hasBorder ? { borderColor: "var(--vscode-panel-border)" } : undefined}
+  <Box
+    className={className}
+    sx={{
+      pb: hasBorder ? 2 : 0,
+      mb: hasBorder ? 2 : 0,
+      borderBottom: hasBorder ? "1px solid var(--vscode-panel-border)" : "none"
+    }}
   >
-    <h3 className="section-header">
+    <Typography
+      variant="subtitle2"
+      sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+    >
       {title}
       {inherited && <InheritanceBadge />}
-    </h3>
+    </Typography>
     {children}
-  </div>
+  </Box>
 );

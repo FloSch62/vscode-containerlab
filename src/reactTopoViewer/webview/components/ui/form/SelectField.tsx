@@ -2,6 +2,7 @@
  * SelectField - Dropdown select
  */
 import React from "react";
+import { MenuItem, TextField } from "@mui/material";
 
 export interface SelectOption {
   value: string;
@@ -27,18 +28,25 @@ export const SelectField: React.FC<SelectFieldProps> = ({
   className = "",
   disabled
 }) => (
-  <select
+  <TextField
     id={id}
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className={`input-field w-full ${className}`}
+    select
+    size="small"
+    className={className}
     disabled={disabled}
+    fullWidth
   >
-    {placeholder && <option value="">{placeholder}</option>}
+    {placeholder && (
+      <MenuItem value="" disabled>
+        {placeholder}
+      </MenuItem>
+    )}
     {options.map((opt) => (
-      <option key={opt.value} value={opt.value}>
+      <MenuItem key={opt.value} value={opt.value}>
         {opt.label}
-      </option>
+      </MenuItem>
     ))}
-  </select>
+  </TextField>
 );

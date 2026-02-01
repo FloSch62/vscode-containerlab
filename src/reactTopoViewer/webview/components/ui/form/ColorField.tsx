@@ -2,6 +2,7 @@
  * ColorField - Color picker input with hex display
  */
 import React from "react";
+import { Box, Stack, TextField } from "@mui/material";
 
 interface ColorFieldProps {
   id: string;
@@ -30,24 +31,33 @@ export const ColorField: React.FC<ColorFieldProps> = ({
   };
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <input
+    <Stack direction="row" spacing={1} alignItems="center" className={className}>
+      <Box
+        component="input"
         type="color"
         id={id}
         value={value || "#000000"}
         onChange={handleColorChange}
-        className="input-field h-8 w-14 cursor-pointer border border-gray-500 p-1"
+        sx={{
+          width: 56,
+          height: 32,
+          cursor: "pointer",
+          border: "1px solid var(--vscode-input-border)",
+          borderRadius: 1,
+          padding: 0.5,
+          backgroundColor: "var(--vscode-input-background)"
+        }}
       />
       {showHex && (
-        <input
-          type="text"
+        <TextField
+          size="small"
           value={value || ""}
           onChange={handleHexChange}
-          className="input-field flex-1"
           placeholder="#000000"
-          maxLength={7}
+          inputProps={{ maxLength: 7 }}
+          fullWidth
         />
       )}
-    </div>
+    </Stack>
   );
 };

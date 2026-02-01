@@ -57,7 +57,7 @@
     );
   }
 
-  .btn-icon.lock-shake {
+  .lock-shake {
     animation: lock-shake 0.3s;
   }
 
