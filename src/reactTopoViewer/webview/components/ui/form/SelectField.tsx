@@ -15,7 +15,6 @@ interface SelectFieldProps {
   onChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
-  className?: string;
   disabled?: boolean;
 }
 
@@ -25,7 +24,6 @@ export const SelectField: React.FC<SelectFieldProps> = ({
   onChange,
   options,
   placeholder,
-  className = "",
   disabled
 }) => (
   <TextField
@@ -33,8 +31,6 @@ export const SelectField: React.FC<SelectFieldProps> = ({
     value={value}
     onChange={(e) => onChange(e.target.value)}
     select
-    size="small"
-    className={className}
     disabled={disabled}
     fullWidth
   >

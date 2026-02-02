@@ -3,6 +3,12 @@
  * Handles CPM, Card, SFM, MDA, XIOM configuration for nokia_srsim nodes
  */
 import React, { useCallback, useState } from "react";
+import { Box, Button, Grid, IconButton, Stack, Typography } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import DeviceHubIcon from "@mui/icons-material/DeviceHub";
+import StorageIcon from "@mui/icons-material/Storage";
 
 import { FormField, InputField, SelectField, Section } from "../../ui/form";
 import { useSchema, type SrosComponentTypes } from "../../../hooks/editor";
@@ -32,21 +38,62 @@ const toSelectOptions = (types: string[]): Array<{ value: string; label: string 
 // Shared Component Styles
 // ============================================================================
 
-const cardStyles = {
-  container:
-    "bg-[var(--vscode-editor-background)] border border-[var(--vscode-panel-border)] rounded-sm overflow-hidden",
-  header:
-    "flex items-center justify-between px-3 py-2 bg-[var(--vscode-sideBar-background)] cursor-pointer select-none hover:bg-[var(--vscode-list-hoverBackground)] transition-colors",
-  headerTitle: "flex items-center gap-2 font-medium text-sm",
-  body: "p-3 space-y-3 border-t border-[var(--vscode-panel-border)]",
-  deleteBtn:
-    "flex items-center justify-center w-6 h-6 rounded-sm hover:bg-[var(--vscode-toolbar-hoverBackground)] text-[var(--vscode-errorForeground)] transition-colors",
-  addBtn:
-    "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-sm bg-[var(--vscode-button-secondaryBackground)] text-[var(--vscode-button-secondaryForeground)] hover:bg-[var(--vscode-button-secondaryHoverBackground)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-  subSection: "mt-3 pt-3 border-t border-[var(--vscode-panel-border)]",
-  subSectionTitle: "text-xs font-medium text-[var(--vscode-foreground)] mb-2",
-  badge:
-    "px-1.5 py-0.5 text-[10px] font-medium rounded-sm bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]"
+const cardSx = {
+  container: {
+    bgcolor: "var(--vscode-editor-background)",
+    border: "1px solid",
+    borderColor: "divider",
+    borderRadius: 1,
+    overflow: "hidden"
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    px: 2,
+    py: 1,
+    bgcolor: "var(--vscode-sideBar-background)",
+    cursor: "pointer",
+    userSelect: "none",
+    transition: "background-color 120ms",
+    "&:hover": { bgcolor: "var(--vscode-list-hoverBackground)" }
+  },
+  headerTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 1,
+    fontWeight: 600,
+    fontSize: "0.875rem"
+  },
+  body: {
+    p: 2,
+    borderTop: "1px solid",
+    borderColor: "divider",
+    display: "flex",
+    flexDirection: "column",
+    gap: 2
+  },
+  subSection: {
+    mt: 2,
+    pt: 2,
+    borderTop: "1px solid",
+    borderColor: "divider"
+  },
+  subSectionTitle: {
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    color: "var(--vscode-foreground)",
+    mb: 1
+  },
+  badge: {
+    px: 0.75,
+    py: 0.25,
+    fontSize: "0.625rem",
+    fontWeight: 600,
+    borderRadius: 0.5,
+    bgcolor: "var(--vscode-badge-background)",
+    color: "var(--vscode-badge-foreground)"
+  }
 };
 
 // ============================================================================
@@ -70,9 +117,19 @@ const MdaEntry: React.FC<MdaEntryProps> = ({
   onRemove,
   slotPrefix = ""
 }) => (
-  <div className="flex items-center gap-2 py-2 px-2 rounded-sm bg-[var(--vscode-input-background)] border border-[var(--vscode-input-border)]">
-    {slotPrefix && <span className={cardStyles.badge}>{slotPrefix}</span>}
-    <div className="w-14">
+  <Stack
+    direction="row"
+    spacing={1}
+    alignItems="center"
+    sx={{
+      p: 1,
+      borderRadius: 1,
+      bgcolor: "var(--vscode-input-background)",
+      border: "1px solid var(--vscode-input-border)"
+    }}
+  >
+    {slotPrefix && <Box component="span" sx={cardSx.badge}>{slotPrefix}</Box>}
+    <Box sx={{ width: 72 }}>
       <InputField
         id={`mda-slot-${index}`}
         type="number"
@@ -81,24 +138,19 @@ const MdaEntry: React.FC<MdaEntryProps> = ({
         placeholder="Slot"
         min={1}
       />
-    </div>
-    <div className="flex-1">
+    </Box>
+    <Box sx={{ flex: 1 }}>
       <SelectField
         id={`mda-type-${index}`}
         value={mda.type || ""}
         onChange={(v) => onUpdate(index, { type: v })}
         options={toSelectOptions(mdaTypes)}
       />
-    </div>
-    <button
-      type="button"
-      onClick={() => onRemove(index)}
-      className={cardStyles.deleteBtn}
-      title="Remove MDA"
-    >
-      <i className="fas fa-trash" />
-    </button>
-  </div>
+    </Box>
+    <IconButton color="error" onClick={() => onRemove(index)} title="Remove MDA">
+      <DeleteOutlineIcon fontSize="small" />
+    </IconButton>
+  </Stack>
 );
 
 // ============================================================================
@@ -123,7 +175,7 @@ const MdaListSection: React.FC<MdaListSectionProps> = ({
   onAdd
 }) => (
   <>
-    <div className="space-y-2">
+    <Stack spacing={1}>
       {mdas.map((mda, mdaIdx) => (
         <MdaEntry
           key={mdaIdx}
@@ -135,11 +187,14 @@ const MdaListSection: React.FC<MdaListSectionProps> = ({
           onRemove={onRemove}
         />
       ))}
-    </div>
-    <button type="button" onClick={onAdd} className={`${cardStyles.addBtn} mt-2`}>
-      <i className="fas fa-plus" />
+    </Stack>
+    <Button variant="outlined"
+      onClick={onAdd}
+      startIcon={<AddIcon fontSize="small" />}
+      sx={{ mt: 1, alignSelf: "flex-start" }}
+    >
       Add MDA
-    </button>
+    </Button>
   </>
 );
 
@@ -210,54 +265,64 @@ const XiomEntry: React.FC<XiomEntryProps> = ({
   const mdaCount = xiom.mda?.length || 0;
 
   return (
-    <div className={cardStyles.container}>
-      <div className={cardStyles.header} onClick={() => setIsExpanded(!isExpanded)}>
-        <div className={cardStyles.headerTitle}>
-          <i className={`fas fa-chevron-${isExpanded ? "down" : "right"} text-xs`} />
-          <span className={cardStyles.badge}>{slotLabel}</span>
-          <span>XIOM</span>
+    <Box sx={cardSx.container}>
+      <Box sx={cardSx.header} onClick={() => setIsExpanded(!isExpanded)}>
+        <Box sx={cardSx.headerTitle}>
+          <ChevronRightIcon
+            sx={{
+              fontSize: 16,
+              transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+              transition: "transform 150ms"
+            }}
+          />
+          <Box component="span" sx={cardSx.badge}>
+            {slotLabel}
+          </Box>
+          <Typography variant="body2">XIOM</Typography>
           {mdaCount > 0 && (
-            <span className="text-xs text-[var(--vscode-descriptionForeground)]">
+            <Typography variant="caption" color="text.secondary">
               ({mdaCount} MDA{mdaCount !== 1 ? "s" : ""})
-            </span>
+            </Typography>
           )}
-        </div>
-        <button
-          type="button"
+        </Box>
+        <IconButton color="error"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(index);
           }}
-          className={cardStyles.deleteBtn}
           title="Remove XIOM"
         >
-          <i className="fas fa-trash" />
-        </button>
-      </div>
+          <DeleteOutlineIcon fontSize="small" />
+        </IconButton>
+      </Box>
 
       {isExpanded && (
-        <div className={cardStyles.body}>
-          <div className="grid grid-cols-2 gap-2">
-            <FormField label="Slot">
-              <SelectField
-                id={`xiom-slot-${index}`}
-                value={String(xiom.slot ?? 1)}
-                onChange={(v) => onUpdate(index, { slot: parseInt(v, 10) })}
-                options={[
-                  { value: "1", label: "x1" },
-                  { value: "2", label: "x2" }
-                ]}
-              />
-            </FormField>
-            <FormField label="Type">
-              <SelectField
-                id={`xiom-type-${index}`}
-                value={xiom.type || ""}
-                onChange={(v) => onUpdate(index, { type: v })}
-                options={toSelectOptions(srosTypes.xiom)}
-              />
-            </FormField>
-          </div>
+        <Box sx={cardSx.body}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormField label="Slot">
+                <SelectField
+                  id={`xiom-slot-${index}`}
+                  value={String(xiom.slot ?? 1)}
+                  onChange={(v) => onUpdate(index, { slot: parseInt(v, 10) })}
+                  options={[
+                    { value: "1", label: "x1" },
+                    { value: "2", label: "x2" }
+                  ]}
+                />
+              </FormField>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormField label="Type">
+                <SelectField
+                  id={`xiom-type-${index}`}
+                  value={xiom.type || ""}
+                  onChange={(v) => onUpdate(index, { type: v })}
+                  options={toSelectOptions(srosTypes.xiom)}
+                />
+              </FormField>
+            </Grid>
+          </Grid>
 
           <MdaSectionWrapper
             mdas={xiom.mda || []}
@@ -268,9 +333,9 @@ const XiomEntry: React.FC<XiomEntryProps> = ({
             onUpdateMda={onUpdateMda}
             onRemoveMda={onRemoveMda}
           />
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -314,29 +379,37 @@ const ComponentHeader: React.FC<{
   onToggle: () => void;
   onRemove: () => void;
 }> = ({ slot, isCpm, mdaCount, xiomCount, isExpanded, onToggle, onRemove }) => (
-  <div className={cardStyles.header} onClick={onToggle}>
-    <div className={cardStyles.headerTitle}>
-      <i className={`fas fa-chevron-${isExpanded ? "down" : "right"} text-xs`} />
-      <span className={cardStyles.badge}>{slot}</span>
-      <span>{isCpm ? "Control Processing Module" : "Line Card"}</span>
+  <Box sx={cardSx.header} onClick={onToggle}>
+    <Box sx={cardSx.headerTitle}>
+      <ChevronRightIcon
+        sx={{
+          fontSize: 16,
+          transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+          transition: "transform 150ms"
+        }}
+      />
+      <Box component="span" sx={cardSx.badge}>
+        {slot}
+      </Box>
+      <Typography variant="body2">
+        {isCpm ? "Control Processing Module" : "Line Card"}
+      </Typography>
       {!isCpm && (mdaCount > 0 || xiomCount > 0) && (
-        <span className="text-xs text-[var(--vscode-descriptionForeground)]">
+        <Typography variant="caption" color="text.secondary">
           ({mdaCount} MDA, {xiomCount} XIOM)
-        </span>
+        </Typography>
       )}
-    </div>
-    <button
-      type="button"
+    </Box>
+    <IconButton color="error"
       onClick={(e) => {
         e.stopPropagation();
         onRemove();
       }}
-      className={cardStyles.deleteBtn}
       title="Remove component"
     >
-      <i className="fas fa-trash" />
-    </button>
-  </div>
+      <DeleteOutlineIcon fontSize="small" />
+    </IconButton>
+  </Box>
 );
 
 /** Generic subsection wrapper with title */
@@ -344,10 +417,10 @@ const ComponentSubSection: React.FC<{
   title: string;
   children: React.ReactNode;
 }> = ({ title, children }) => (
-  <div className={cardStyles.subSection}>
-    <div className={cardStyles.subSectionTitle}>{title}</div>
+  <Box sx={cardSx.subSection}>
+    <Typography sx={cardSx.subSectionTitle}>{title}</Typography>
     {children}
-  </div>
+  </Box>
 );
 
 /** MDA section for a component */
@@ -396,7 +469,7 @@ const ComponentXiomSection: React.FC<
   onRemoveXiomMda
 }) => (
   <ComponentSubSection title="XIOM Extension Modules">
-    <div className="space-y-2">
+    <Stack spacing={1}>
       {(component.xiom || []).map((xiom, xiomIdx) => (
         <XiomEntry
           key={xiomIdx}
@@ -411,16 +484,15 @@ const ComponentXiomSection: React.FC<
           onRemoveMda={(xIdx, mIdx) => onRemoveXiomMda(index, xIdx, mIdx)}
         />
       ))}
-    </div>
+    </Stack>
     {(component.xiom?.length ?? 0) < 2 && (
-      <button
-        type="button"
+      <Button variant="outlined"
         onClick={() => onAddXiom(index)}
-        className={`${cardStyles.addBtn} mt-2`}
+        startIcon={<AddIcon fontSize="small" />}
+        sx={{ mt: 1, alignSelf: "flex-start" }}
       >
-        <i className="fas fa-plus" />
         Add XIOM
-      </button>
+      </Button>
     )}
   </ComponentSubSection>
 );
@@ -482,8 +554,10 @@ const ComponentSection: React.FC<ComponentSectionProps> = ({
   hasBorder = true
 }) => (
   <Section title={title} hasBorder={hasBorder}>
-    <p className="text-xs text-[var(--vscode-descriptionForeground)] mb-3">{description}</p>
-    <div className="space-y-2">
+    <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5 }}>
+      {description}
+    </Typography>
+    <Stack spacing={1}>
       {filteredComponents.map((comp) => {
         const realIndex = allComponents.indexOf(comp);
         return (
@@ -506,17 +580,16 @@ const ComponentSection: React.FC<ComponentSectionProps> = ({
           />
         );
       })}
-    </div>
-    <button
-      type="button"
+    </Stack>
+    <Button variant="outlined"
       onClick={onAdd}
       disabled={addDisabled}
-      className={`${cardStyles.addBtn} mt-3`}
       title={addDisabled ? addDisabledTitle : undefined}
+      startIcon={<AddIcon fontSize="small" />}
+      sx={{ mt: 2, alignSelf: "flex-start" }}
     >
-      <i className="fas fa-plus" />
       {addButtonLabel}
-    </button>
+    </Button>
   </Section>
 );
 
@@ -531,7 +604,7 @@ const ComponentEntry: React.FC<ComponentEntryProps> = (props) => {
   const typeOptions = isCpm ? srosTypes.cpm : srosTypes.card;
 
   return (
-    <div className={cardStyles.container}>
+    <Box sx={cardSx.container}>
       <ComponentHeader
         slot={component.slot}
         isCpm={isCpm}
@@ -543,31 +616,35 @@ const ComponentEntry: React.FC<ComponentEntryProps> = (props) => {
       />
 
       {isExpanded && (
-        <div className={cardStyles.body}>
-          <div className="grid grid-cols-2 gap-2">
-            <FormField label="Slot">
-              <InputField
-                id={`comp-slot-${index}`}
-                value={String(component.slot ?? "")}
-                onChange={(v) => onUpdate(index, { slot: v })}
-                placeholder={isCpm ? "A or B" : "1, 2, ..."}
-              />
-            </FormField>
-            <FormField label="Type">
-              <SelectField
-                id={`comp-type-${index}`}
-                value={component.type || ""}
-                onChange={(v) => onUpdate(index, { type: v })}
-                options={toSelectOptions(typeOptions)}
-              />
-            </FormField>
-          </div>
+        <Box sx={cardSx.body}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormField label="Slot">
+                <InputField
+                  id={`comp-slot-${index}`}
+                  value={String(component.slot ?? "")}
+                  onChange={(v) => onUpdate(index, { slot: v })}
+                  placeholder={isCpm ? "A or B" : "1, 2, ..."}
+                />
+              </FormField>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormField label="Type">
+                <SelectField
+                  id={`comp-type-${index}`}
+                  value={component.type || ""}
+                  onChange={(v) => onUpdate(index, { type: v })}
+                  options={toSelectOptions(typeOptions)}
+                />
+              </FormField>
+            </Grid>
+          </Grid>
 
           {!isCpm && <ComponentMdaSection {...props} />}
           {!isCpm && <ComponentXiomSection {...props} />}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -609,9 +686,9 @@ const IntegratedModeSection: React.FC<IntegratedModeSectionProps> = ({
 
   return (
     <Section title="MDA Configuration">
-      <p className="text-xs text-[var(--vscode-descriptionForeground)] mb-3">
+      <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5 }}>
         Configure MDA modules directly for integrated chassis
-      </p>
+      </Typography>
       <MdaListSection
         mdas={mdas}
         mdaTypes={srosTypes.mda}
@@ -781,9 +858,9 @@ const DistributedModeSection: React.FC<DistributedModeSectionProps> = ({
     <>
       {/* SFM Configuration */}
       <Section title="Switch Fabric Module (SFM)">
-        <p className="text-xs text-[var(--vscode-descriptionForeground)] mb-2">
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
           Override the default SFM type for all components
-        </p>
+        </Typography>
         <FormField label="SFM Type">
           <SelectField
             id="sfm-type"
@@ -847,23 +924,35 @@ export const ComponentsTab: React.FC<TabProps> = ({ data, onChange }) => {
   };
 
   return (
-    <div className="space-y-3">
-      {/* Mode indicator */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-sm bg-[var(--vscode-textBlockQuote-background)] border border-[var(--vscode-textBlockQuote-border)]">
-        <i
-          className={`fas ${isIntegrated ? "fa-server" : "fa-network-wired"} text-[var(--vscode-textLink-foreground)]`}
-        />
-        <div>
-          <div className="text-sm font-medium">
+    <Stack spacing={2}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          px: 2,
+          py: 1.5,
+          borderRadius: 1,
+          bgcolor: "var(--vscode-textBlockQuote-background)",
+          border: "1px solid var(--vscode-textBlockQuote-border)"
+        }}
+      >
+        {isIntegrated ? (
+          <StorageIcon sx={{ color: "var(--vscode-textLink-foreground)" }} />
+        ) : (
+          <DeviceHubIcon sx={{ color: "var(--vscode-textLink-foreground)" }} />
+        )}
+        <Box>
+          <Typography variant="subtitle2">
             {isIntegrated ? "Integrated Chassis" : "Distributed Chassis"}
-          </div>
-          <div className="text-xs text-[var(--vscode-descriptionForeground)]">
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
             {isIntegrated
               ? `Simplified MDA configuration for ${data.type}`
               : "Full component configuration with CPM, Cards, MDA, and XIOM"}
-          </div>
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </Box>
 
       {isIntegrated ? (
         <IntegratedModeSection
@@ -880,6 +969,6 @@ export const ComponentsTab: React.FC<TabProps> = ({ data, onChange }) => {
           onSfmChange={handleSfmChange}
         />
       )}
-    </div>
+    </Stack>
   );
 };

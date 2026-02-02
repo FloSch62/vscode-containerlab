@@ -10,7 +10,6 @@ import { InheritanceBadge } from "./Badge";
 interface FormFieldProps {
   label: string;
   children: React.ReactNode;
-  className?: string;
   unit?: string;
   tooltip?: string;
   required?: boolean;
@@ -21,13 +20,12 @@ interface FormFieldProps {
 export const FormField: React.FC<FormFieldProps> = ({
   label,
   children,
-  className = "",
   unit,
   tooltip,
   required,
   inherited
 }) => (
-  <FormControl fullWidth className={className} sx={{ gap: 0.5 }}>
+  <FormControl fullWidth sx={{ gap: 0.5 }}>
     <FormLabel
       sx={{
         color: "var(--vscode-descriptionForeground)",
@@ -52,7 +50,7 @@ export const FormField: React.FC<FormFieldProps> = ({
  */
 const TooltipIcon: React.FC<{ tooltip: string; label: string }> = ({ tooltip, label }) => (
   <Tooltip title={tooltip} placement="top">
-    <IconButton size="small" aria-label={`${label} help`}>
+    <IconButton aria-label={`${label} help`}>
       <InfoOutlinedIcon fontSize="inherit" />
     </IconButton>
   </Tooltip>

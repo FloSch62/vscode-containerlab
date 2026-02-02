@@ -10,7 +10,6 @@ import { Chip } from "@mui/material";
 export const InheritanceBadge: React.FC = () => (
   <Chip
     label="inherited"
-    size="small"
     sx={{
       ml: 1,
       height: 18,
@@ -27,7 +26,6 @@ export const InheritanceBadge: React.FC = () => (
 export const ReadOnlyBadge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Chip
     label={children}
-    size="small"
     variant="outlined"
     sx={{
       fontSize: 12,

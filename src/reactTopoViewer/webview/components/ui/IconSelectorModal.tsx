@@ -191,9 +191,7 @@ const IconTile = React.memo<IconTileProps>(function IconTile({
         </Typography>
       </ButtonBase>
       {isCustom && source === "global" && onDelete && (
-        <IconButton
-          size="small"
-          onClick={(e) => {
+        <IconButton onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
@@ -223,7 +221,7 @@ const ColorPicker: React.FC<{
   <Stack spacing={1}>
     <Typography variant="subtitle2">Icon Color</Typography>
     <Stack direction="row" spacing={1} alignItems="center">
-      <Checkbox checked={enabled} onChange={(e) => onToggle(e.target.checked)} size="small" />
+      <Checkbox checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
       <Box
         component="input"
         type="color"
@@ -241,9 +239,7 @@ const ColorPicker: React.FC<{
           backgroundColor: "var(--vscode-input-background)"
         }}
       />
-      <TextField
-        size="small"
-        value={enabled ? color : ""}
+      <TextField value={enabled ? color : ""}
         onChange={(e) => {
           if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) {
             onColorChange(e.target.value);
@@ -265,9 +261,7 @@ const RadiusSlider: React.FC<{ value: number; onChange: (v: number) => void }> =
 }) => (
   <Stack spacing={1}>
     <Typography variant="subtitle2">Corner Radius: {value}px</Typography>
-    <Slider
-      size="small"
-      min={0}
+    <Slider min={0}
       max={MAX_RADIUS}
       value={value}
       onChange={(_, newValue) => onChange(newValue as number)}
@@ -364,7 +358,7 @@ export const IconSelectorModal: React.FC<IconSelectorModalProps> = ({
             <Typography variant="subtitle2">Built-in Icons</Typography>
             <Grid container spacing={1}>
               {AVAILABLE_ICONS.map((i) => (
-                <Grid item xs={4} sm={3} md={2} key={i}>
+                <Grid size={{ xs: 4, sm: 3, md: 2 }} key={i}>
                   <IconTile
                     icon={i}
                     isSelected={icon === i}
@@ -380,14 +374,14 @@ export const IconSelectorModal: React.FC<IconSelectorModalProps> = ({
           <Stack spacing={1}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="subtitle2">Custom Icons</Typography>
-              <Button size="small" startIcon={<AddIcon />} onClick={handleUploadIcon}>
+              <Button startIcon={<AddIcon />} onClick={handleUploadIcon}>
                 Add
               </Button>
             </Stack>
             {customIcons.length > 0 ? (
               <Grid container spacing={1}>
                 {customIcons.map((ci) => (
-                  <Grid item xs={4} sm={3} md={2} key={ci.name}>
+                  <Grid size={{ xs: 4, sm: 3, md: 2 }} key={ci.name}>
                     <IconTile
                       icon={ci.name}
                       isSelected={icon === ci.name}
@@ -412,7 +406,7 @@ export const IconSelectorModal: React.FC<IconSelectorModalProps> = ({
           </Stack>
 
           <Grid container spacing={2}>
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <Stack spacing={2}>
                 {isBuiltInIcon(icon) ? (
                   <ColorPicker
@@ -429,7 +423,7 @@ export const IconSelectorModal: React.FC<IconSelectorModalProps> = ({
                 <RadiusSlider value={radius} onChange={setRadius} />
               </Stack>
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <PreviewCustom iconSrc={previewIconSrc} radius={radius} />
             </Grid>
           </Grid>

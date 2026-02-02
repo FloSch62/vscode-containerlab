@@ -3,23 +3,26 @@
  * SVG icon for Wireshark capture menu items
  */
 import React from "react";
+import { Box } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material/styles";
 
 // Import wireshark SVG
 import wiresharkSvg from "../../assets/images/wireshark_bold.svg";
 
 interface WiresharkIconProps {
-  className?: string;
+  sx?: SxProps<Theme>;
 }
 
-export const WiresharkIcon: React.FC<WiresharkIconProps> = ({ className }) => (
-  <img
+export const WiresharkIcon: React.FC<WiresharkIconProps> = ({ sx }) => (
+  <Box
+    component="img"
     src={wiresharkSvg}
-    className={className}
     alt="Wireshark"
-    style={{
+    sx={{
       width: "1em",
       height: "1em",
-      filter: "brightness(0) invert(1)"
+      filter: "brightness(0) invert(1)",
+      ...sx
     }}
   />
 );

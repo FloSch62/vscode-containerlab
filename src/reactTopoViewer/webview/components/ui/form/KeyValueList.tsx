@@ -95,7 +95,6 @@ const KeyValueItem: React.FC<KeyValueItemProps> = ({
 }) => (
   <Stack direction="row" spacing={1} alignItems="center">
     <TextField
-      size="small"
       value={itemKey}
       onChange={(e) => onKeyChange(e.target.value)}
       placeholder={keyPlaceholder}
@@ -103,7 +102,6 @@ const KeyValueItem: React.FC<KeyValueItemProps> = ({
       sx={{ width: "33%" }}
     />
     <TextField
-      size="small"
       value={value}
       onChange={(e) => onValueChange(e.target.value)}
       placeholder={valuePlaceholder}

@@ -9,7 +9,6 @@ interface CheckboxFieldProps {
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
-  className?: string;
   disabled?: boolean;
 }
 
@@ -18,18 +17,20 @@ export const CheckboxField: React.FC<CheckboxFieldProps> = ({
   label,
   checked,
   onChange,
-  className = "",
   disabled
 }) => (
   <FormControlLabel
-    className={className}
+    sx={{
+      m: 0,
+      minHeight: 28,
+      "& .MuiFormControlLabel-label": { lineHeight: 1.2 }
+    }}
     control={
       <Checkbox
         id={id}
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         disabled={disabled}
-        size="small"
       />
     }
     label={label}

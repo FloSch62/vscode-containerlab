@@ -72,7 +72,6 @@ const DynamicListItem: React.FC<DynamicListItemProps> = ({
 }) => (
   <Stack direction="row" spacing={1} alignItems="center">
     <TextField
-      size="small"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}

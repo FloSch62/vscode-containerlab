@@ -6,9 +6,10 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Stack } from "@mui/material";
 
 import { useStickerbushAudio } from "../audio";
-import { BTN_VISIBLE, BTN_HIDDEN, BTN_BLUR, lerpColor, useNodeGlow, MuteButton } from "../shared";
+import { lerpColor, ModeActionButton, useNodeGlow, MuteButton } from "../shared";
 import type { RGBColor, BaseModeProps } from "../shared";
 
 /** Forest/bramble color palette */
@@ -142,8 +143,14 @@ const StickerbushCanvas: React.FC<{
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[99998]"
-      style={{ width: "100%", height: "100%" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 99998
+      }}
     />
   );
 };
@@ -360,28 +367,34 @@ export const StickerbushMode: React.FC<BaseModeProps> = ({
         getCurrentSection={audio.getCurrentSection}
       />
 
-      <div className="fixed inset-0 pointer-events-none z-[99999] flex items-end justify-center pb-8 gap-4">
-        <button
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 99999,
+          alignItems: "flex-end",
+          justifyContent: "center",
+          pb: 4
+        }}
+      >
+        <ModeActionButton
           onClick={handleSwitch}
-          className={`px-6 py-2.5 rounded-full pointer-events-auto transition-all duration-500 ${
-            visible ? BTN_VISIBLE : BTN_HIDDEN
-          }`}
-          style={{
+          visible={visible}
+          title={`Current: ${modeName}`}
+          sx={{
             background:
               "linear-gradient(135deg, rgba(128, 0, 128, 0.6) 0%, rgba(150, 120, 182, 0.6) 100%)",
             border: "2px solid rgba(255, 215, 0, 0.5)",
             color: "#ffd700",
-            cursor: "pointer",
-            backdropFilter: BTN_BLUR,
-            fontSize: "14px",
-            fontWeight: 600,
             textShadow: "0 0 10px rgba(255, 215, 0, 0.8)",
             boxShadow: "0 0 20px rgba(128, 0, 128, 0.5), inset 0 0 20px rgba(255, 215, 0, 0.1)"
           }}
-          title={`Current: ${modeName}`}
         >
           Switch
-        </button>
+        </ModeActionButton>
         <MuteButton
           isMuted={audio.isMuted}
           onToggle={audio.toggleMute}
@@ -390,27 +403,21 @@ export const StickerbushMode: React.FC<BaseModeProps> = ({
           unmutedShadow="0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 20px rgba(128, 0, 128, 0.1)"
           borderColor="rgba(255, 215, 0, 0.5)"
         />
-        <button
+        <ModeActionButton
           onClick={handleClose}
-          className={`px-6 py-2.5 rounded-full pointer-events-auto transition-all duration-500 ${
-            visible ? BTN_VISIBLE : BTN_HIDDEN
-          }`}
-          style={{
+          visible={visible}
+          sx={{
             background:
               "linear-gradient(135deg, rgba(34, 139, 34, 0.8) 0%, rgba(128, 0, 128, 0.8) 100%)",
             border: "2px solid rgba(80, 200, 120, 0.5)",
             color: "#50c878",
-            cursor: "pointer",
-            backdropFilter: BTN_BLUR,
-            fontSize: "14px",
-            fontWeight: 600,
             textShadow: "0 0 10px rgba(80, 200, 120, 0.8)",
             boxShadow: "0 0 20px rgba(34, 139, 34, 0.5), inset 0 0 20px rgba(80, 200, 120, 0.1)"
           }}
         >
           End Stickerbrush
-        </button>
-      </div>
+        </ModeActionButton>
+      </Stack>
     </>
   );
 };

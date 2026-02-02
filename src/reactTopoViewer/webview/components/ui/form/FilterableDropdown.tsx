@@ -3,6 +3,7 @@
  */
 import React, { useMemo } from "react";
 import { Autocomplete, TextField } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material/styles";
 
 export interface FilterableDropdownOption {
   value: string;
@@ -17,9 +18,10 @@ interface FilterableDropdownProps {
   onChange: (value: string) => void;
   placeholder?: string;
   allowFreeText?: boolean;
-  className?: string;
   disabled?: boolean;
+  fullWidth?: boolean;
   renderOption?: (option: FilterableDropdownOption) => React.ReactNode;
+  listboxSx?: SxProps<Theme>;
 }
 
 export const FilterableDropdown: React.FC<FilterableDropdownProps> = ({
@@ -29,9 +31,10 @@ export const FilterableDropdown: React.FC<FilterableDropdownProps> = ({
   onChange,
   placeholder = "Type to filter...",
   allowFreeText = false,
-  className = "",
   disabled = false,
-  renderOption
+  fullWidth = true,
+  renderOption,
+  listboxSx
 }) => {
   const selected = useMemo(() => {
     const match = options.find((opt) => opt.value === value);
@@ -48,6 +51,7 @@ export const FilterableDropdown: React.FC<FilterableDropdownProps> = ({
       options={options}
       value={selected}
       freeSolo={allowFreeText}
+      fullWidth={fullWidth}
       disabled={disabled}
       getOptionDisabled={(option) => option.disabled ?? false}
       getOptionLabel={(option) =>
@@ -74,8 +78,9 @@ export const FilterableDropdown: React.FC<FilterableDropdownProps> = ({
           {renderOption ? renderOption(option) : option.label}
         </li>
       )}
+      ListboxProps={listboxSx ? { sx: listboxSx } : undefined}
       renderInput={(params) => (
-        <TextField {...params} placeholder={placeholder} size="small" className={className} />
+        <TextField {...params} placeholder={placeholder} fullWidth={fullWidth} />
       )}
     />
   );

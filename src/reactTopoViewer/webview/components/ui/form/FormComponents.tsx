@@ -15,16 +15,7 @@ export const Toggle: React.FC<{
   onClick: () => void;
   children: React.ReactNode;
 }> = ({ active, onClick, children }) => (
-  <ToggleButton
-    value="toggle"
-    selected={active}
-    size="small"
-    onChange={onClick}
-    sx={{
-      textTransform: "none",
-      fontSize: 11
-    }}
-  >
+  <ToggleButton value="toggle" selected={active} onChange={onClick}>
     {children}
   </ToggleButton>
 );
@@ -78,7 +69,6 @@ export const NumberInput: React.FC<{
 }> = ({ label, value, onChange, min = 0, max = 999, step = 1, unit }) => (
   <TextField
     label={label}
-    size="small"
     type="number"
     value={value}
     onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
@@ -100,7 +90,6 @@ export const TextInput: React.FC<{
 }> = ({ label, value, onChange, placeholder }) => (
   <TextField
     label={label}
-    size="small"
     value={value}
     onChange={(e) => onChange(e.target.value)}
     placeholder={placeholder}
@@ -118,7 +107,6 @@ export const SelectInput: React.FC<{
 }> = ({ label, value, onChange, options }) => (
   <TextField
     label={label}
-    size="small"
     select
     value={value}
     onChange={(e) => onChange(e.target.value)}
@@ -151,7 +139,6 @@ export const RangeSlider: React.FC<{
       </span>
     </Box>
     <Slider
-      size="small"
       min={min}
       max={max}
       value={value}
@@ -164,4 +151,4 @@ export const RangeSlider: React.FC<{
  * Grid pattern background for previews
  */
 export const PREVIEW_GRID_BG =
-  "bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cdefs%3E%3Cpattern%20id%3D%22grid%22%20width%3D%2220%22%20height%3D%2220%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M%200%200%20L%2020%200%2020%2020%22%20fill%3D%22none%22%20stroke%3D%22rgba(255%2C255%2C255%2C0.03)%22%20stroke-width%3D%221%22%2F%3E%3C%2Fpattern%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22url(%23grid)%22%2F%3E%3C%2Fsvg%3E')]";
+  "url('data:image/svg+xml,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cdefs%3E%3Cpattern%20id%3D%22grid%22%20width%3D%2220%22%20height%3D%2220%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M%200%200%20L%2020%200%2020%2020%22%20fill%3D%22none%22%20stroke%3D%22rgba(255%2C255%2C255%2C0.03)%22%20stroke-width%3D%221%22%2F%3E%3C%2Fpattern%3E%3C%2Fdefs%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22url(%23grid)%22%2F%3E%3C%2Fsvg%3E')";

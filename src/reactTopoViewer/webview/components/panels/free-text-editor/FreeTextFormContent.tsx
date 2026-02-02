@@ -3,6 +3,25 @@
  * Supports markdown rendering in preview
  */
 import React, { useMemo } from "react";
+import {
+  Box,
+  Button,
+  Divider,
+  InputAdornment,
+  MenuItem,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography
+} from "@mui/material";
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
+import FormatItalicIcon from "@mui/icons-material/FormatItalic";
+import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
+import FormatAlignLeftIcon from "@mui/icons-material/FormatAlignLeft";
+import FormatAlignCenterIcon from "@mui/icons-material/FormatAlignCenter";
+import FormatAlignRightIcon from "@mui/icons-material/FormatAlignRight";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import type { FreeTextAnnotation } from "../../../../shared/types/topology";
 import { renderMarkdown } from "../../../utils/markdownRenderer";
@@ -30,26 +49,6 @@ interface Props {
   onDelete?: () => void;
 }
 
-// Icon button for toolbar
-const IconBtn: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  title?: string;
-}> = ({ active, onClick, children, title }) => (
-  <button
-    title={title}
-    onClick={onClick}
-    className={`w-8 h-8 flex items-center justify-center rounded-sm transition-all duration-150 ${
-      active
-        ? "bg-[var(--accent)] text-white shadow-sm"
-        : "text-[var(--vscode-foreground)] hover:bg-white/10"
-    }`}
-  >
-    {children}
-  </button>
-);
-
 // Formatting toolbar
 const Toolbar: React.FC<{ formData: FreeTextAnnotation; updateField: Props["updateField"] }> = ({
   formData,
@@ -61,51 +60,58 @@ const Toolbar: React.FC<{ formData: FreeTextAnnotation; updateField: Props["upda
   const align = formData.textAlign || "left";
 
   return (
-    <div className="flex items-center gap-0.5 p-1.5 bg-black/20 rounded-sm backdrop-blur-sm">
-      <IconBtn
-        active={isBold}
-        onClick={() => updateField("fontWeight", isBold ? "normal" : "bold")}
-        title="Bold"
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      sx={{
+        p: 1,
+        borderRadius: 1,
+        bgcolor: "rgba(0,0,0,0.2)",
+        backdropFilter: "blur(6px)"
+      }}
+    >
+      <Stack direction="row" spacing={0.5}>
+        <ToggleButton
+          value="bold"
+          selected={isBold}
+          onChange={() => updateField("fontWeight", isBold ? "normal" : "bold")}
+        >
+          <FormatBoldIcon fontSize="small" />
+        </ToggleButton>
+        <ToggleButton
+          value="italic"
+          selected={isItalic}
+          onChange={() => updateField("fontStyle", isItalic ? "normal" : "italic")}
+        >
+          <FormatItalicIcon fontSize="small" />
+        </ToggleButton>
+        <ToggleButton
+          value="underline"
+          selected={isUnderline}
+          onChange={() => updateField("textDecoration", isUnderline ? "none" : "underline")}
+        >
+          <FormatUnderlinedIcon fontSize="small" />
+        </ToggleButton>
+      </Stack>
+      <Divider orientation="vertical" flexItem />
+      <ToggleButtonGroup exclusive
+        value={align}
+        onChange={(_, value) => {
+          if (value) updateField("textAlign", value);
+        }}
       >
-        <span className="font-bold text-sm">B</span>
-      </IconBtn>
-      <IconBtn
-        active={isItalic}
-        onClick={() => updateField("fontStyle", isItalic ? "normal" : "italic")}
-        title="Italic"
-      >
-        <span className="italic text-sm">I</span>
-      </IconBtn>
-      <IconBtn
-        active={isUnderline}
-        onClick={() => updateField("textDecoration", isUnderline ? "none" : "underline")}
-        title="Underline"
-      >
-        <span className="underline text-sm">U</span>
-      </IconBtn>
-      <div className="w-px h-6 bg-white/10 mx-1.5" />
-      <IconBtn
-        active={align === "left"}
-        onClick={() => updateField("textAlign", "left")}
-        title="Align Left"
-      >
-        <i className="fas fa-align-left text-xs" />
-      </IconBtn>
-      <IconBtn
-        active={align === "center"}
-        onClick={() => updateField("textAlign", "center")}
-        title="Align Center"
-      >
-        <i className="fas fa-align-center text-xs" />
-      </IconBtn>
-      <IconBtn
-        active={align === "right"}
-        onClick={() => updateField("textAlign", "right")}
-        title="Align Right"
-      >
-        <i className="fas fa-align-right text-xs" />
-      </IconBtn>
-    </div>
+        <ToggleButton value="left">
+          <FormatAlignLeftIcon fontSize="small" />
+        </ToggleButton>
+        <ToggleButton value="center">
+          <FormatAlignCenterIcon fontSize="small" />
+        </ToggleButton>
+        <ToggleButton value="right">
+          <FormatAlignRightIcon fontSize="small" />
+        </ToggleButton>
+      </ToggleButtonGroup>
+    </Stack>
   );
 };
 
@@ -114,36 +120,30 @@ const FontControls: React.FC<{
   formData: FreeTextAnnotation;
   updateField: Props["updateField"];
 }> = ({ formData, updateField }) => (
-  <div className="flex gap-2">
-    <select
-      className="flex-1 px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs cursor-pointer hover:border-white/20 transition-colors"
+  <Stack direction="row" spacing={2}>
+    <TextField select
+      fullWidth
+      label="Font"
       value={formData.fontFamily || "monospace"}
       onChange={(e) => updateField("fontFamily", e.target.value)}
     >
-      {FONTS.map((f) => (
-        <option
-          key={f}
-          value={f}
-          className="bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]"
-        >
-          {f}
-        </option>
+      {FONTS.map((font) => (
+        <MenuItem key={font} value={font}>
+          {font}
+        </MenuItem>
       ))}
-    </select>
-    <div className="relative">
-      <input
-        type="number"
-        className="w-16 px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs text-center hover:border-white/20 transition-colors"
-        value={formData.fontSize || 14}
-        onChange={(e) => updateField("fontSize", parseInt(e.target.value) || 14)}
-        min={1}
-        max={72}
-      />
-      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--vscode-descriptionForeground)] pointer-events-none">
-        px
-      </span>
-    </div>
-  </div>
+    </TextField>
+    <TextField label="Size"
+      type="number"
+      value={formData.fontSize || 14}
+      onChange={(e) => updateField("fontSize", parseInt(e.target.value, 10) || 14)}
+      inputProps={{ min: 1, max: 72 }}
+      sx={{ width: 120 }}
+      InputProps={{
+        endAdornment: <InputAdornment position="end">px</InputAdornment>
+      }}
+    />
+  </Stack>
 );
 
 // Style options (colors, toggles, rotation)
@@ -155,7 +155,7 @@ const StyleOptions: React.FC<{
   const isRounded = isBackgroundRounded(formData.roundedBackground);
 
   return (
-    <div className="flex items-start gap-4 flex-wrap">
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
       <ColorSwatch
         label="Text"
         value={formData.fontColor || "#FFFFFF"}
@@ -167,7 +167,7 @@ const StyleOptions: React.FC<{
         onChange={(v) => updateField("backgroundColor", v)}
         disabled={isTransparent}
       />
-      <div className="flex gap-2 pt-4">
+      <Stack direction="row" spacing={1}>
         <Toggle
           active={isTransparent}
           onClick={() => updateField("backgroundColor", isTransparent ? "#000000" : "transparent")}
@@ -177,19 +177,15 @@ const StyleOptions: React.FC<{
         <Toggle active={isRounded} onClick={() => updateField("roundedBackground", !isRounded)}>
           Rounded
         </Toggle>
-      </div>
-      <div className="flex flex-col gap-0.5 ml-auto">
-        <span className="field-label">Rotate</span>
-        <input
-          type="number"
-          className="w-16 px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs text-center hover:border-white/20 transition-colors"
-          value={formData.rotation || 0}
-          onChange={(e) => updateField("rotation", parseInt(e.target.value) || 0)}
-          min={-360}
-          max={360}
-        />
-      </div>
-    </div>
+      </Stack>
+      <TextField
+        label="Rotate" type="number"
+        value={formData.rotation || 0}
+        onChange={(e) => updateField("rotation", parseInt(e.target.value, 10) || 0)}
+        inputProps={{ min: -360, max: 360 }}
+        sx={{ width: 140 }}
+      />
+    </Stack>
   );
 };
 
@@ -216,10 +212,14 @@ function computePreviewStyle(formData: FreeTextAnnotation): React.CSSProperties 
 
 // Preview header component
 const PreviewHeader: React.FC = () => (
-  <div className="flex items-center justify-between">
-    <span className="field-label">Preview</span>
-    <span className="helper-text">Markdown supported</span>
-  </div>
+  <Stack direction="row" justifyContent="space-between" alignItems="center">
+    <Typography variant="caption" color="text.secondary">
+      Preview
+    </Typography>
+    <Typography variant="caption" color="text.secondary">
+      Markdown supported
+    </Typography>
+  </Stack>
 );
 
 // Live preview with markdown rendering
@@ -229,19 +229,46 @@ const Preview: React.FC<{ formData: FreeTextAnnotation }> = ({ formData }) => {
   const style = computePreviewStyle(formData);
 
   return (
-    <div className="flex flex-col gap-1">
+    <Stack spacing={1}>
       <PreviewHeader />
-      <div className="relative p-6 bg-gradient-to-br from-black/30 to-black/10 rounded-sm border border-white/5 min-h-[80px] flex items-center justify-center overflow-hidden">
-        <div className={`absolute inset-0 ${PREVIEW_GRID_BG} opacity-50`} />
-        <div className="relative z-10 transition-all duration-200 free-text-markdown" style={style}>
+      <Box
+        sx={{
+          position: "relative",
+          p: 3,
+          borderRadius: 1,
+          minHeight: 80,
+          border: "1px solid",
+          borderColor: "divider",
+          backgroundColor: "rgba(0,0,0,0.18)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden"
+        }}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: PREVIEW_GRID_BG,
+            opacity: 0.5
+          }}
+        />
+        <Box
+          className="free-text-markdown"
+          sx={{ position: "relative", zIndex: 1, transition: "transform 200ms" }}
+          style={style}
+        >
           {isEmpty ? (
-            <span className="opacity-50 italic">Start typing to see preview...</span>
+            <Typography variant="body2" sx={{ opacity: 0.6, fontStyle: "italic" }}>
+              Start typing to see preview...
+            </Typography>
           ) : (
             <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
           )}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Stack>
   );
 };
 
@@ -252,9 +279,11 @@ export const FreeTextFormContent: React.FC<Props> = ({
   isNew,
   onDelete
 }) => (
-  <div className="flex flex-col gap-4">
-    <textarea
-      className="w-full h-32 px-4 py-3 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] placeholder-[var(--vscode-input-placeholderForeground)] border border-white/10 rounded-sm resize-y focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all"
+  <Stack spacing={2}>
+    <TextField
+      multiline
+      minRows={5}
+      maxRows={12}
       value={formData.text}
       onChange={(e) => updateField("text", e.target.value)}
       placeholder="Enter your text... (Markdown and fenced code blocks supported)"
@@ -265,13 +294,13 @@ export const FreeTextFormContent: React.FC<Props> = ({
     <StyleOptions formData={formData} updateField={updateField} />
     <Preview formData={formData} />
     {!isNew && onDelete && (
-      <button
-        className="self-start text-xs text-[var(--vscode-errorForeground)] opacity-60 hover:opacity-100 transition-opacity"
+      <Button color="error"
+        startIcon={<DeleteOutlineIcon fontSize="small" />}
         onClick={onDelete}
+        sx={{ alignSelf: "flex-start", textTransform: "none" }}
       >
-        <i className="fas fa-trash-alt mr-1.5" />
         Delete
-      </button>
+      </Button>
     )}
-  </div>
+  </Stack>
 );

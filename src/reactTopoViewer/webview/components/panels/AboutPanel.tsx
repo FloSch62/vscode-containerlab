@@ -2,8 +2,33 @@
  * AboutPanel - Displays information about TopoViewer
  */
 import React from "react";
+import {
+  Avatar,
+  Box,
+  Divider,
+  Link,
+  Paper,
+  Stack,
+  Typography
+} from "@mui/material";
+import { keyframes } from "@mui/system";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import ExtensionIcon from "@mui/icons-material/Extension";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import CodeIcon from "@mui/icons-material/Code";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import GitHubIcon from "@mui/icons-material/GitHub";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
+import ShieldIcon from "@mui/icons-material/Shield";
+import SchoolIcon from "@mui/icons-material/School";
 
 import { BasePanel } from "../ui/editor/BasePanel";
+
+const heartbeat = keyframes`
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+`;
 
 interface AboutPanelProps {
   isVisible: boolean;
@@ -16,65 +41,110 @@ interface LinkProps {
 }
 
 const ExternalLink: React.FC<LinkProps> = ({ href, children }) => (
-  <a href={href} target="_blank" rel="noopener noreferrer" className="about-link">
+  <Link
+    href={href}
+    target="_blank"
+    rel="noopener noreferrer"
+    underline="hover"
+    sx={{ color: "var(--vscode-textLink-foreground)" }}
+  >
     {children}
-  </a>
+  </Link>
 );
 
 interface AuthorCardProps {
   name: string;
   role: string;
   linkedIn: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
 const AuthorCard: React.FC<AuthorCardProps> = ({ name, role, linkedIn, icon }) => (
-  <a href={linkedIn} target="_blank" rel="noopener noreferrer" className="about-author-card">
-    <div className="about-author-avatar">
-      <i className={`fas ${icon}`} aria-hidden="true"></i>
-    </div>
-    <div className="about-author-info">
-      <span className="about-author-name">{name}</span>
-      <span className="about-author-role">{role}</span>
-    </div>
-    <i className="fas fa-external-link-alt about-author-link-icon" aria-hidden="true"></i>
-  </a>
+  <Paper
+    component="a"
+    href={linkedIn}
+    target="_blank"
+    rel="noopener noreferrer"
+    variant="outlined"
+    sx={{
+      p: 1,
+      display: "flex",
+      alignItems: "center",
+      gap: 1.5,
+      textDecoration: "none",
+      color: "inherit",
+      transition: "background-color 150ms, border-color 150ms",
+      "&:hover": {
+        bgcolor: "var(--vscode-list-activeSelectionBackground)",
+        borderColor: "rgba(0, 201, 255, 0.2)"
+      }
+    }}
+  >
+    <Avatar sx={{ bgcolor: "rgba(0, 201, 255, 0.15)", color: "#00c9ff" }}>{icon}</Avatar>
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {name}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {role}
+      </Typography>
+    </Box>
+    <OpenInNewIcon fontSize="small" sx={{ opacity: 0.6 }} />
+  </Paper>
 );
 
 interface RepoCardProps {
   name: string;
   description: string;
   url: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
-const RepoCard: React.FC<RepoCardProps> = ({ name, description, url, icon }) => {
-  // Determine icon prefix: brand icons use 'fab', others use 'fas'
-  const iconPrefix = icon === "fa-github" ? "fab" : "fas";
-  return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="about-repo-card">
-      <div className="about-repo-icon">
-        <i className={`${iconPrefix} ${icon}`} aria-hidden="true"></i>
-      </div>
-      <div className="about-repo-info">
-        <span className="about-repo-name">{name}</span>
-        <span className="about-repo-desc">{description}</span>
-      </div>
-      <i className="fas fa-arrow-right about-repo-arrow" aria-hidden="true"></i>
-    </a>
-  );
-};
+const RepoCard: React.FC<RepoCardProps> = ({ name, description, url, icon }) => (
+  <Paper
+    component="a"
+    href={url}
+    target="_blank"
+    rel="noopener noreferrer"
+    variant="outlined"
+    sx={{
+      p: 1,
+      display: "flex",
+      alignItems: "center",
+      gap: 1.5,
+      textDecoration: "none",
+      color: "inherit",
+      transition: "background-color 150ms, border-color 150ms",
+      "&:hover": {
+        bgcolor: "var(--vscode-list-activeSelectionBackground)",
+        borderColor: "rgba(0, 201, 255, 0.2)"
+      }
+    }}
+  >
+    <Avatar variant="rounded" sx={{ bgcolor: "var(--vscode-button-secondaryBackground)" }}>
+      {icon}
+    </Avatar>
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: "var(--vscode-editor-font-family)" }}>
+        {name}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {description}
+      </Typography>
+    </Box>
+    <OpenInNewIcon fontSize="small" sx={{ opacity: 0.6 }} />
+  </Paper>
+);
 
 /**
  * Animated Containerlab flask logo with bubbles - animates on hover
  */
 const AnimatedContainerlabLogo: React.FC = () => (
-  <>
+  <Box sx={{ width: 64, height: 64 }}>
     <svg
       viewBox="65.95 14.96 118.48 127.34"
       xmlns="http://www.w3.org/2000/svg"
-      className="about-logo"
-      id="about-containerlab-logo"
+      style={{ width: "100%", height: "100%" }}
     >
       <g transform="matrix(1.27707402803300 0 0 1.27707402803300 -135.85348004729036 -121.99491568571256)">
         <g transform="matrix(1 0 0 1 0.07761382500030 0.06641805000012)">
@@ -218,7 +288,7 @@ const AnimatedContainerlabLogo: React.FC = () => (
         100% { opacity: 0.06; }
       }
     `}</style>
-  </>
+  </Box>
 );
 
 export const AboutPanel: React.FC<AboutPanelProps> = ({ isVisible, onClose }) => {
@@ -235,103 +305,118 @@ export const AboutPanel: React.FC<AboutPanelProps> = ({ isVisible, onClose }) =>
       minWidth={300}
       minHeight={250}
     >
-      <div className="about-content">
-        {/* Hero Section */}
-        <div className="about-hero">
-          <div className="about-logo-container">
-            <AnimatedContainerlabLogo />
-          </div>
-          <div className="about-hero-text">
-            <h2 className="about-hero-title">TopoViewer</h2>
-          </div>
-        </div>
+      <Stack spacing={2}>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            borderRadius: 1,
+            backgroundColor: "background.paper",
+            borderColor: "rgba(0, 201, 255, 0.2)"
+          }}
+        >
+          <AnimatedContainerlabLogo />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              TopoViewer
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Interactive topology editor for Containerlab
+            </Typography>
+          </Box>
+        </Paper>
 
-        {/* Description */}
-        <p className="about-description">
+        <Typography variant="body2" color="text.secondary" align="center">
           Interactive topology visualization and editing for{" "}
           <ExternalLink href="https://containerlab.dev/">Containerlab</ExternalLink> network labs
           directly in VS Code.
-        </p>
+        </Typography>
 
-        {/* Documentation Section */}
-        <div className="about-section">
-          <h3 className="about-section-title">
-            <i className="fas fa-book" aria-hidden="true"></i>
-            Documentation
-          </h3>
-          <div className="about-repos">
+        <Stack spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <MenuBookIcon fontSize="small" sx={{ color: "#00c9ff" }} />
+            <Typography variant="overline">Documentation</Typography>
+          </Stack>
+          <Stack spacing={1}>
             <RepoCard
               name="Containerlab Docs"
               description="Full documentation"
               url="https://containerlab.dev/"
-              icon="fa-book"
+              icon={<MenuBookIcon fontSize="small" />}
             />
             <RepoCard
               name="Extension Docs"
               description="VS Code extension guide"
               url="https://containerlab.dev/manual/vsc-extension/"
-              icon="fa-puzzle-piece"
+              icon={<ExtensionIcon fontSize="small" />}
             />
-          </div>
-        </div>
+          </Stack>
+        </Stack>
 
-        {/* Team Section */}
-        <div className="about-section">
-          <h3 className="about-section-title">
-            <i className="fas fa-users" aria-hidden="true"></i>
-            Team
-          </h3>
-          <div className="about-authors">
+        <Stack spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <PeopleAltIcon fontSize="small" sx={{ color: "#00c9ff" }} />
+            <Typography variant="overline">Team</Typography>
+          </Stack>
+          <Stack spacing={1}>
             <AuthorCard
               name="Asad Arafat"
               role="Maintainer (Original Creator)"
               linkedIn="https://www.linkedin.com/in/asadarafat/"
-              icon="fa-user-astronaut"
+              icon={<RocketLaunchIcon fontSize="small" />}
             />
             <AuthorCard
               name="Florian Schwarz"
               role="Maintainer"
               linkedIn="https://linkedin.com/in/florian-schwarz-812a34145"
-              icon="fa-user-ninja"
+              icon={<ShieldIcon fontSize="small" />}
             />
             <AuthorCard
               name="Kaelem Chandra"
               role="Maintainer"
               linkedIn="https://linkedin.com/in/kaelem-chandra"
-              icon="fa-user-graduate"
+              icon={<SchoolIcon fontSize="small" />}
             />
-          </div>
-        </div>
+          </Stack>
+        </Stack>
 
-        {/* Repositories Section */}
-        <div className="about-section">
-          <h3 className="about-section-title">
-            <i className="fas fa-code-branch" aria-hidden="true"></i>
-            Source Code
-          </h3>
-          <div className="about-repos">
+        <Stack spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <CodeIcon fontSize="small" sx={{ color: "#00c9ff" }} />
+            <Typography variant="overline">Source Code</Typography>
+          </Stack>
+          <Stack spacing={1}>
             <RepoCard
               name="vscode-containerlab"
               description="VS Code Extension"
               url="https://github.com/srl-labs/vscode-containerlab/"
-              icon="fa-github"
+              icon={<GitHubIcon fontSize="small" />}
             />
             <RepoCard
               name="topoViewer"
               description="Original Standalone App"
               url="https://github.com/asadarafat/topoViewer"
-              icon="fa-github"
+              icon={<GitHubIcon fontSize="small" />}
             />
-          </div>
-        </div>
+          </Stack>
+        </Stack>
 
-        {/* Footer */}
-        <div className="about-footer">
-          <span>Made with</span>
-          <i className="fas fa-heart about-heart" aria-hidden="true"></i>
-          <span>for the network community</span>
-        </div>
-      </div>
+        <Divider />
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+          <Typography variant="caption" color="text.secondary">
+            Made with
+          </Typography>
+          <FavoriteIcon
+            sx={{ color: "#ef4444", animation: `${heartbeat} 1.5s ease-in-out infinite` }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            for the network community
+          </Typography>
+        </Stack>
+      </Stack>
     </BasePanel>
   );
 };

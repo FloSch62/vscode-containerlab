@@ -6,9 +6,10 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Stack } from "@mui/material";
 
 import { useVaporwaveAudio } from "../audio";
-import { BTN_VISIBLE, BTN_HIDDEN, BTN_BLUR, lerpColor, useNodeGlow, MuteButton } from "../shared";
+import { lerpColor, ModeActionButton, useNodeGlow, MuteButton } from "../shared";
 import type { RGBColor, BaseModeProps } from "../shared";
 
 const BTN_BORDER = "2px solid rgba(255, 255, 255, 0.4)";
@@ -96,8 +97,14 @@ const VaporwaveCanvas: React.FC<{
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[99998]"
-      style={{ width: "100%", height: "100%" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 99998
+      }}
     />
   );
 };
@@ -433,28 +440,34 @@ export const VaporwaveMode: React.FC<BaseModeProps> = ({
         getCurrentSection={audio.getCurrentSection}
       />
 
-      <div className="fixed inset-0 pointer-events-none z-[99999] flex items-end justify-center pb-8 gap-4">
-        <button
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 99999,
+          alignItems: "flex-end",
+          justifyContent: "center",
+          pb: 4
+        }}
+      >
+        <ModeActionButton
           onClick={handleSwitch}
-          className={`px-6 py-2.5 rounded-full pointer-events-auto transition-all duration-500 ${
-            visible ? BTN_VISIBLE : BTN_HIDDEN
-          }`}
-          style={{
+          visible={visible}
+          title={`Current: ${modeName}`}
+          sx={{
             background:
               "linear-gradient(135deg, rgba(120, 129, 255, 0.8) 0%, rgba(185, 103, 255, 0.8) 100%)",
             border: BTN_BORDER,
             color: "#ffffff",
-            cursor: "pointer",
-            backdropFilter: BTN_BLUR,
-            fontSize: "14px",
-            fontWeight: 600,
             textShadow: "0 0 10px rgba(185, 103, 255, 0.8)",
             boxShadow: "0 0 20px rgba(120, 129, 255, 0.5), inset 0 0 20px rgba(185, 103, 255, 0.1)"
           }}
-          title={`Current: ${modeName}`}
         >
           S W I T C H
-        </button>
+        </ModeActionButton>
         <MuteButton
           isMuted={audio.isMuted}
           onToggle={audio.toggleMute}
@@ -463,27 +476,21 @@ export const VaporwaveMode: React.FC<BaseModeProps> = ({
           unmutedShadow="0 0 20px rgba(254, 255, 156, 0.5), inset 0 0 20px rgba(255, 113, 206, 0.1)"
           borderColor="rgba(255, 255, 255, 0.4)"
         />
-        <button
+        <ModeActionButton
           onClick={handleClose}
-          className={`px-6 py-2.5 rounded-full pointer-events-auto transition-all duration-500 ${
-            visible ? BTN_VISIBLE : BTN_HIDDEN
-          }`}
-          style={{
+          visible={visible}
+          sx={{
             background:
               "linear-gradient(135deg, rgba(255, 113, 206, 0.8) 0%, rgba(1, 205, 254, 0.8) 100%)",
             border: BTN_BORDER,
             color: "#ffffff",
-            cursor: "pointer",
-            backdropFilter: BTN_BLUR,
-            fontSize: "14px",
-            fontWeight: 600,
             textShadow: "0 0 10px rgba(255, 113, 206, 0.8)",
             boxShadow: "0 0 20px rgba(1, 205, 254, 0.5), inset 0 0 20px rgba(255, 113, 206, 0.1)"
           }}
         >
           E X I T V A P O R
-        </button>
-      </div>
+        </ModeActionButton>
+      </Stack>
     </>
   );
 };

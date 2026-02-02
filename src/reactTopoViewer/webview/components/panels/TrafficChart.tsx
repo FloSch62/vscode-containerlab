@@ -3,6 +3,7 @@
  * uPlot-based real-time traffic visualization for link endpoints
  */
 import React, { useRef, useEffect, useCallback } from "react";
+import { Box, Typography } from "@mui/material";
 import uPlot from "uplot";
 
 import "uplot/dist/uPlot.min.css";
@@ -313,22 +314,24 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({ stats, endpointKey }
   }, [endpointKey]);
 
   return (
-    <div className="traffic-chart-container" style={{ overflow: "hidden" }}>
-      <div
+    <Box sx={{ overflow: "hidden" }}>
+      <Box
         ref={containerRef}
-        className="traffic-chart"
-        style={{
+        sx={{
           width: "100%",
-          height: "200px",
-          minHeight: "150px",
+          height: 200,
+          minHeight: 150,
           overflow: "hidden"
         }}
       />
       {!stats && (
-        <div className="text-center text-[var(--text-secondary)] text-sm mt-2">
+        <Typography
+          variant="body2"
+          sx={{ mt: 1, textAlign: "center", color: "var(--text-secondary)" }}
+        >
           No traffic data available
-        </div>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 };

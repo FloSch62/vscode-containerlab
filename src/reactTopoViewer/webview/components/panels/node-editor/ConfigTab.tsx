@@ -2,6 +2,7 @@
  * Configuration Tab for Node Editor
  */
 import React from "react";
+import { Stack } from "@mui/material";
 
 import { FormField, InputField, CheckboxField, DynamicList, KeyValueList } from "../../ui/form";
 
@@ -20,18 +21,20 @@ const StartupConfigSection: React.FC<TabProps> = ({ data, onChange, inheritedPro
         placeholder="Path to config file"
       />
     </FormField>
-    <CheckboxField
-      id="node-enforce-startup-config"
-      label="Enforce startup config"
-      checked={data.enforceStartupConfig || false}
-      onChange={(checked) => onChange({ enforceStartupConfig: checked })}
-    />
-    <CheckboxField
-      id="node-suppress-startup-config"
-      label="Suppress startup config"
-      checked={data.suppressStartupConfig || false}
-      onChange={(checked) => onChange({ suppressStartupConfig: checked })}
-    />
+    <Stack spacing={0.5}>
+      <CheckboxField
+        id="node-enforce-startup-config"
+        label="Enforce startup config"
+        checked={data.enforceStartupConfig || false}
+        onChange={(checked) => onChange({ enforceStartupConfig: checked })}
+      />
+      <CheckboxField
+        id="node-suppress-startup-config"
+        label="Suppress startup config"
+        checked={data.suppressStartupConfig || false}
+        onChange={(checked) => onChange({ suppressStartupConfig: checked })}
+      />
+    </Stack>
     <FormField label="License File" inherited={isInherited("license", inheritedProps)}>
       <InputField
         id="node-license"
@@ -83,8 +86,8 @@ const BindsAndEnvSection: React.FC<TabProps> = ({ data, onChange, inheritedProps
 );
 
 export const ConfigTab: React.FC<TabProps> = ({ data, onChange, inheritedProps = [] }) => (
-  <div className="space-y-3">
+  <Stack spacing={2}>
     <StartupConfigSection data={data} onChange={onChange} inheritedProps={inheritedProps} />
     <BindsAndEnvSection data={data} onChange={onChange} inheritedProps={inheritedProps} />
-  </div>
+  </Stack>
 );

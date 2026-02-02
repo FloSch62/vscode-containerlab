@@ -5,6 +5,22 @@
  * - Template Name, Base Name, Interface Pattern, Set as default
  */
 import React, { useState, useCallback } from "react";
+import {
+  Box,
+  ButtonBase,
+  Collapse,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography
+} from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import { FormField, InputField, CheckboxField, Section } from "../../ui/form";
 import { copyToClipboard } from "../../../utils/clipboard";
@@ -34,7 +50,7 @@ const PATTERN_EXAMPLES: PatternExample[] = [
 /**
  * Copyable code snippet with copy button
  */
-const CopyableCode: React.FC<{ text: string; className?: string }> = ({ text, className = "" }) => {
+const CopyableCode: React.FC<{ text: string }> = ({ text }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -46,22 +62,32 @@ const CopyableCode: React.FC<{ text: string; className?: string }> = ({ text, cl
   }, [text]);
 
   return (
-    <button
-      type="button"
+    <ButtonBase
       onClick={() => void handleCopy()}
-      className={`inline-flex items-center gap-1.5 font-mono text-xs px-1.5 py-0.5 rounded-sm
-        bg-[var(--vscode-textCodeBlock-background)]
-        hover:bg-[var(--vscode-list-hoverBackground)]
-        text-[var(--vscode-textPreformat-foreground)]
-        border border-[var(--vscode-widget-border)]
-        transition-colors cursor-pointer ${className}`}
       title="Click to copy"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 0.75,
+        fontFamily: "monospace",
+        fontSize: "0.75rem",
+        px: 1,
+        py: 0.5,
+        borderRadius: 0.5,
+        bgcolor: "var(--vscode-textCodeBlock-background)",
+        color: "var(--vscode-textPreformat-foreground)",
+        border: "1px solid var(--vscode-widget-border)",
+        transition: "background-color 120ms",
+        "&:hover": { bgcolor: "var(--vscode-list-hoverBackground)" }
+      }}
     >
-      <span>{text}</span>
-      <i
-        className={`fas ${copied ? "fa-check text-green-500" : "fa-copy opacity-60"} text-[10px]`}
-      />
-    </button>
+      <Box component="span">{text}</Box>
+      {copied ? (
+        <CheckCircleIcon sx={{ fontSize: 14, color: "var(--vscode-testing-iconPassed)" }} />
+      ) : (
+        <ContentCopyIcon sx={{ fontSize: 14, opacity: 0.6 }} />
+      )}
+    </ButtonBase>
   );
 };
 
@@ -73,59 +99,87 @@ const InterfacePatternInfo: React.FC<{ isExpanded: boolean; onToggle: () => void
   onToggle
 }) => {
   return (
-    <div className="mt-2 rounded-sm border border-[var(--vscode-widget-border)] overflow-hidden">
-      {/* Header - always visible */}
-      <button
-        type="button"
+    <Box
+      sx={{
+        mt: 2,
+        borderRadius: 1,
+        border: "1px solid var(--vscode-widget-border)",
+        overflow: "hidden"
+      }}
+    >
+      <ButtonBase
         onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs
-          bg-[var(--vscode-editor-inactiveSelectionBackground)]
-          hover:bg-[var(--vscode-list-hoverBackground)]
-          transition-colors"
+        sx={{
+          width: "100%",
+          px: 2,
+          py: 1,
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          bgcolor: "var(--vscode-editor-inactiveSelectionBackground)",
+          "&:hover": { bgcolor: "var(--vscode-list-hoverBackground)" }
+        }}
       >
-        <i
-          className={`fas fa-chevron-right text-[10px] transition-transform ${isExpanded ? "rotate-90" : ""}`}
+        <ChevronRightIcon
+          sx={{
+            fontSize: 16,
+            transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 150ms"
+          }}
         />
-        <i className="fas fa-info-circle text-[var(--vscode-textLink-foreground)]" />
-        <span className="text-[var(--vscode-descriptionForeground)]">
+        <InfoOutlinedIcon sx={{ fontSize: 16, color: "var(--vscode-textLink-foreground)" }} />
+        <Typography variant="caption" color="text.secondary">
           Pattern syntax: Use{" "}
-          <code className="px-1 bg-[var(--vscode-textCodeBlock-background)] rounded-sm">
+          <Box
+            component="code"
+            sx={{
+              px: 0.5,
+              bgcolor: "var(--vscode-textCodeBlock-background)",
+              borderRadius: 0.5
+            }}
+          >
             {"{n}"}
-          </code>{" "}
+          </Box>{" "}
           for sequential numbering
-        </span>
-      </button>
+        </Typography>
+      </ButtonBase>
 
-      {/* Expandable content */}
-      {isExpanded && (
-        <div className="px-3 py-2 bg-[var(--vscode-editor-background)] border-t border-[var(--vscode-widget-border)]">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-[var(--vscode-descriptionForeground)]">
-                <th className="text-left font-medium pb-2 pr-3">Pattern</th>
-                <th className="text-left font-medium pb-2 pr-3">Description</th>
-                <th className="text-left font-medium pb-2">Result</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--vscode-widget-border)]">
+      <Collapse in={isExpanded}>
+        <Box sx={{ px: 2, py: 1.5, bgcolor: "var(--vscode-editor-background)" }}>
+          <Table sx={{ "& td, & th": { borderBottom: "none" } }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontSize: 11, color: "text.secondary", fontWeight: 600 }}>
+                  Pattern
+                </TableCell>
+                <TableCell sx={{ fontSize: 11, color: "text.secondary", fontWeight: 600 }}>
+                  Description
+                </TableCell>
+                <TableCell sx={{ fontSize: 11, color: "text.secondary", fontWeight: 600 }}>
+                  Result
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {PATTERN_EXAMPLES.map((example) => (
-                <tr key={example.pattern}>
-                  <td className="py-1.5 pr-3">
+                <TableRow key={example.pattern}>
+                  <TableCell sx={{ fontSize: 12 }}>
                     <CopyableCode text={example.pattern} />
-                  </td>
-                  <td className="py-1.5 pr-3 text-[var(--vscode-descriptionForeground)]">
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, color: "text.secondary" }}>
                     {example.description}
-                  </td>
-                  <td className="py-1.5 text-[var(--vscode-descriptionForeground)] font-mono">
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 12, color: "text.secondary", fontFamily: "monospace" }}>
                     {example.result}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+            </TableBody>
+          </Table>
+        </Box>
+      </Collapse>
+    </Box>
   );
 };
 
@@ -137,7 +191,7 @@ export const CustomNodeTemplateFields: React.FC<TabProps> = ({ data, onChange })
 
   return (
     <Section title="Custom Node Template">
-      <div className="space-y-3">
+      <Stack spacing={2}>
         <FormField label="Template Name">
           <InputField
             id="node-custom-name"
@@ -160,7 +214,7 @@ export const CustomNodeTemplateFields: React.FC<TabProps> = ({ data, onChange })
           checked={data.isDefaultCustomNode || false}
           onChange={(checked) => onChange({ isDefaultCustomNode: checked })}
         />
-        <div>
+        <Stack spacing={1.5}>
           <FormField label="Interface Pattern">
             <InputField
               id="node-interface-pattern"
@@ -173,8 +227,8 @@ export const CustomNodeTemplateFields: React.FC<TabProps> = ({ data, onChange })
             isExpanded={showPatternInfo}
             onToggle={() => setShowPatternInfo(!showPatternInfo)}
           />
-        </div>
-      </div>
+        </Stack>
+      </Stack>
     </Section>
   );
 };

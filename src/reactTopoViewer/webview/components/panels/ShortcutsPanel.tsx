@@ -39,7 +39,7 @@ const ShortcutRow: React.FC<ShortcutRowProps> = ({ label, shortcut }) => (
     sx={{ py: 0.5, display: "flex", justifyContent: "space-between" }}
   >
     <Typography variant="body2">{label}</Typography>
-    <Chip label={formatKey(shortcut)} size="small" className="shortcut-chip" />
+    <Chip label={formatKey(shortcut)} />
   </ListItem>
 );
 
@@ -60,15 +60,10 @@ const ShortcutSection: React.FC<ShortcutSectionProps> = ({
     sx={{
       p: 1.25,
       borderRadius: 1.5,
-      border: "1px solid var(--vscode-panel-border)",
-      bgcolor: "var(--vscode-panel-background)",
-      backgroundImage: `linear-gradient(135deg, ${accentColor}22 0%, transparent 70%)`,
-      "& .shortcut-section-icon": {
-        color: accentColor,
-        display: "flex",
-        alignItems: "center"
-      },
-      "& .shortcut-chip": {
+      border: "1px solid",
+      borderColor: "divider",
+      bgcolor: "background.paper",
+      "& .MuiChip-root": {
         backgroundColor: "var(--vscode-keybindingLabel-background, rgba(128, 128, 128, 0.17))",
         color: "var(--vscode-keybindingLabel-foreground, var(--vscode-editor-foreground))",
         border: `1px solid ${accentColor}`,
@@ -78,7 +73,7 @@ const ShortcutSection: React.FC<ShortcutSectionProps> = ({
     }}
   >
     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-      <Box className="shortcut-section-icon">{icon}</Box>
+      <Box sx={{ color: accentColor, display: "flex", alignItems: "center" }}>{icon}</Box>
       <Typography variant="subtitle2">{title}</Typography>
     </Stack>
     <List dense disablePadding>
@@ -153,10 +148,9 @@ export const ShortcutsPanel: React.FC<ShortcutsPanelProps> = ({ isVisible, onClo
             <ListItem disableGutters>
               <Typography variant="body2">
                 Box select nodes, then{" "}
-                <Chip label="Ctrl" size="small" className="shortcut-chip" sx={{ mx: 0.5 }} /> +{" "}
-                <Chip label="G" size="small" className="shortcut-chip" sx={{ mx: 0.5 }} /> to group
-                or{" "}
-                <Chip label="Del" size="small" className="shortcut-chip" sx={{ mx: 0.5 }} /> to
+                <Chip label="Ctrl" sx={{ mx: 0.5 }} /> +{" "}
+                <Chip label="G" sx={{ mx: 0.5 }} /> to group or{" "}
+                <Chip label="Del" sx={{ mx: 0.5 }} /> to
                 delete
               </Typography>
             </ListItem>

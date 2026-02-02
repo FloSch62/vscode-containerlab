@@ -8,7 +8,6 @@ interface ColorFieldProps {
   id: string;
   value: string;
   onChange: (value: string) => void;
-  className?: string;
   showHex?: boolean;
 }
 
@@ -16,7 +15,6 @@ export const ColorField: React.FC<ColorFieldProps> = ({
   id,
   value,
   onChange,
-  className = "",
   showHex = true
 }) => {
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,7 +29,7 @@ export const ColorField: React.FC<ColorFieldProps> = ({
   };
 
   return (
-    <Stack direction="row" spacing={1} alignItems="center" className={className}>
+    <Stack direction="row" spacing={1} alignItems="center">
       <Box
         component="input"
         type="color"
@@ -50,7 +48,6 @@ export const ColorField: React.FC<ColorFieldProps> = ({
       />
       {showHex && (
         <TextField
-          size="small"
           value={value || ""}
           onChange={handleHexChange}
           placeholder="#000000"

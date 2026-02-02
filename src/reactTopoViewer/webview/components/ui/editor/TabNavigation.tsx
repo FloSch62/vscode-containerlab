@@ -26,7 +26,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   const visibleTabs = tabs.filter((t) => !t.hidden);
 
   return (
-    <Box sx={{ borderBottom: "1px solid var(--vscode-panel-border)" }}>
+    <Box sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
       <Tabs
         value={activeTab}
         onChange={(_, value) => onTabChange(value)}

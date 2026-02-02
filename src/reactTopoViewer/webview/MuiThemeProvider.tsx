@@ -3,7 +3,7 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
-import { createTheme, StyledEngineProvider } from "@mui/material/styles";
+import { alpha, createTheme, StyledEngineProvider } from "@mui/material/styles";
 
 const VSCODE_FALLBACK_VARS: Record<string, string> = {
   "--vscode-editor-background": "#1e1e1e",
@@ -123,114 +123,277 @@ export const MuiThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => observer.disconnect();
   }, []);
 
-  const muiTheme = useMemo(
-    () =>
-      createTheme({
-        shape: { borderRadius: 4 },
-        typography: {
-          fontFamily: "var(--vscode-font-family)",
-          fontSize: 13
+  const muiTheme = useMemo(() => {
+    const editorBg = getCssVarValue("--vscode-editor-background", "#1e1e1e");
+    const editorFg = getCssVarValue("--vscode-editor-foreground", "#d4d4d4");
+    const panelBg = getCssVarValue("--vscode-panel-background", "#252526");
+    const panelBorder = getCssVarValue("--vscode-panel-border", "#2a2a2a");
+    const inputBg = getCssVarValue("--vscode-input-background", "#3c3c3c");
+    const inputFg = getCssVarValue("--vscode-input-foreground", "#cccccc");
+    const inputBorder = getCssVarValue("--vscode-input-border", "#3c3c3c");
+    const buttonBg = getCssVarValue("--vscode-button-background", "#0e639c");
+    const buttonSecondary = getCssVarValue("--vscode-button-secondaryBackground", "#3a3d41");
+    const buttonHover = getCssVarValue("--vscode-button-hoverBackground", "#1177bb");
+    const focusBorder = getCssVarValue("--vscode-focusBorder", "#3794ff");
+    const listHover = getCssVarValue("--vscode-list-hoverBackground", "#2a2d2e");
+    const listSelected = getCssVarValue("--vscode-list-activeSelectionBackground", "#04395e");
+    const dropdownBg = getCssVarValue("--vscode-dropdown-background", "#3c3c3c");
+    const dropdownFg = getCssVarValue("--vscode-dropdown-foreground", "#f0f0f0");
+    const dropdownBorder = getCssVarValue("--vscode-dropdown-border", "#3c3c3c");
+    const linkColor = getCssVarValue("--vscode-textLink-foreground", "#3794ff");
+    const linkActive = getCssVarValue("--vscode-textLink-activeForeground", "#4aa3ff");
+    const hoverWidgetBg = getCssVarValue("--vscode-editorHoverWidget-background", "#252526");
+    const hoverWidgetBorder = getCssVarValue("--vscode-editorHoverWidget-border", "#454545");
+    const badgeBg = getCssVarValue("--vscode-badge-background", "#4d4d4d");
+    const badgeFg = getCssVarValue("--vscode-badge-foreground", "#ffffff");
+    const descriptionFg = getCssVarValue("--vscode-descriptionForeground", "#9d9d9d");
+
+    return createTheme({
+      shape: { borderRadius: 6 },
+      typography: {
+        fontFamily: "var(--vscode-font-family)",
+        fontSize: 13,
+        button: { fontWeight: 600 }
+      },
+      palette: {
+        mode,
+        primary: { main: buttonBg },
+        secondary: { main: buttonSecondary },
+        background: {
+          default: editorBg,
+          paper: panelBg
         },
-        palette: {
-          mode,
-          primary: { main: getCssVarValue("--vscode-button-background", "#0e639c") },
-          secondary: {
-            main: getCssVarValue("--vscode-button-secondaryBackground", "#3a3d41")
-          },
-          background: {
-            default: getCssVarValue("--vscode-editor-background", "#1e1e1e"),
-            paper: getCssVarValue("--vscode-panel-background", "#252526")
-          },
-          text: {
-            primary: getCssVarValue("--vscode-editor-foreground", "#d4d4d4"),
-            secondary: getCssVarValue("--vscode-descriptionForeground", "#9d9d9d")
-          },
-          error: { main: getCssVarValue("--vscode-errorForeground", "#f14c4c") },
-          warning: { main: getCssVarValue("--vscode-charts-yellow", "#cca700") },
-          info: { main: getCssVarValue("--vscode-charts-blue", "#3794ff") },
-          success: { main: getCssVarValue("--vscode-charts-green", "#89d185") }
+        divider: panelBorder,
+        text: {
+          primary: editorFg,
+          secondary: descriptionFg
         },
-        components: {
-          MuiCssBaseline: {
-            styleOverrides: {
-              body: {
-                backgroundColor: "var(--vscode-editor-background)",
-                color: "var(--vscode-editor-foreground)"
-              }
+        error: { main: getCssVarValue("--vscode-errorForeground", "#f14c4c") },
+        warning: { main: getCssVarValue("--vscode-charts-yellow", "#cca700") },
+        info: { main: getCssVarValue("--vscode-charts-blue", "#3794ff") },
+        success: { main: getCssVarValue("--vscode-charts-green", "#89d185") },
+        action: {
+          hover: listHover,
+          selected: listSelected
+        }
+      },
+      components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            body: {
+              backgroundColor: editorBg,
+              color: editorFg
+            },
+            a: {
+              color: linkColor
+            },
+            "a:hover": {
+              color: linkActive
+            },
+            "::selection": {
+              backgroundColor: alpha(buttonBg, 0.35)
             }
-          },
-          MuiOutlinedInput: {
-            styleOverrides: {
-              root: {
-                backgroundColor: "var(--vscode-input-background)",
-                color: "var(--vscode-input-foreground)",
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "var(--vscode-input-border)"
-                },
-                "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "var(--vscode-input-border)"
-                },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "var(--vscode-focusBorder, var(--vscode-textLink-foreground))"
-                }
+          }
+        },
+        MuiAppBar: {
+          styleOverrides: {
+            root: {
+              backgroundColor: panelBg,
+              backgroundImage: "none",
+              borderBottom: `1px solid ${panelBorder}`,
+              color: editorFg
+            }
+          }
+        },
+        MuiPaper: {
+          styleOverrides: {
+            root: {
+              backgroundImage: "none",
+              border: `1px solid ${panelBorder}`
+            }
+          }
+        },
+        MuiDrawer: {
+          styleOverrides: {
+            paper: {
+              backgroundImage: "none",
+              borderRight: `1px solid ${panelBorder}`
+            }
+          }
+        },
+        MuiOutlinedInput: {
+          styleOverrides: {
+            root: {
+              backgroundColor: inputBg,
+              color: inputFg,
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: inputBorder
               },
-              input: {
-                color: "var(--vscode-input-foreground)"
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: inputBorder
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: focusBorder,
+                boxShadow: `0 0 0 1px ${alpha(focusBorder, 0.5)}`
               }
+            },
+            input: {
+              color: inputFg
             }
-          },
-          MuiFormLabel: {
-            styleOverrides: {
-              root: {
-                color: "var(--vscode-descriptionForeground)"
-              }
-            }
-          },
-          MuiPaper: {
-            styleOverrides: {
-              root: {
-                backgroundImage: "none"
-              }
-            }
-          },
-          MuiButton: {
-            styleOverrides: {
-              root: {
-                textTransform: "none"
-              }
-            }
-          },
-          MuiTooltip: {
-            styleOverrides: {
-              tooltip: {
-                backgroundColor: "var(--vscode-editorHoverWidget-background)",
-                border: "1px solid var(--vscode-editorHoverWidget-border)",
-                color: "var(--vscode-editor-foreground)"
-              }
-            }
-          },
-          MuiMenu: {
-            styleOverrides: {
-              paper: {
-                backgroundColor: "var(--vscode-dropdown-background)",
-                color: "var(--vscode-dropdown-foreground)",
-                border: "1px solid var(--vscode-dropdown-border)"
-              }
-            }
-          },
-          MuiMenuItem: {
-            styleOverrides: {
-              root: {
-                "&.Mui-selected, &.Mui-selected:hover": {
-                  backgroundColor: "var(--vscode-list-activeSelectionBackground)"
-                }
+          }
+        },
+        MuiFormLabel: {
+          styleOverrides: {
+            root: {
+              color: descriptionFg,
+              "&.Mui-focused": {
+                color: linkColor
               }
             }
           }
+        },
+        MuiInputLabel: {
+          styleOverrides: {
+            root: {
+              color: descriptionFg,
+              "&.Mui-focused": {
+                color: linkColor
+              }
+            },
+            shrink: {
+              color: descriptionFg,
+              backgroundColor: panelBg,
+              padding: "0 4px",
+              marginLeft: -4,
+              borderRadius: 4
+            }
+          }
+        },
+        MuiButton: {
+          defaultProps: {
+            size: "small",
+            disableElevation: true
+          },
+          styleOverrides: {
+            root: {
+              textTransform: "none",
+              borderRadius: 8
+            },
+            containedPrimary: {
+              boxShadow: `0 0 0 1px ${alpha(buttonBg, 0.45)} inset`
+            },
+            outlined: {
+              borderColor: alpha(buttonBg, 0.35)
+            }
+          }
+        },
+        MuiIconButton: {
+          defaultProps: { size: "small" },
+          styleOverrides: {
+            root: {
+              borderRadius: 10
+            }
+          }
+        },
+        MuiTextField: {
+          defaultProps: { size: "small" }
+        },
+        MuiToggleButton: {
+          defaultProps: { size: "small" },
+          styleOverrides: {
+            root: {
+              textTransform: "none",
+              fontSize: 11
+            }
+          }
+        },
+        MuiChip: {
+          defaultProps: { size: "small" },
+          styleOverrides: {
+            root: {
+              fontWeight: 600
+            },
+            outlined: {
+              borderColor: alpha(badgeBg, 0.6)
+            }
+          }
+        },
+        MuiSlider: {
+          defaultProps: { size: "small" },
+          styleOverrides: {
+            thumb: {
+              boxShadow: `0 0 0 4px ${alpha(buttonBg, 0.18)}`
+            },
+            rail: {
+              opacity: 0.3
+            }
+          }
+        },
+        MuiCheckbox: {
+          defaultProps: { size: "small" }
+        },
+        MuiTable: {
+          defaultProps: { size: "small" }
+        },
+        MuiTabs: {
+          styleOverrides: {
+            root: {
+              minHeight: 36
+            },
+            indicator: {
+              height: 3,
+              borderRadius: 2,
+              backgroundColor: buttonHover
+            }
+          }
+        },
+        MuiTab: {
+          styleOverrides: {
+            root: {
+              minHeight: 36,
+              textTransform: "none",
+              fontWeight: 600
+            }
+          }
+        },
+        MuiTooltip: {
+          styleOverrides: {
+            tooltip: {
+              backgroundColor: hoverWidgetBg,
+              border: `1px solid ${hoverWidgetBorder}`,
+              color: editorFg
+            }
+          }
+        },
+        MuiMenu: {
+          styleOverrides: {
+            paper: {
+              backgroundColor: dropdownBg,
+              color: dropdownFg,
+              border: `1px solid ${dropdownBorder}`
+            }
+          }
+        },
+        MuiMenuItem: {
+          styleOverrides: {
+            root: {
+              "&.Mui-selected, &.Mui-selected:hover": {
+                backgroundColor: listSelected
+              }
+            }
+          }
+        },
+        MuiBadge: {
+          styleOverrides: {
+            badge: {
+              backgroundColor: badgeBg,
+              color: badgeFg
+            }
+          }
         }
-      }),
-    [mode, themeVersion]
-  );
+      }
+    });
+  }, [mode, themeVersion]);
 
   return (
     <StyledEngineProvider injectFirst>

@@ -3,6 +3,22 @@
  * Modern, sleek design matching other annotation editors
  */
 import React, { useState, useCallback } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Grid,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography
+} from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import DownloadIcon from "@mui/icons-material/Download";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
+import PaletteIcon from "@mui/icons-material/Palette";
 import type { ReactFlowInstance, Edge } from "@xyflow/react";
 
 import type {
@@ -142,7 +158,7 @@ type BackgroundOption = "transparent" | "white" | "custom";
 
 // Section header component
 const SectionHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h4 className="section-header">{children}</h4>
+  <Typography variant="subtitle2">{children}</Typography>
 );
 
 // Quality section
@@ -152,27 +168,31 @@ const QualitySection: React.FC<{
   padding: number;
   setPadding: (v: number) => void;
 }> = ({ zoom, setZoom, padding, setPadding }) => (
-  <div className="flex flex-col gap-3">
+  <Stack spacing={2}>
     <SectionHeader>Quality & Size</SectionHeader>
-    <div className="grid grid-cols-2 gap-3">
-      <NumberInput
-        label="Zoom"
-        value={zoom}
-        onChange={(v) => setZoom(Math.max(10, Math.min(300, v)))}
-        min={10}
-        max={300}
-        unit="%"
-      />
-      <NumberInput
-        label="Padding"
-        value={padding}
-        onChange={(v) => setPadding(Math.max(0, v))}
-        min={0}
-        max={500}
-        unit="px"
-      />
-    </div>
-  </div>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <NumberInput
+          label="Zoom"
+          value={zoom}
+          onChange={(v) => setZoom(Math.max(10, Math.min(300, v)))}
+          min={10}
+          max={300}
+          unit="%"
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <NumberInput
+          label="Padding"
+          value={padding}
+          onChange={(v) => setPadding(Math.max(0, v))}
+          min={0}
+          max={500}
+          unit="px"
+        />
+      </Grid>
+    </Grid>
+  </Stack>
 );
 
 // Background section
@@ -182,28 +202,39 @@ const BackgroundSection: React.FC<{
   customColor: string;
   setCustomColor: (v: string) => void;
 }> = ({ option, setOption, customColor, setCustomColor }) => (
-  <div className="flex flex-col gap-3">
+  <Stack spacing={2}>
     <SectionHeader>Background</SectionHeader>
-    <div className="flex items-start gap-3 flex-wrap">
-      <div className="flex gap-2 pt-4">
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+      <Stack direction="row" spacing={1}>
         <Toggle active={option === "transparent"} onClick={() => setOption("transparent")}>
-          <i className="fas fa-chess-board mr-1.5 text-[10px]" />
+          <GridOnIcon fontSize="small" />
           Transparent
         </Toggle>
         <Toggle active={option === "white"} onClick={() => setOption("white")}>
-          <span className="inline-block w-3 h-3 bg-white rounded-sm mr-1.5 border border-white/30" />
+          <Box
+            component="span"
+            sx={{
+              width: 12,
+              height: 12,
+              bgcolor: "#ffffff",
+              borderRadius: 0.5,
+              border: "1px solid rgba(255,255,255,0.3)",
+              display: "inline-block",
+              mr: 0.5
+            }}
+          />
           White
         </Toggle>
         <Toggle active={option === "custom"} onClick={() => setOption("custom")}>
-          <i className="fas fa-palette mr-1.5 text-[10px]" />
+          <PaletteIcon fontSize="small" />
           Custom
         </Toggle>
-      </div>
+      </Stack>
       {option === "custom" && (
         <ColorSwatch label="Color" value={customColor} onChange={setCustomColor} />
       )}
-    </div>
-  </div>
+    </Stack>
+  </Stack>
 );
 
 // Annotations section
@@ -218,13 +249,23 @@ const AnnotationsSection: React.FC<{
   const annotationLabel = hasAny ? `${total} annotation${pluralSuffix}` : "No annotations";
 
   return (
-    <div className="flex flex-col gap-3">
+    <Stack spacing={2}>
       <SectionHeader>Annotations</SectionHeader>
-      <div className="flex items-center justify-between p-3 bg-black/20 rounded-sm border border-white/5">
-        <div className="flex flex-col">
-          <span className="text-sm text-[var(--vscode-foreground)]">{annotationLabel}</span>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          p: 2,
+          borderRadius: 1,
+          bgcolor: "rgba(0,0,0,0.2)",
+          border: "1px solid rgba(255,255,255,0.05)"
+        }}
+      >
+        <Box>
+          <Typography variant="body2">{annotationLabel}</Typography>
           {hasAny && (
-            <span className="text-[10px] text-[var(--vscode-descriptionForeground)]">
+            <Typography variant="caption" color="text.secondary">
               {[
                 counts.groups > 0 && `${counts.groups} group${counts.groups !== 1 ? "s" : ""}`,
                 counts.text > 0 && `${counts.text} text`,
@@ -232,14 +273,14 @@ const AnnotationsSection: React.FC<{
               ]
                 .filter(Boolean)
                 .join(", ")}
-            </span>
+            </Typography>
           )}
-        </div>
+        </Box>
         <Toggle active={include} onClick={() => setInclude(!include)}>
           {include ? "Included" : "Excluded"}
         </Toggle>
-      </div>
-    </div>
+      </Box>
+    </Stack>
   );
 };
 
@@ -248,20 +289,30 @@ const EdgeLabelsSection: React.FC<{
   include: boolean;
   setInclude: (v: boolean) => void;
 }> = ({ include, setInclude }) => (
-  <div className="flex flex-col gap-3">
+  <Stack spacing={2}>
     <SectionHeader>Edge Labels</SectionHeader>
-    <div className="flex items-center justify-between p-3 bg-black/20 rounded-sm border border-white/5">
-      <div className="flex flex-col">
-        <span className="text-sm text-[var(--vscode-foreground)]">Interface labels</span>
-        <span className="text-[10px] text-[var(--vscode-descriptionForeground)]">
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        p: 2,
+        borderRadius: 1,
+        bgcolor: "rgba(0,0,0,0.2)",
+        border: "1px solid rgba(255,255,255,0.05)"
+      }}
+    >
+      <Box>
+        <Typography variant="body2">Interface labels</Typography>
+        <Typography variant="caption" color="text.secondary">
           Endpoint labels (e.g., e1-1, eth0)
-        </span>
-      </div>
+        </Typography>
+      </Box>
       <Toggle active={include} onClick={() => setInclude(!include)}>
         {include ? "Included" : "Excluded"}
       </Toggle>
-    </div>
-  </div>
+    </Box>
+  </Stack>
 );
 
 // Filename section
@@ -269,19 +320,16 @@ const FilenameSection: React.FC<{
   value: string;
   onChange: (v: string) => void;
 }> = ({ value, onChange }) => (
-  <div className="flex flex-col gap-1">
+  <Stack spacing={1}>
     <SectionHeader>Filename</SectionHeader>
-    <div className="flex items-center gap-1">
-      <input
-        type="text"
-        className="flex-1 px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs hover:border-white/20 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-colors outline-none"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="topology"
-      />
-      <span className="text-xs text-[var(--vscode-descriptionForeground)] px-2">.svg</span>
-    </div>
-  </div>
+    <TextField value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="topology"
+      InputProps={{
+        endAdornment: <InputAdornment position="end">.svg</InputAdornment>
+      }}
+    />
+  </Stack>
 );
 
 // Preview section
@@ -296,55 +344,100 @@ const PreviewSection: React.FC<{
   const bgStyle =
     background === "transparent"
       ? {
-          backgroundImage:
-            "linear-gradient(45deg, #444 25%, transparent 25%), linear-gradient(-45deg, #444 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #444 75%), linear-gradient(-45deg, transparent 75%, #444 75%)",
-          backgroundSize: "8px 8px",
-          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px"
+          backgroundColor: "rgba(0,0,0,0.2)"
         }
       : { backgroundColor: background === "white" ? "#ffffff" : customColor };
 
   return (
-    <div className="flex flex-col gap-1">
+    <Stack spacing={1}>
       <SectionHeader>Preview</SectionHeader>
-      <div className="relative p-4 bg-gradient-to-br from-black/30 to-black/10 rounded-sm border border-white/5 overflow-hidden">
-        <div className={`absolute inset-0 ${PREVIEW_GRID_BG} opacity-30`} />
-        <div className="relative z-10 flex items-center justify-center">
-          <div
-            className="w-24 h-16 rounded-sm shadow-lg border border-white/10 flex items-center justify-center transition-all duration-200"
-            style={{
+      <Box
+        sx={{
+          position: "relative",
+          p: 2,
+          borderRadius: 1,
+          border: "1px solid rgba(255,255,255,0.05)",
+          backgroundColor: "rgba(0,0,0,0.18)",
+          overflow: "hidden"
+        }}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: PREVIEW_GRID_BG,
+            opacity: 0.3
+          }}
+        />
+        <Box sx={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "center" }}>
+          <Box
+            sx={{
+              width: 96,
+              height: 64,
+              borderRadius: 1,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.3)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "transform 200ms",
               ...bgStyle,
               padding: `${Math.min(padding / 20, 8)}px`,
               transform: `scale(${0.8 + zoom / 500})`
             }}
           >
-            <div className="flex flex-col items-center gap-1">
-              <i className="fas fa-project-diagram text-lg text-[var(--accent)] opacity-80" />
+            <Stack spacing={0.5} alignItems="center">
+              <AccountTreeIcon sx={{ color: "var(--accent)", opacity: 0.8 }} />
               {includeAnnotations && annotationCount > 0 && (
-                <span className="text-[8px] px-1.5 py-0.5 bg-[var(--accent)]/20 text-[var(--accent)] rounded-sm">
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 0.5,
+                    fontSize: "0.65rem",
+                    bgcolor: "rgba(0, 201, 255, 0.15)",
+                    color: "var(--accent)"
+                  }}
+                >
                   +{annotationCount}
-                </span>
+                </Box>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            </Stack>
+          </Box>
+        </Box>
+      </Box>
+    </Stack>
   );
 };
 
 // Tips section
 const TipsSection: React.FC = () => (
-  <div className="flex flex-col gap-1.5 p-3 bg-black/10 rounded-sm border border-white/5">
-    <div className="flex items-center gap-2 text-[var(--vscode-descriptionForeground)]">
-      <i className="fas fa-lightbulb text-yellow-400/70 text-xs" />
-      <span className="field-label">Tips</span>
-    </div>
-    <ul className="helper-text space-y-1 ml-5">
-      <li>Higher zoom = better quality, larger file</li>
-      <li>SVG files scale without quality loss</li>
-      <li>Transparent background for layering</li>
-    </ul>
-  </div>
+  <Box
+    sx={{
+      p: 2,
+      borderRadius: 1,
+      bgcolor: "rgba(0,0,0,0.1)",
+      border: "1px solid rgba(255,255,255,0.05)"
+    }}
+  >
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+      <LightbulbOutlinedIcon sx={{ color: "rgba(250, 204, 21, 0.7)" }} />
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+        Tips
+      </Typography>
+    </Stack>
+    <Box component="ul" sx={{ pl: 2.5, m: 0 }}>
+      <Typography component="li" variant="caption" color="text.secondary">
+        Higher zoom = better quality, larger file
+      </Typography>
+      <Typography component="li" variant="caption" color="text.secondary">
+        SVG files scale without quality loss
+      </Typography>
+      <Typography component="li" variant="caption" color="text.secondary">
+        Transparent background for layering
+      </Typography>
+    </Box>
+  </Box>
 );
 
 export const SvgExportPanel: React.FC<SvgExportPanelProps> = ({
@@ -461,7 +554,7 @@ export const SvgExportPanel: React.FC<SvgExportPanelProps> = ({
       minHeight={200}
       testId="svg-export-panel"
     >
-      <div className="flex flex-col gap-4">
+      <Stack spacing={2}>
         <QualitySection
           zoom={borderZoom}
           setZoom={setBorderZoom}
@@ -498,48 +591,26 @@ export const SvgExportPanel: React.FC<SvgExportPanelProps> = ({
           annotationCount={totalAnnotations}
         />
 
-        {/* Export button */}
-        <button
-          type="button"
-          className={`w-full py-3 px-4 rounded-sm font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
-            isExporting || !isExportAvailable
-              ? "bg-white/5 text-[var(--vscode-descriptionForeground)] cursor-not-allowed"
-              : "bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 shadow-lg shadow-[var(--accent)]/20 hover:shadow-[var(--accent)]/30"
-          }`}
-          onClick={() => void handleExport()}
+        <Button
+          variant="contained"
+          fullWidth
           disabled={isExporting || !isExportAvailable}
+          onClick={() => void handleExport()}
+          startIcon={
+            isExporting ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />
+          }
         >
-          {isExporting ? (
-            <>
-              <i className="fas fa-circle-notch fa-spin" />
-              Exporting...
-            </>
-          ) : (
-            <>
-              <i className="fas fa-download" />
-              Export SVG
-            </>
-          )}
-        </button>
+          {isExporting ? "Exporting..." : "Export SVG"}
+        </Button>
 
-        {/* Status message */}
         {exportStatus && (
-          <div
-            className={`flex items-center gap-2 p-3 rounded-sm text-sm ${
-              exportStatus.type === "success"
-                ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                : "bg-red-500/10 text-red-400 border border-red-500/20"
-            }`}
-          >
-            <i
-              className={`fas ${exportStatus.type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}`}
-            />
+          <Alert severity={exportStatus.type === "success" ? "success" : "error"}>
             {exportStatus.message}
-          </div>
+          </Alert>
         )}
 
         <TipsSection />
-      </div>
+      </Stack>
     </BasePanel>
   );
 };

@@ -12,7 +12,7 @@ interface DeleteItemButtonProps {
 }
 
 export const DeleteItemButton: React.FC<DeleteItemButtonProps> = ({ onRemove, disabled }) => (
-  <IconButton size="small" onClick={onRemove} aria-label="Remove" disabled={disabled}>
+  <IconButton onClick={onRemove} aria-label="Remove" disabled={disabled}>
     <DeleteIcon fontSize="small" />
   </IconButton>
 );
@@ -25,7 +25,6 @@ interface AddItemButtonProps {
 
 export const AddItemButton: React.FC<AddItemButtonProps> = ({ onAdd, label = "Add", disabled }) => (
   <Button
-    size="small"
     variant="outlined"
     onClick={onAdd}
     disabled={disabled}

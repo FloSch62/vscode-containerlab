@@ -3,6 +3,17 @@
  * Matches the style of FreeTextFormContent
  */
 import React, { useMemo } from "react";
+import {
+  Box,
+  Button,
+  Grid,
+  MenuItem,
+  Slider,
+  Stack,
+  TextField,
+  Typography
+} from "@mui/material";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import type { FreeShapeAnnotation } from "../../../../shared/types/topology";
 import {
@@ -35,18 +46,15 @@ const ShapeTypeSelector: React.FC<{
   value: FreeShapeAnnotation["shapeType"];
   onChange: (v: FreeShapeAnnotation["shapeType"]) => void;
 }> = ({ value, onChange }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="field-label">Shape Type</span>
-    <select
-      className="w-full px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs cursor-pointer hover:border-white/20 transition-colors"
-      value={value}
-      onChange={(e) => onChange(e.target.value as FreeShapeAnnotation["shapeType"])}
-    >
-      <option value="rectangle">Rectangle</option>
-      <option value="circle">Circle</option>
-      <option value="line">Line</option>
-    </select>
-  </div>
+  <TextField
+    label="Shape Type" select
+    value={value}
+    onChange={(e) => onChange(e.target.value as FreeShapeAnnotation["shapeType"])}
+  >
+    <MenuItem value="rectangle">Rectangle</MenuItem>
+    <MenuItem value="circle">Circle</MenuItem>
+    <MenuItem value="line">Line</MenuItem>
+  </TextField>
 );
 
 // Size controls
@@ -56,24 +64,28 @@ const SizeControls: React.FC<{
 }> = ({ formData, updateField }) => {
   if (formData.shapeType === "line") return null;
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <NumberInput
-        label="Width"
-        value={formData.width ?? DEFAULT_SHAPE_WIDTH}
-        onChange={(v) => updateField("width", v)}
-        min={5}
-        max={2000}
-        unit="px"
-      />
-      <NumberInput
-        label="Height"
-        value={formData.height ?? DEFAULT_SHAPE_HEIGHT}
-        onChange={(v) => updateField("height", v)}
-        min={5}
-        max={2000}
-        unit="px"
-      />
-    </div>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <NumberInput
+          label="Width"
+          value={formData.width ?? DEFAULT_SHAPE_WIDTH}
+          onChange={(v) => updateField("width", v)}
+          min={5}
+          max={2000}
+          unit="px"
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <NumberInput
+          label="Height"
+          value={formData.height ?? DEFAULT_SHAPE_HEIGHT}
+          onChange={(v) => updateField("height", v)}
+          min={5}
+          max={2000}
+          unit="px"
+        />
+      </Grid>
+    </Grid>
   );
 };
 
@@ -86,40 +98,38 @@ const FillControls: React.FC<{
 
   const opacity = formData.fillOpacity ?? DEFAULT_FILL_OPACITY;
   const isTransparent = opacity === 0;
+  const opacityPercent = Math.round(opacity * 100);
 
   return (
-    <div className="flex items-start gap-4 flex-wrap">
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
       <ColorSwatch
         label="Fill"
         value={formData.fillColor ?? DEFAULT_FILL_COLOR}
         onChange={(v) => updateField("fillColor", v)}
         disabled={isTransparent}
       />
-      <div className="flex flex-col gap-0.5 flex-1 min-w-[120px]">
-        <div className="flex justify-between">
-          <span className="field-label">Opacity</span>
-          <span className="field-label">{Math.round(opacity * 100)}%</span>
-        </div>
-        <div className="flex items-center h-[30px]">
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(opacity * 100)}
-            onChange={(e) => updateField("fillOpacity", parseInt(e.target.value) / 100)}
-            className="w-full h-2 bg-white/10 rounded-sm appearance-none cursor-pointer"
-          />
-        </div>
-      </div>
-      <div className="pt-4">
-        <Toggle
-          active={isTransparent}
-          onClick={() => updateField("fillOpacity", isTransparent ? 1 : 0)}
-        >
-          Transparent
-        </Toggle>
-      </div>
-    </div>
+      <Box sx={{ flex: 1, minWidth: 160 }}>
+        <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+          <Typography variant="caption" color="text.secondary">
+            Opacity
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {opacityPercent}%
+          </Typography>
+        </Stack>
+        <Slider min={0}
+          max={100}
+          value={opacityPercent}
+          onChange={(_, next) => updateField("fillOpacity", (next as number) / 100)}
+        />
+      </Box>
+      <Toggle
+        active={isTransparent}
+        onClick={() => updateField("fillOpacity", isTransparent ? 1 : 0)}
+      >
+        Transparent
+      </Toggle>
+    </Stack>
   );
 };
 
@@ -133,48 +143,42 @@ const BorderControls: React.FC<{
   const noBorder = borderWidth === 0;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-start gap-4 flex-wrap">
-        <ColorSwatch
-          label={isLine ? "Line" : "Border"}
-          value={formData.borderColor ?? DEFAULT_BORDER_COLOR}
-          onChange={(v) => updateField("borderColor", v)}
-          disabled={noBorder}
-        />
-        <NumberInput
-          label={isLine ? "Width" : "Border"}
-          value={borderWidth}
-          onChange={(v) => updateField("borderWidth", v)}
-          min={0}
-          max={20}
-          unit="px"
-        />
-        <div className="flex flex-col gap-0.5 flex-1 min-w-[80px]">
-          <span className="field-label">Style</span>
-          <select
-            className="w-full px-2 py-1.5 bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] border border-white/10 rounded-sm text-xs cursor-pointer hover:border-white/20 transition-colors"
-            value={formData.borderStyle ?? DEFAULT_BORDER_STYLE}
-            onChange={(e) =>
-              updateField("borderStyle", e.target.value as FreeShapeAnnotation["borderStyle"])
-            }
-          >
-            <option value="solid">Solid</option>
-            <option value="dashed">Dashed</option>
-            <option value="dotted">Dotted</option>
-          </select>
-        </div>
-        {!isLine && (
-          <div className="pt-4">
-            <Toggle
-              active={noBorder}
-              onClick={() => updateField("borderWidth", noBorder ? DEFAULT_BORDER_WIDTH : 0)}
-            >
-              No Border
-            </Toggle>
-          </div>
-        )}
-      </div>
-    </div>
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+      <ColorSwatch
+        label={isLine ? "Line" : "Border"}
+        value={formData.borderColor ?? DEFAULT_BORDER_COLOR}
+        onChange={(v) => updateField("borderColor", v)}
+        disabled={noBorder}
+      />
+      <NumberInput
+        label={isLine ? "Width" : "Border"}
+        value={borderWidth}
+        onChange={(v) => updateField("borderWidth", v)}
+        min={0}
+        max={20}
+        unit="px"
+      />
+      <TextField
+        label="Style" select
+        value={formData.borderStyle ?? DEFAULT_BORDER_STYLE}
+        onChange={(e) =>
+          updateField("borderStyle", e.target.value as FreeShapeAnnotation["borderStyle"])
+        }
+        sx={{ minWidth: 140 }}
+      >
+        <MenuItem value="solid">Solid</MenuItem>
+        <MenuItem value="dashed">Dashed</MenuItem>
+        <MenuItem value="dotted">Dotted</MenuItem>
+      </TextField>
+      {!isLine && (
+        <Toggle
+          active={noBorder}
+          onClick={() => updateField("borderWidth", noBorder ? DEFAULT_BORDER_WIDTH : 0)}
+        >
+          No Border
+        </Toggle>
+      )}
+    </Stack>
   );
 };
 
@@ -204,8 +208,8 @@ const ArrowControls: React.FC<{
   if (formData.shapeType !== "line") return null;
   const hasArrows = formData.lineStartArrow || formData.lineEndArrow;
   return (
-    <div className="flex items-start gap-4 flex-wrap">
-      <div className={hasArrows ? "pt-4 flex gap-2" : "flex gap-2"}>
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+      <Stack direction="row" spacing={1}>
         <Toggle
           active={formData.lineStartArrow ?? false}
           onClick={() => updateField("lineStartArrow", !formData.lineStartArrow)}
@@ -218,7 +222,7 @@ const ArrowControls: React.FC<{
         >
           End Arrow
         </Toggle>
-      </div>
+      </Stack>
       {hasArrows && (
         <NumberInput
           label="Arrow Size"
@@ -229,7 +233,7 @@ const ArrowControls: React.FC<{
           unit="px"
         />
       )}
-    </div>
+    </Stack>
   );
 };
 
@@ -261,22 +265,47 @@ const Preview: React.FC<{ formData: FreeShapeAnnotation }> = ({ formData }) => {
   const rotation = formData.shapeType === "line" ? 0 : (formData.rotation ?? 0);
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className="field-label">Preview</span>
-      <div className="relative p-6 bg-gradient-to-br from-black/30 to-black/10 rounded-sm border border-white/5 min-h-[100px] flex items-center justify-center overflow-hidden">
-        <div className={`absolute inset-0 ${PREVIEW_GRID_BG} opacity-50`} />
-        <div
-          className="relative z-10 transition-all duration-200"
-          style={{
+    <Stack spacing={1}>
+      <Typography variant="caption" color="text.secondary">
+        Preview
+      </Typography>
+      <Box
+        sx={{
+          position: "relative",
+          p: 3,
+          borderRadius: 1,
+          minHeight: 100,
+          border: "1px solid",
+          borderColor: "divider",
+          backgroundColor: "rgba(0,0,0,0.18)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden"
+        }}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: PREVIEW_GRID_BG,
+            opacity: 0.5
+          }}
+        />
+        <Box
+          sx={{
+            position: "relative",
+            zIndex: 1,
             transform: `rotate(${rotation}deg) scale(${scale})`,
-            width: `${width}px`,
-            height: `${height}px`
+            width,
+            height,
+            transition: "transform 200ms"
           }}
         >
           {svg}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Stack>
   );
 };
 
@@ -287,7 +316,7 @@ export const FreeShapeFormContent: React.FC<Props> = ({
   isNew,
   onDelete
 }) => (
-  <div className="flex flex-col gap-4">
+  <Stack spacing={2}>
     <ShapeTypeSelector value={formData.shapeType} onChange={(v) => updateField("shapeType", v)} />
     <SizeControls formData={formData} updateField={updateField} />
     <FillControls formData={formData} updateField={updateField} />
@@ -297,14 +326,13 @@ export const FreeShapeFormContent: React.FC<Props> = ({
     <RotationControl formData={formData} updateField={updateField} />
     <Preview formData={formData} />
     {!isNew && onDelete && (
-      <button
-        type="button"
-        className="self-start text-xs text-[var(--vscode-errorForeground)] opacity-60 hover:opacity-100 transition-opacity"
+      <Button color="error"
+        startIcon={<DeleteOutlineIcon fontSize="small" />}
         onClick={onDelete}
+        sx={{ alignSelf: "flex-start", textTransform: "none" }}
       >
-        <i className="fas fa-trash-alt mr-1.5" />
         Delete
-      </button>
+      </Button>
     )}
-  </div>
+  </Stack>
 );

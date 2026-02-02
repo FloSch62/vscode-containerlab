@@ -165,23 +165,21 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
 
   return (
     <Paper
-      variant="outlined"
+      elevation={0}
       draggable
       onDragStart={onDragStart}
       sx={{
         p: 1.25,
         cursor: "grab",
-        borderColor: "var(--vscode-panel-border)",
-        backgroundColor: "var(--vscode-panel-background)",
         "&:hover": {
-          backgroundColor: "var(--vscode-list-hoverBackground)",
-          borderColor: "var(--vscode-focusBorder)"
+          backgroundColor: "action.hover",
+          borderColor: "primary.main"
         },
-        "& .palette-actions": {
+        "& [data-role='palette-actions']": {
           opacity: 0.65,
           transition: "opacity 120ms"
         },
-        "&:hover .palette-actions": { opacity: 1 }
+        "&:hover [data-role='palette-actions']": { opacity: 1 }
       }}
       title={`Drag to add ${template.name}`}
     >
@@ -204,11 +202,10 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
             {template.kind}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={0.5} className="palette-actions">
+        <Stack direction="row" spacing={0.5} data-role="palette-actions">
           <Tooltip title={isDefault ? "Default node" : "Set as default node"}>
             <span>
               <IconButton
-                size="small"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (!isDefault) onSetDefault?.(template.name);
@@ -224,7 +221,6 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
           </Tooltip>
           <Tooltip title="Edit custom node">
             <IconButton
-              size="small"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit?.(template.name);
@@ -235,7 +231,6 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
           </Tooltip>
           <Tooltip title="Delete custom node">
             <IconButton
-              size="small"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete?.(template.name);
@@ -271,18 +266,16 @@ const DraggableNetwork: React.FC<DraggableNetworkProps> = ({ network }) => {
 
   return (
     <Paper
-      variant="outlined"
+      elevation={0}
       draggable
       onDragStart={onDragStart}
       sx={{
         p: 1.25,
         cursor: "grab",
-        borderColor: "var(--vscode-panel-border)",
-        backgroundColor: "var(--vscode-panel-background)",
         borderLeft: `3px solid ${network.color}`,
         "&:hover": {
-          backgroundColor: "var(--vscode-list-hoverBackground)",
-          borderColor: "var(--vscode-focusBorder)"
+          backgroundColor: "action.hover",
+          borderColor: "primary.main"
         }
       }}
       title={`Drag to add ${network.label}`}
@@ -294,7 +287,6 @@ const DraggableNetwork: React.FC<DraggableNetworkProps> = ({ network }) => {
             width: 32,
             height: 32,
             bgcolor: network.color,
-            background: `linear-gradient(135deg, ${network.color} 0%, color-mix(in srgb, ${network.color} 65%, #000) 100%)`,
             color: "var(--vscode-button-foreground)"
           }}
         >
@@ -314,7 +306,7 @@ const DraggableNetwork: React.FC<DraggableNetworkProps> = ({ network }) => {
 };
 
 const NewCustomNodeButton: React.FC<{ onAddNew: () => void }> = ({ onAddNew }) => (
-  <Button size="small" startIcon={<AddIcon />} onClick={onAddNew}>
+  <Button startIcon={<AddIcon />} onClick={onAddNew}>
     New custom node...
   </Button>
 );
@@ -343,19 +335,17 @@ const DraggableAnnotation: React.FC<DraggableAnnotationProps> = ({
   onDragStart
 }) => (
   <Paper
-    variant="outlined"
+    elevation={0}
     draggable
     onDragStart={(event) => onDragStart(event, payload)}
     sx={{
       p: 1.25,
       cursor: "grab",
-      borderColor: "var(--vscode-panel-border)",
       borderLeft: `3px solid ${accentColor}`,
-      backgroundColor: "var(--vscode-panel-background)",
-      backgroundImage: `linear-gradient(135deg, ${accentColor}22 0%, transparent 65%)`,
+      backgroundColor: "background.paper",
       transition: "transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease",
       "&:hover": {
-        backgroundColor: "var(--vscode-list-hoverBackground)",
+        backgroundColor: "action.hover",
         borderColor: accentColor,
         transform: "translateY(-1px)",
         boxShadow: "0 8px 16px rgba(0, 0, 0, 0.2)"
@@ -384,7 +374,6 @@ const DraggableAnnotation: React.FC<DraggableAnnotationProps> = ({
         </Typography>
       </Box>
       <Chip
-        size="small"
         label={(tag ?? kind).toUpperCase()}
         variant="outlined"
         sx={{
@@ -495,9 +484,7 @@ export const PalettePanel: React.FC<PalettePanelProps> = ({
       >
         {activeTab === "nodes" && (
           <Stack spacing={2}>
-            <TextField
-              size="small"
-              placeholder="Search nodes..."
+            <TextField placeholder="Search nodes..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               InputProps={{
@@ -508,7 +495,7 @@ export const PalettePanel: React.FC<PalettePanelProps> = ({
                 ),
                 endAdornment: filter ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setFilter("")}>
+                    <IconButton onClick={() => setFilter("")}>
                       <ClearIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
@@ -578,14 +565,11 @@ export const PalettePanel: React.FC<PalettePanelProps> = ({
             </Stack>
 
             <Paper
-              variant="outlined"
+              elevation={0}
               sx={{
                 p: 1.5,
-                borderColor: "var(--vscode-panel-border)",
                 borderLeft: "3px solid var(--vscode-charts-blue)",
-                backgroundColor: "var(--vscode-editor-background)",
-                backgroundImage:
-                  "linear-gradient(135deg, rgba(55, 148, 255, 0.16), rgba(0,0,0,0) 55%)"
+                backgroundColor: "background.default"
               }}
             >
               <Stack direction="row" spacing={1} alignItems="center">
@@ -699,14 +683,11 @@ export const PalettePanel: React.FC<PalettePanelProps> = ({
             </Stack>
 
             <Paper
-              variant="outlined"
+              elevation={0}
               sx={{
                 p: 1.5,
-                borderColor: "var(--vscode-panel-border)",
                 borderLeft: "3px solid var(--vscode-charts-blue)",
-                backgroundColor: "var(--vscode-editor-background)",
-                backgroundImage:
-                  "linear-gradient(135deg, rgba(55, 148, 255, 0.16), rgba(0,0,0,0) 55%)"
+                backgroundColor: "background.default"
               }}
             >
               <Stack direction="row" spacing={1} alignItems="center">
@@ -744,7 +725,6 @@ const PaletteDrawer: React.FC<PaletteDrawerProps> = ({ title, isOpen, onClose, c
     PaperProps={{
       sx: {
         width: 380,
-        borderRight: "1px solid var(--vscode-panel-border)",
         bgcolor: "var(--vscode-sideBar-background)",
         color: "var(--vscode-sideBar-foreground)",
         boxSizing: "border-box"

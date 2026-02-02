@@ -13,7 +13,6 @@ interface InputFieldProps {
   min?: number;
   max?: number;
   step?: number;
-  className?: string;
   disabled?: boolean;
 }
 
@@ -26,7 +25,6 @@ export const InputField: React.FC<InputFieldProps> = ({
   min,
   max,
   step,
-  className = "",
   disabled
 }) => (
   <TextField
@@ -35,8 +33,6 @@ export const InputField: React.FC<InputFieldProps> = ({
     onChange={(e) => onChange(e.target.value)}
     placeholder={placeholder}
     type={type}
-    size="small"
-    className={className}
     inputProps={{ min, max, step }}
     disabled={disabled}
     fullWidth

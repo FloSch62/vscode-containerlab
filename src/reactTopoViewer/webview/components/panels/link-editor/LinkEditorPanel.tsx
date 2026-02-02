@@ -2,6 +2,7 @@
  * Link Editor Panel - Multi-tab editor for link configuration
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Alert, Stack } from "@mui/material";
 
 import type { TabDefinition } from "../../ui/editor";
 import { EditorPanel } from "../../ui/editor";
@@ -138,22 +139,14 @@ const ValidationBanner: React.FC<{ errors: string[] }> = ({ errors }) => {
   if (errors.length === 0) return null;
 
   return (
-    <div
-      className="mb-2 p-2 rounded-sm"
-      style={{
-        backgroundColor: "var(--vscode-inputValidation-errorBackground)",
-        border: "1px solid var(--vscode-inputValidation-errorBorder)"
-      }}
-    >
-      <div className="text-[var(--vscode-editorError-foreground)] text-sm font-semibold">
-        Invalid link configuration
-      </div>
-      <div className="text-[var(--vscode-editorError-foreground)] text-xs mt-1">
+    <Alert severity="error" variant="outlined">
+      <Stack spacing={0.5}>
+        <strong>Invalid link configuration</strong>
         {errors.map((error, i) => (
-          <div key={i}>{error}</div>
+          <span key={i}>{error}</span>
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Alert>
   );
 };
 

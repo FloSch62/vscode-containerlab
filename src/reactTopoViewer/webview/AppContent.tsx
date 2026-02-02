@@ -2,6 +2,7 @@
  * App content - UI composition for the React TopoViewer.
  */
 import React from "react";
+import { Box } from "@mui/material";
 import type { ReactFlowInstance } from "@xyflow/react";
 
 import type { NetemState } from "../shared/parsing";
@@ -599,7 +600,10 @@ export const AppContent: React.FC<AppContentProps> = ({
   );
 
   return (
-    <div className="topoviewer-app" data-testid="topoviewer-app">
+    <Box
+      data-testid="topoviewer-app"
+      sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}
+    >
       <Navbar
         onZoomToFit={handleZoomToFit}
         onToggleLayout={navbarCommands.onLayoutToggle}
@@ -628,7 +632,17 @@ export const AppContent: React.FC<AppContentProps> = ({
         logoClickProgress={easterEgg.state.progress}
         isPartyMode={easterEgg.state.isPartyMode}
       />
-      <main className="topoviewer-main">
+      <Box
+        component="main"
+        sx={{
+          position: "absolute",
+          top: "var(--navbar-height)",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          overflow: "hidden"
+        }}
+      >
         <ReactFlowCanvas
           ref={reactFlowRef}
           nodes={filteredNodes}
@@ -778,7 +792,7 @@ export const AppContent: React.FC<AppContentProps> = ({
         <ShortcutDisplay shortcuts={shortcutDisplay.shortcuts} />
         <EasterEggRenderer easterEgg={easterEgg} />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 };

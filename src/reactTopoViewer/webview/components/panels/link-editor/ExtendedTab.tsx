@@ -2,9 +2,9 @@
  * ExtendedTab - Extended link configuration (MAC, MTU, vars, labels)
  */
 import React from "react";
+import { Alert, Stack, Typography } from "@mui/material";
 
-import { FormField, InputField, KeyValueList, ReadOnlyBadge } from "../../ui/form";
-import { quoteBlockStyle } from "../../../styles/cssVariables";
+import { FormField, InputField, KeyValueList, ReadOnlyBadge, Section } from "../../ui/form";
 
 import type { LinkTabProps, LinkEditorData } from "./types";
 
@@ -12,17 +12,21 @@ import type { LinkTabProps, LinkEditorData } from "./types";
  * Header section with link name and type
  */
 const HeaderSection: React.FC<{ linkId: string; linkType?: string }> = ({ linkId, linkType }) => (
-  <div className="border-b pb-3 mb-3" style={{ borderColor: "var(--vscode-panel-border)" }}>
-    <FormField label="Link Name">
-      <ReadOnlyBadge>{linkId || "New Link"}</ReadOnlyBadge>
-    </FormField>
-    <FormField label="Type">
-      <ReadOnlyBadge>{linkType || "veth"}</ReadOnlyBadge>
-      <span className="text-xs text-[var(--vscode-descriptionForeground)] ml-2">
-        (auto-detected)
-      </span>
-    </FormField>
-  </div>
+  <Section title="Link Details">
+    <Stack spacing={1}>
+      <FormField label="Link Name">
+        <ReadOnlyBadge>{linkId || "New Link"}</ReadOnlyBadge>
+      </FormField>
+      <FormField label="Type">
+        <Stack direction="row" spacing={1} alignItems="center">
+          <ReadOnlyBadge>{linkType || "veth"}</ReadOnlyBadge>
+          <Typography variant="caption" color="text.secondary">
+            (auto-detected)
+          </Typography>
+        </Stack>
+      </FormField>
+    </Stack>
+  </Section>
 );
 
 /**
@@ -84,24 +88,19 @@ const VethLinkFields: React.FC<LinkTabProps> = ({ data, onChange }) => (
  * Info message for non-veth links
  */
 const NonVethInfo: React.FC = () => (
-  <div className="my-1">
-    <div className="p-2 rounded-sm" style={quoteBlockStyle}>
-      <div className="text-sm">
-        <span className="font-semibold">Note:</span> This link connects to a network node. Configure
-        extended properties on the network node itself.
-      </div>
-    </div>
-  </div>
+  <Alert severity="info" variant="outlined">
+    This link connects to a network node. Configure extended properties on the network node itself.
+  </Alert>
 );
 
 export const ExtendedTab: React.FC<LinkTabProps> = ({ data, onChange }) => {
   const isVethLink = !data.type || data.type === "veth";
 
   return (
-    <div className="space-y-3">
+    <Stack spacing={2}>
       <HeaderSection linkId={data.id} linkType={data.type} />
       {isVethLink ? <VethLinkFields data={data} onChange={onChange} /> : <NonVethInfo />}
-    </div>
+    </Stack>
   );
 };
 

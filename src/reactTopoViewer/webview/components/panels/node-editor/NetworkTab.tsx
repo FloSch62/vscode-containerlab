@@ -2,6 +2,7 @@
  * Network Tab for Node Editor
  */
 import React from "react";
+import { Stack } from "@mui/material";
 
 import { FormField, InputField, SelectField, DynamicList } from "../../ui/form";
 
@@ -19,7 +20,7 @@ const NETWORK_MODE_OPTIONS = [
 ];
 
 export const NetworkTab: React.FC<TabProps> = ({ data, onChange, inheritedProps = [] }) => (
-  <div className="space-y-3">
+  <Stack spacing={2}>
     {/* Management IPv4 */}
     <FormField label="Management IPv4" inherited={isInherited("mgmt-ipv4", inheritedProps)}>
       <InputField
@@ -79,5 +80,5 @@ export const NetworkTab: React.FC<TabProps> = ({ data, onChange, inheritedProps 
         addLabel="Add Alias"
       />
     </FormField>
-  </div>
+  </Stack>
 );

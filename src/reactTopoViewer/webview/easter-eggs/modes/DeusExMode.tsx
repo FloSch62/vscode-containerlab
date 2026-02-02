@@ -6,8 +6,9 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Stack } from "@mui/material";
 
-import { lerpColor, useNodeGlow } from "../shared";
+import { lerpColor, ModeActionButton, useNodeGlow } from "../shared";
 import type { RGBColor, BaseModeProps } from "../shared";
 
 /** Deus Ex color palette with neon accents */
@@ -105,8 +106,14 @@ const DeusExCanvas: React.FC<{
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[99998]"
-      style={{ width: "100%", height: "100%" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 99998
+      }}
     />
   );
 };
@@ -258,49 +265,49 @@ export const DeusExMode: React.FC<BaseModeProps> = ({
     <>
       <DeusExCanvas isActive={isActive} getRotationAngle={getRotationAngle} />
 
-      <div className="fixed inset-0 pointer-events-none z-[99999] flex items-end justify-center pb-8 gap-4">
-        <button
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 99999,
+          alignItems: "flex-end",
+          justifyContent: "center",
+          pb: 4
+        }}
+      >
+        <ModeActionButton
           onClick={handleSwitch}
-          className={`px-6 py-2.5 rounded-full pointer-events-auto transition-all duration-500 ${
-            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-          style={{
+          visible={visible}
+          title={`Current: ${modeName}`}
+          sx={{
             background:
               "linear-gradient(135deg, rgba(113, 121, 126, 0.4) 0%, rgba(70, 75, 80, 0.4) 100%)",
             border: "2px solid rgba(192, 192, 192, 0.5)",
             color: "#c0c0c0",
-            cursor: "pointer",
-            backdropFilter: "blur(10px)",
-            fontSize: "14px",
-            fontWeight: 600,
             textShadow: "0 0 10px rgba(220, 220, 225, 0.8)",
             boxShadow: "0 0 20px rgba(113, 121, 126, 0.3), inset 0 0 20px rgba(192, 192, 192, 0.1)"
           }}
-          title={`Current: ${modeName}`}
         >
           Switch
-        </button>
-        <button
+        </ModeActionButton>
+        <ModeActionButton
           onClick={handleClose}
-          className={`px-6 py-2.5 rounded-full pointer-events-auto transition-all duration-500 ${
-            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-          style={{
+          visible={visible}
+          sx={{
             background:
               "linear-gradient(135deg, rgba(192, 192, 192, 0.7) 0%, rgba(113, 121, 126, 0.7) 100%)",
             border: "2px solid rgba(220, 220, 225, 0.5)",
             color: "#dcdce1",
-            cursor: "pointer",
-            backdropFilter: "blur(10px)",
-            fontSize: "14px",
-            fontWeight: 600,
             textShadow: "0 0 10px rgba(255, 255, 255, 0.8)",
             boxShadow: "0 0 20px rgba(192, 192, 192, 0.5), inset 0 0 20px rgba(220, 220, 225, 0.1)"
           }}
         >
           Shutdown
-        </button>
-      </div>
+        </ModeActionButton>
+      </Stack>
     </>
   );
 };

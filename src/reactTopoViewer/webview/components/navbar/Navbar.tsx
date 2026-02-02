@@ -20,7 +20,8 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, type SxProps, type Theme } from "@mui/material/styles";
+import { keyframes } from "@mui/system";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
@@ -122,6 +123,19 @@ const GRID_STYLE_OPTIONS: { value: GridStyle; label: string }[] = [
   { value: "quadratic", label: "Quadractic" }
 ];
 
+const lockShake = keyframes`
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+`;
+
 function getLayoutLabel(option: LayoutOption): string {
   const match = LAYOUT_OPTIONS.find((o) => o.value === option);
   return match ? match.label : option;
@@ -137,6 +151,12 @@ function useMenuState() {
   };
 }
 
+const NAV_ICON_BUTTON_BASE_SX = {
+  width: 36,
+  height: 36,
+  "& svg": { fontSize: 20 }
+};
+
 const NavIconButton: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -144,9 +164,9 @@ const NavIconButton: React.FC<{
   active?: boolean;
   disabled?: boolean;
   testId?: string;
-  className?: string;
   ariaPressed?: boolean;
-}> = ({ title, icon, onClick, active, disabled, testId, className, ariaPressed }) => (
+  sx?: SxProps<Theme>;
+}> = ({ title, icon, onClick, active, disabled, testId, ariaPressed, sx }) => (
   <Tooltip title={title}>
     <span>
       <IconButton
@@ -156,12 +176,7 @@ const NavIconButton: React.FC<{
         data-testid={testId}
         aria-pressed={ariaPressed}
         color={active ? "primary" : "default"}
-        className={className}
-        sx={{
-          width: 36,
-          height: 36,
-          "& svg": { fontSize: 20 }
-        }}
+        sx={sx ? { ...NAV_ICON_BUTTON_BASE_SX, ...(sx as object) } : NAV_ICON_BUTTON_BASE_SX}
       >
         {icon}
       </IconButton>
@@ -236,11 +251,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       ref={appBarRef}
       position="fixed"
       elevation={0}
-      sx={{
-        backgroundColor: "var(--vscode-panel-background)",
-        color: "var(--vscode-panel-foreground)",
-        borderBottom: "1px solid var(--vscode-panel-border)"
-      }}
     >
       <Toolbar
         sx={{
@@ -273,7 +283,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={isLocked ? "Unlock Lab" : "Lock Lab"}
             onClick={toggleLock}
             disabled={isProcessing}
-            className={lockShakeActive ? "lock-shake" : undefined}
+            sx={lockShakeActive ? { animation: `${lockShake} 0.3s` } : undefined}
             ariaPressed={isLocked}
             testId="navbar-lock"
           />
@@ -442,9 +452,7 @@ const LinkLabelDropdown: React.FC = () => {
           <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
             Endpoint offset: {endpointLabelOffset.toFixed(0)}
           </Typography>
-          <Slider
-            size="small"
-            min={ENDPOINT_LABEL_OFFSET_MIN}
+          <Slider min={ENDPOINT_LABEL_OFFSET_MIN}
             max={ENDPOINT_LABEL_OFFSET_MAX}
             step={1}
             value={endpointLabelOffset}
@@ -543,15 +551,13 @@ const GridDropdown: React.FC<{
           <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
             Grid line width: {value.toFixed(2)}
           </Typography>
-          <Slider
-            size="small"
-            min={0.00001}
+          <Slider min={0.00001}
             max={2}
             step={0.05}
             value={value}
             onChange={(_, next) => onChange(next as number)}
           />
-          <Button size="small" onClick={() => onChange(DEFAULT_GRID_LINE_WIDTH)}>
+          <Button onClick={() => onChange(DEFAULT_GRID_LINE_WIDTH)}>
             Reset to {DEFAULT_GRID_LINE_WIDTH}
           </Button>
         </Box>
@@ -618,9 +624,7 @@ const DeployControl: React.FC<{
   return (
     <>
       <ButtonGroup
-        variant="contained"
-        size="small"
-        color={isViewerMode ? "error" : "primary"}
+        variant="contained" color={isViewerMode ? "error" : "primary"}
         disabled={isProcessing}
       >
         <Button
@@ -668,13 +672,16 @@ const NavbarLogo: React.FC<{
     aria-label="Containerlab logo"
     size="medium"
     className="navbar-logo-button"
-    sx={{ width: 40, height: 40 }}
+    sx={{
+      width: 40,
+      height: 40,
+      "& .containerlab-logo-svg": {
+        height: 24,
+        width: "auto"
+      }
+    }}
   >
-    <ContainerlabLogo
-      className="navbar-logo"
-      clickProgress={clickProgress}
-      isExploded={isPartyMode}
-    />
+    <ContainerlabLogo clickProgress={clickProgress} isExploded={isPartyMode} />
   </IconButton>
 );
 
@@ -698,9 +705,7 @@ const NavbarTitle: React.FC<{
 
   return (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Chip
-        size="small"
-        label={modeLabel}
+      <Chip label={modeLabel}
         sx={{
           textTransform: "uppercase",
           fontSize: 11,

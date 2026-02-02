@@ -3,6 +3,7 @@
  * Shows properties of a selected node with selectable/copyable values
  */
 import React, { useCallback } from "react";
+import { Box, Grid, Stack, Typography } from "@mui/material";
 
 import type { NodeData } from "../../hooks/ui";
 
@@ -46,9 +47,9 @@ function extractNodeDisplayProps(nodeData: NodeData) {
 /**
  * Copyable value component with hover effect
  */
-const CopyableValue: React.FC<{ value: string; className?: string }> = ({
+const CopyableValue: React.FC<{ value: string; sx?: Record<string, unknown> }> = ({
   value,
-  className = ""
+  sx
 }) => {
   const handleCopy = useCallback(() => {
     if (value) {
@@ -57,23 +58,32 @@ const CopyableValue: React.FC<{ value: string; className?: string }> = ({
   }, [value]);
 
   if (!value) {
-    return <span className="text-[var(--vscode-descriptionForeground)] opacity-50">—</span>;
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.6 }}>
+        —
+      </Typography>
+    );
   }
 
   return (
-    <span
+    <Box
+      component="span"
       onClick={handleCopy}
       title="Click to copy"
-      className={`
-        cursor-pointer select-text
-        hover:bg-[var(--vscode-toolbar-hoverBackground)]
-        active:bg-[var(--vscode-toolbar-activeBackground)]
-        rounded px-1 -mx-1 transition-colors duration-150
-        ${className}
-      `}
+      sx={{
+        cursor: "pointer",
+        userSelect: "text",
+        borderRadius: 0.5,
+        px: 0.5,
+        mx: -0.5,
+        transition: "background-color 150ms",
+        "&:hover": { bgcolor: "var(--vscode-toolbar-hoverBackground)" },
+        "&:active": { bgcolor: "var(--vscode-toolbar-activeBackground)" },
+        ...sx
+      }}
     >
       {value}
-    </span>
+    </Box>
   );
 };
 
@@ -83,15 +93,19 @@ const CopyableValue: React.FC<{ value: string; className?: string }> = ({
 const InfoRow: React.FC<{
   label: string;
   value: string;
-  valueClassName?: string;
+  valueSx?: Record<string, unknown>;
   fullWidth?: boolean;
-}> = ({ label, value, valueClassName = "", fullWidth = false }) => (
-  <div className={`flex flex-col gap-0.5 ${fullWidth ? "col-span-full" : ""}`}>
-    <span className="text-[10px] uppercase tracking-wider text-[var(--vscode-descriptionForeground)] font-medium">
+}> = ({ label, value, valueSx, fullWidth = false }) => (
+  <Stack spacing={0.5} sx={{ gridColumn: fullWidth ? "1 / -1" : "auto" }}>
+    <Typography
+      variant="caption"
+      color="text.secondary"
+      sx={{ textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}
+    >
       {label}
-    </span>
-    <CopyableValue value={value} className={valueClassName} />
-  </div>
+    </Typography>
+    <CopyableValue value={value} sx={valueSx} />
+  </Stack>
 );
 
 /**
@@ -99,12 +113,12 @@ const InfoRow: React.FC<{
  */
 function getStateIndicatorColor(lowerState: string): string {
   if (lowerState === "running" || lowerState === "healthy") {
-    return "bg-green-400";
+    return "#4ade80";
   }
   if (lowerState === "stopped" || lowerState === "exited") {
-    return "bg-red-400";
+    return "#f87171";
   }
-  return "bg-[var(--vscode-badge-foreground)]";
+  return "var(--vscode-badge-foreground)";
 }
 
 /**
@@ -112,34 +126,55 @@ function getStateIndicatorColor(lowerState: string): string {
  */
 const StateBadge: React.FC<{ state: string }> = ({ state }) => {
   if (!state) {
-    return <span className="text-[var(--vscode-descriptionForeground)] opacity-50">—</span>;
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.6 }}>
+        —
+      </Typography>
+    );
   }
 
   const lowerState = state.toLowerCase();
 
-  let bgColor = "bg-[var(--vscode-badge-background)]";
-  let textColor = "text-[var(--vscode-badge-foreground)]";
+  let bgColor = "var(--vscode-badge-background)";
+  let textColor = "var(--vscode-badge-foreground)";
 
   if (lowerState === "running" || lowerState === "healthy") {
-    bgColor = "bg-green-500/20";
-    textColor = "text-green-400";
+    bgColor = "rgba(34, 197, 94, 0.2)";
+    textColor = "#4ade80";
   } else if (lowerState === "stopped" || lowerState === "exited") {
-    bgColor = "bg-red-500/20";
-    textColor = "text-red-400";
+    bgColor = "rgba(239, 68, 68, 0.2)";
+    textColor = "#f87171";
   }
 
   const indicatorColor = getStateIndicatorColor(lowerState);
 
   return (
-    <span
-      className={`
-      inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-      ${bgColor} ${textColor}
-    `}
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        px: 1,
+        py: 0.25,
+        borderRadius: 999,
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        bgcolor: bgColor,
+        color: textColor
+      }}
     >
-      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${indicatorColor}`} />
+      <Box
+        component="span"
+        sx={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          mr: 0.75,
+          bgcolor: indicatorColor
+        }}
+      />
       {state}
-    </span>
+    </Box>
   );
 };
 
@@ -159,50 +194,62 @@ export const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({ isVisible, nodeDat
       minWidth={280}
       minHeight={200}
     >
-      <div className="flex flex-col gap-4 select-text">
-        {/* Node Name - Hero section */}
-        <div className="pb-3 border-b border-[var(--vscode-panel-border)]">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--vscode-descriptionForeground)] font-medium">
+      <Stack spacing={3} sx={{ userSelect: "text" }}>
+        <Box sx={{ pb: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}
+          >
             Name
-          </span>
-          <div className="mt-1">
-            <CopyableValue
-              value={nodeName}
-              className="text-base font-semibold text-[var(--vscode-foreground)]"
-            />
-          </div>
-        </div>
+          </Typography>
+          <Box sx={{ mt: 0.5 }}>
+            <CopyableValue value={nodeName} sx={{ fontSize: 16, fontWeight: 600 }} />
+          </Box>
+        </Box>
 
-        {/* Status row */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--vscode-descriptionForeground)] font-medium">
-              Kind
-            </span>
-            <CopyableValue value={kind} className="text-sm" />
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--vscode-descriptionForeground)] font-medium">
-              State
-            </span>
-            <StateBadge state={state} />
-          </div>
-        </div>
+        <Grid container spacing={2}>
+          <Grid size={6}>
+            <Stack spacing={0.5}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}
+              >
+                Kind
+              </Typography>
+              <CopyableValue value={kind} sx={{ fontSize: 14 }} />
+            </Stack>
+          </Grid>
+          <Grid size={6}>
+            <Stack spacing={0.5}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}
+              >
+                State
+              </Typography>
+              <StateBadge state={state} />
+            </Stack>
+          </Grid>
+        </Grid>
 
-        {/* Image */}
         <InfoRow label="Image" value={image} fullWidth />
 
-        {/* Network section */}
-        <div className="pt-3 border-t border-[var(--vscode-panel-border)]">
-          <div className="grid grid-cols-2 gap-4">
-            <InfoRow label="Mgmt IPv4" value={mgmtIpv4} valueClassName="font-mono text-sm" />
-            <InfoRow label="Mgmt IPv6" value={mgmtIpv6} valueClassName="font-mono text-sm" />
-          </div>
-        </div>
+        <Box sx={{ pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+          <Grid container spacing={2}>
+            <Grid size={6}>
+              <InfoRow label="Mgmt IPv4" value={mgmtIpv4} valueSx={{ fontFamily: "monospace" }} />
+            </Grid>
+            <Grid size={6}>
+              <InfoRow label="Mgmt IPv6" value={mgmtIpv6} valueSx={{ fontFamily: "monospace" }} />
+            </Grid>
+          </Grid>
+        </Box>
 
-        {/* FQDN */}
-        <InfoRow label="FQDN" value={fqdn} fullWidth valueClassName="font-mono text-sm" />
-      </div>
+        <InfoRow label="FQDN" value={fqdn} fullWidth valueSx={{ fontFamily: "monospace" }} />
+      </Stack>
     </FloatingPanel>
   );
 };

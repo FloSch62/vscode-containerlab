@@ -2,6 +2,7 @@
  * Advanced Tab for Node Editor
  */
 import React from "react";
+import { Grid, Stack } from "@mui/material";
 
 import {
   FormField,
@@ -43,43 +44,51 @@ const RUNTIME_OPTIONS = [
  */
 const ResourceLimitsSection: React.FC<TabProps> = ({ data, onChange, inheritedProps = [] }) => (
   <Section title="Resource Limits">
-    <div className="grid grid-cols-2 gap-2">
-      <FormField label="CPU Limit" inherited={isInherited("cpu", inheritedProps)}>
-        <InputField
-          id="node-cpu"
-          type="number"
-          value={String(data.cpu ?? "")}
-          onChange={(v) => onChange({ cpu: v ? parseFloat(v) : undefined })}
-          placeholder="e.g., 1.5"
-          step={0.1}
-          min={0}
-        />
-      </FormField>
-      <FormField label="CPU Set" inherited={isInherited("cpu-set", inheritedProps)}>
-        <InputField
-          id="node-cpu-set"
-          value={data.cpuSet || ""}
-          onChange={(v) => onChange({ cpuSet: v })}
-          placeholder="e.g., 0-3, 0,3"
-        />
-      </FormField>
-      <FormField label="Memory Limit" inherited={isInherited("memory", inheritedProps)}>
-        <InputField
-          id="node-memory"
-          value={data.memory || ""}
-          onChange={(v) => onChange({ memory: v })}
-          placeholder="e.g., 1Gb, 512Mb"
-        />
-      </FormField>
-      <FormField label="Shared Memory Size" inherited={isInherited("shm-size", inheritedProps)}>
-        <InputField
-          id="node-shm-size"
-          value={data.shmSize || ""}
-          onChange={(v) => onChange({ shmSize: v })}
-          placeholder="e.g., 256MB"
-        />
-      </FormField>
-    </div>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormField label="CPU Limit" inherited={isInherited("cpu", inheritedProps)}>
+          <InputField
+            id="node-cpu"
+            type="number"
+            value={String(data.cpu ?? "")}
+            onChange={(v) => onChange({ cpu: v ? parseFloat(v) : undefined })}
+            placeholder="e.g., 1.5"
+            step={0.1}
+            min={0}
+          />
+        </FormField>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormField label="CPU Set" inherited={isInherited("cpu-set", inheritedProps)}>
+          <InputField
+            id="node-cpu-set"
+            value={data.cpuSet || ""}
+            onChange={(v) => onChange({ cpuSet: v })}
+            placeholder="e.g., 0-3, 0,3"
+          />
+        </FormField>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormField label="Memory Limit" inherited={isInherited("memory", inheritedProps)}>
+          <InputField
+            id="node-memory"
+            value={data.memory || ""}
+            onChange={(v) => onChange({ memory: v })}
+            placeholder="e.g., 1Gb, 512Mb"
+          />
+        </FormField>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormField label="Shared Memory Size" inherited={isInherited("shm-size", inheritedProps)}>
+          <InputField
+            id="node-shm-size"
+            value={data.shmSize || ""}
+            onChange={(v) => onChange({ shmSize: v })}
+            placeholder="e.g., 256MB"
+          />
+        </FormField>
+      </Grid>
+    </Grid>
   </Section>
 );
 
@@ -138,7 +147,7 @@ const TlsCertSection: React.FC<TabProps> = ({ data, onChange, inheritedProps = [
       onChange={(checked) => onChange({ certIssue: checked })}
     />
     {data.certIssue && (
-      <div className="mt-2 space-y-3">
+      <Stack spacing={2} sx={{ mt: 2 }}>
         <FormField label="Key Size" inherited={isInherited("certificate", inheritedProps)}>
           <SelectField
             id="node-cert-key-size"
@@ -166,7 +175,7 @@ const TlsCertSection: React.FC<TabProps> = ({ data, onChange, inheritedProps = [
             addLabel="Add SAN"
           />
         </FormField>
-      </div>
+      </Stack>
     )}
   </Section>
 );
@@ -180,48 +189,56 @@ interface HealthCheckTimingsProps {
 }
 
 const HealthCheckTimings: React.FC<HealthCheckTimingsProps> = ({ hc, updateHc }) => (
-  <div className="grid grid-cols-2 gap-2 mt-2">
-    <FormField label="Start Period (s)">
-      <InputField
-        id="node-healthcheck-start-period"
-        type="number"
-        value={String(hc.startPeriod ?? "")}
-        onChange={(v) => updateHc({ startPeriod: v ? parseInt(v, 10) : undefined })}
-        placeholder="0"
-        min={0}
-      />
-    </FormField>
-    <FormField label="Interval (s)">
-      <InputField
-        id="node-healthcheck-interval"
-        type="number"
-        value={String(hc.interval ?? "")}
-        onChange={(v) => updateHc({ interval: v ? parseInt(v, 10) : undefined })}
-        placeholder="30"
-        min={0}
-      />
-    </FormField>
-    <FormField label="Timeout (s)">
-      <InputField
-        id="node-healthcheck-timeout"
-        type="number"
-        value={String(hc.timeout ?? "")}
-        onChange={(v) => updateHc({ timeout: v ? parseInt(v, 10) : undefined })}
-        placeholder="30"
-        min={0}
-      />
-    </FormField>
-    <FormField label="Retries">
-      <InputField
-        id="node-healthcheck-retries"
-        type="number"
-        value={String(hc.retries ?? "")}
-        onChange={(v) => updateHc({ retries: v ? parseInt(v, 10) : undefined })}
-        placeholder="3"
-        min={0}
-      />
-    </FormField>
-  </div>
+  <Grid container spacing={2} sx={{ mt: 1 }}>
+    <Grid size={{ xs: 12, sm: 6 }}>
+      <FormField label="Start Period (s)">
+        <InputField
+          id="node-healthcheck-start-period"
+          type="number"
+          value={String(hc.startPeriod ?? "")}
+          onChange={(v) => updateHc({ startPeriod: v ? parseInt(v, 10) : undefined })}
+          placeholder="0"
+          min={0}
+        />
+      </FormField>
+    </Grid>
+    <Grid size={{ xs: 12, sm: 6 }}>
+      <FormField label="Interval (s)">
+        <InputField
+          id="node-healthcheck-interval"
+          type="number"
+          value={String(hc.interval ?? "")}
+          onChange={(v) => updateHc({ interval: v ? parseInt(v, 10) : undefined })}
+          placeholder="30"
+          min={0}
+        />
+      </FormField>
+    </Grid>
+    <Grid size={{ xs: 12, sm: 6 }}>
+      <FormField label="Timeout (s)">
+        <InputField
+          id="node-healthcheck-timeout"
+          type="number"
+          value={String(hc.timeout ?? "")}
+          onChange={(v) => updateHc({ timeout: v ? parseInt(v, 10) : undefined })}
+          placeholder="30"
+          min={0}
+        />
+      </FormField>
+    </Grid>
+    <Grid size={{ xs: 12, sm: 6 }}>
+      <FormField label="Retries">
+        <InputField
+          id="node-healthcheck-retries"
+          type="number"
+          value={String(hc.retries ?? "")}
+          onChange={(v) => updateHc({ retries: v ? parseInt(v, 10) : undefined })}
+          placeholder="3"
+          min={0}
+        />
+      </FormField>
+    </Grid>
+  </Grid>
 );
 
 /**
@@ -259,7 +276,7 @@ export const AdvancedTab: React.FC<TabProps> = ({ data, onChange, inheritedProps
   ];
 
   return (
-    <div className="space-y-3">
+    <Stack spacing={2}>
       {sections.map((SectionComponent, index) => (
         <SectionComponent
           key={index}
@@ -291,6 +308,6 @@ export const AdvancedTab: React.FC<TabProps> = ({ data, onChange, inheritedProps
           options={RUNTIME_OPTIONS}
         />
       </FormField>
-    </div>
+    </Stack>
   );
 };

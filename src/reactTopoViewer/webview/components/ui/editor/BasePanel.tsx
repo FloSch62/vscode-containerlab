@@ -304,7 +304,6 @@ export function BasePanel(props: Readonly<BasePanelProps>): React.ReactElement |
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          border: "1px solid var(--vscode-panel-border)",
           userSelect: isDragging || isResizing ? "none" : "auto",
           zIndex
         }}
@@ -323,7 +322,7 @@ export function BasePanel(props: Readonly<BasePanelProps>): React.ReactElement |
           <Typography variant="subtitle1" fontWeight={600}>
             {title}
           </Typography>
-          <IconButton size="small" onClick={onClose} aria-label="Close">
+          <IconButton onClick={onClose} aria-label="Close">
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -391,8 +390,9 @@ export function BasePanel(props: Readonly<BasePanelProps>): React.ReactElement |
               width: 14,
               height: 14,
               cursor: "nwse-resize",
-              borderRight: "2px solid var(--vscode-panel-border)",
-              borderBottom: "2px solid var(--vscode-panel-border)"
+              borderRight: "2px solid",
+              borderBottom: "2px solid",
+              borderColor: "divider"
             }}
           />
         )}

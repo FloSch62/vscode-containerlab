@@ -217,9 +217,7 @@ export const FindNodePanel: React.FC<FindNodePanelProps> = ({ isVisible, onClose
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search for nodes ..."
-          size="small"
-          autoFocus
+          placeholder="Search for nodes ..." autoFocus
           data-testid="find-node-input"
           InputProps={{
             startAdornment: (
@@ -229,7 +227,7 @@ export const FindNodePanel: React.FC<FindNodePanelProps> = ({ isVisible, onClose
             ),
             endAdornment: searchTerm ? (
               <InputAdornment position="end">
-                <IconButton size="small" onClick={handleClearClick} title="Clear search">
+                <IconButton onClick={handleClearClick} title="Clear search">
                   <ClearIcon fontSize="small" />
                 </IconButton>
               </InputAdornment>
@@ -238,7 +236,7 @@ export const FindNodePanel: React.FC<FindNodePanelProps> = ({ isVisible, onClose
         />
 
         <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-          <Button variant="contained" size="small" onClick={handleSearch} data-testid="find-node-search-btn">
+          <Button variant="contained" onClick={handleSearch} data-testid="find-node-search-btn">
             Search
           </Button>
           {matchCount !== null && <SearchResultStatus count={matchCount} />}
@@ -251,18 +249,18 @@ export const FindNodePanel: React.FC<FindNodePanelProps> = ({ isVisible, onClose
           <List dense disablePadding>
             <ListItem disableGutters>
               <Typography variant="body2">
-                Use <Chip label="*" size="small" sx={{ mx: 0.5 }} /> for wildcard (e.g.,{" "}
+                Use <Chip label="*" sx={{ mx: 0.5 }} /> for wildcard (e.g.,{" "}
                 <code>srl*</code>)
               </Typography>
             </ListItem>
             <ListItem disableGutters>
               <Typography variant="body2">
-                Use <Chip label="+" size="small" sx={{ mx: 0.5 }} /> prefix for starts-with
+                Use <Chip label="+" sx={{ mx: 0.5 }} /> prefix for starts-with
               </Typography>
             </ListItem>
             <ListItem disableGutters>
               <Typography variant="body2">
-                Press <Chip label="Enter" size="small" sx={{ mx: 0.5 }} /> to search
+                Press <Chip label="Enter" sx={{ mx: 0.5 }} /> to search
               </Typography>
             </ListItem>
           </List>

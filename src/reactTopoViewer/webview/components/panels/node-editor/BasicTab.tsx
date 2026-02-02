@@ -6,6 +6,8 @@
  * - A custom node template: Custom Node Name, Base Name, Interface Pattern, Set as default + Kind/Type/Image/Version/Icon fields
  */
 import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { Box, Button, Stack, Typography } from "@mui/material";
+import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 
 import { FormField, InputField, FilterableDropdown } from "../../ui/form";
 import { IconSelectorModal } from "../../ui/IconSelectorModal";
@@ -220,7 +222,7 @@ const ImageVersionFields: React.FC<ImageVersionFieldsProps> = ({
   // If we have docker images, show dropdowns
   if (hasImages) {
     return (
-      <>
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "minmax(0, 1fr) 120px" }}>
         <FormField label="Image" inherited={isImageInherited}>
           <FilterableDropdown
             id="node-image"
@@ -241,13 +243,13 @@ const ImageVersionFields: React.FC<ImageVersionFieldsProps> = ({
             allowFreeText={true}
           />
         </FormField>
-      </>
+      </Box>
     );
   }
 
   // Fallback to simple text inputs
   return (
-    <>
+    <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "minmax(0, 1fr) 120px" }}>
       <FormField label="Image" inherited={isImageInherited}>
         <InputField
           id="node-image"
@@ -264,7 +266,7 @@ const ImageVersionFields: React.FC<ImageVersionFieldsProps> = ({
           placeholder="e.g., latest"
         />
       </FormField>
-    </>
+    </Box>
   );
 };
 
@@ -320,15 +322,19 @@ const IconField: React.FC<TabProps> = ({ data, onChange }) => {
   // Render icon option with preview
   const renderOption = useCallback(
     (option: { value: string; label: string }) => (
-      <div className="flex items-center gap-2">
-        <img
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Box
+          component="img"
           src={getIconSource(option.value, color)}
           alt={option.label}
-          className="h-6 w-6 rounded-sm"
-          style={{ borderRadius: calcBorderRadius(data.iconCornerRadius, 24) }}
+          sx={{
+            width: 24,
+            height: 24,
+            borderRadius: calcBorderRadius(data.iconCornerRadius, 24)
+          }}
         />
-        <span>{option.label}</span>
-      </div>
+        <Typography variant="body2">{option.label}</Typography>
+      </Stack>
     ),
     [color, data.iconCornerRadius, getIconSource]
   );
@@ -336,14 +342,18 @@ const IconField: React.FC<TabProps> = ({ data, onChange }) => {
   return (
     <>
       <FormField label="Icon">
-        <div className="flex gap-2 items-start">
-          <img
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Box
+            component="img"
             src={getIconSource(previewIcon, color)}
             alt="Icon preview"
-            className="h-9 w-9 rounded-sm"
-            style={{ borderRadius: calcBorderRadius(data.iconCornerRadius, 36) }}
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: calcBorderRadius(data.iconCornerRadius, 36)
+            }}
           />
-          <div className="flex-1">
+          <Box sx={{ flex: 1 }}>
             <FilterableDropdown
               id="node-icon"
               options={allIconOptions}
@@ -352,19 +362,16 @@ const IconField: React.FC<TabProps> = ({ data, onChange }) => {
               placeholder="Select icon..."
               allowFreeText={false}
               renderOption={renderOption}
-              menuClassName="max-h-64"
+              listboxSx={{ maxHeight: 260 }}
             />
-          </div>
-          <button
-            type="button"
-            className="btn btn-small whitespace-nowrap"
-            title="Customize icon color and shape"
+          </Box>
+          <Button variant="outlined"
+            startIcon={<PaletteOutlinedIcon fontSize="small" />}
             onClick={() => setIsModalOpen(true)}
           >
-            <i className="fas fa-palette mr-1" />
             Edit
-          </button>
-        </div>
+          </Button>
+        </Stack>
       </FormField>
 
       <IconSelectorModal
@@ -409,7 +416,7 @@ export const BasicTab: React.FC<TabProps> = ({ data, onChange, inheritedProps = 
   );
 
   return (
-    <div className="space-y-3">
+    <Stack spacing={2}>
       {/* Show Node Name for regular nodes, Custom Template fields for custom node templates */}
       {data.isCustomTemplate ? (
         <CustomNodeTemplateFields data={data} onChange={onChange} />
@@ -436,24 +443,24 @@ export const BasicTab: React.FC<TabProps> = ({ data, onChange, inheritedProps = 
         />
       )}
 
-      {/* Image and Version in 2-column grid */}
-      <div className="grid grid-cols-2 gap-2">
-        <ImageVersionFields
-          data={data}
-          onChange={onChange}
-          baseImages={baseImages}
-          hasImages={hasImages}
-          getVersionsForImage={getVersionsForImage}
-          parseImageString={parseImageString}
-          combineImageVersion={combineImageVersion}
-          inheritedProps={inheritedProps}
-        />
-      </div>
+      <ImageVersionFields
+        data={data}
+        onChange={onChange}
+        baseImages={baseImages}
+        hasImages={hasImages}
+        getVersionsForImage={getVersionsForImage}
+        parseImageString={parseImageString}
+        combineImageVersion={combineImageVersion}
+        inheritedProps={inheritedProps}
+      />
 
       <IconField data={data} onChange={onChange} />
 
-      {/* Show loading indicator if schema not yet loaded */}
-      {!isLoaded && <div className="helper-text opacity-60">Loading schema...</div>}
-    </div>
+      {!isLoaded && (
+        <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.7 }}>
+          Loading schema...
+        </Typography>
+      )}
+    </Stack>
   );
 };

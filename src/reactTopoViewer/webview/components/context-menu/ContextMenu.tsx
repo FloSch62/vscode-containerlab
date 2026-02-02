@@ -14,8 +14,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 export interface ContextMenuItem {
   id: string;
   label: string;
-  icon?: string;
-  iconComponent?: React.ReactNode;
+  icon?: React.ReactNode;
   disabled?: boolean;
   divider?: boolean;
   danger?: boolean;
@@ -31,9 +30,8 @@ interface ContextMenuProps {
 }
 
 function renderMenuIcon(item: ContextMenuItem): React.ReactElement | null {
-  if (item.iconComponent) return <>{item.iconComponent}</>;
-  if (item.icon) return <i className={item.icon} />;
-  return null;
+  if (!item.icon) return null;
+  return <>{item.icon}</>;
 }
 
 interface ContextMenuListProps {
@@ -131,7 +129,7 @@ const ContextMenuLevel: React.FC<ContextMenuLevelProps> = ({
     const item = items.find((entry) => entry.id === id);
     if (!item) return;
     if (id === activeItemId) return;
-    setActiveItemId(id);
+    setActiveItemId(id ?? null);
     if (!item.children || item.children.length === 0 || item.disabled) {
       closeSubmenu();
       return;

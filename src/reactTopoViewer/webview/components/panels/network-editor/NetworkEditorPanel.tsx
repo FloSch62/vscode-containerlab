@@ -3,6 +3,7 @@
  * Editor for network node configuration (host, mgmt-net, vxlan, bridge, etc.)
  */
 import React, { useState, useEffect, useCallback } from "react";
+import { Grid, Stack, Typography } from "@mui/material";
 
 import { EditorPanel } from "../../ui/editor";
 import { FormField, InputField, FilterableDropdown, Section, KeyValueList } from "../../ui/form";
@@ -150,10 +151,10 @@ const VxlanFields: React.FC<{
   }
 
   return (
-    <div className="space-y-3">
-      <div className="text-xs font-medium text-[var(--vscode-foreground)] opacity-70 mt-4 mb-2">
+    <Stack spacing={2}>
+      <Typography variant="subtitle2" color="text.secondary">
         VXLAN Settings
-      </div>
+      </Typography>
       <FormField label="Remote">
         <InputField
           id="vxlan-remote"
@@ -162,33 +163,39 @@ const VxlanFields: React.FC<{
           placeholder="Remote endpoint IP address"
         />
       </FormField>
-      <div className="grid grid-cols-3 gap-2">
-        <FormField label="VNI">
-          <InputField
-            id="vxlan-vni"
-            value={data.vxlanVni || ""}
-            onChange={(v) => onChange({ vxlanVni: v })}
-            placeholder="e.g., 100"
-          />
-        </FormField>
-        <FormField label="Dst Port">
-          <InputField
-            id="vxlan-dst-port"
-            value={data.vxlanDstPort || ""}
-            onChange={(v) => onChange({ vxlanDstPort: v })}
-            placeholder="e.g., 4789"
-          />
-        </FormField>
-        <FormField label="Src Port">
-          <InputField
-            id="vxlan-src-port"
-            value={data.vxlanSrcPort || ""}
-            onChange={(v) => onChange({ vxlanSrcPort: v })}
-            placeholder="e.g., 0"
-          />
-        </FormField>
-      </div>
-    </div>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <FormField label="VNI">
+            <InputField
+              id="vxlan-vni"
+              value={data.vxlanVni || ""}
+              onChange={(v) => onChange({ vxlanVni: v })}
+              placeholder="e.g., 100"
+            />
+          </FormField>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <FormField label="Dst Port">
+            <InputField
+              id="vxlan-dst-port"
+              value={data.vxlanDstPort || ""}
+              onChange={(v) => onChange({ vxlanDstPort: v })}
+              placeholder="e.g., 4789"
+            />
+          </FormField>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <FormField label="Src Port">
+            <InputField
+              id="vxlan-src-port"
+              value={data.vxlanSrcPort || ""}
+              onChange={(v) => onChange({ vxlanSrcPort: v })}
+              placeholder="e.g., 0"
+            />
+          </FormField>
+        </Grid>
+      </Grid>
+    </Stack>
   );
 };
 
@@ -249,10 +256,10 @@ const ExtendedPropertiesSection: React.FC<{
   }
 
   return (
-    <div className="space-y-3">
-      <div className="text-xs font-medium text-[var(--vscode-foreground)] opacity-70 mt-4 mb-2">
+    <Stack spacing={2}>
+      <Typography variant="subtitle2" color="text.secondary">
         Extended Properties
-      </div>
+      </Typography>
       <FormField label="MTU">
         <InputField
           id="network-mtu"
@@ -282,7 +289,7 @@ const ExtendedPropertiesSection: React.FC<{
           addLabel="Add Label"
         />
       </Section>
-    </div>
+    </Stack>
   );
 };
 
@@ -317,7 +324,7 @@ const NetworkEditorContent: React.FC<{
   );
 
   return (
-    <div className="space-y-3">
+    <Stack spacing={2}>
       <NetworkTypeField value={formData.networkType} onChange={handleNetworkTypeChange} />
 
       <InterfaceField
@@ -347,7 +354,7 @@ const NetworkEditorContent: React.FC<{
         data={formData}
         onChange={onChange}
       />
-    </div>
+    </Stack>
   );
 };
 

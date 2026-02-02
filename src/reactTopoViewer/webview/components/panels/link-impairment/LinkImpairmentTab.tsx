@@ -1,4 +1,5 @@
 import type React from "react";
+import { Stack } from "@mui/material";
 
 import { FormField, InputField } from "../../ui/form";
 
@@ -11,7 +12,7 @@ interface LinkImpairmentTabProps {
 
 export const LinkImpairmentTab: React.FC<LinkImpairmentTabProps> = ({ data, onChange }) => {
   return (
-    <div className="space-y-3">
+    <Stack spacing={2}>
       <FormField label="delay" unit="ms/s">
         <InputField
           id="delay"
@@ -52,6 +53,6 @@ export const LinkImpairmentTab: React.FC<LinkImpairmentTabProps> = ({ data, onCh
           placeholder="0"
         />
       </FormField>
-    </div>
+    </Stack>
   );
 };

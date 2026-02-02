@@ -2,6 +2,7 @@
  * Runtime Tab for Node Editor
  */
 import React from "react";
+import { Stack } from "@mui/material";
 
 import { FormField, InputField, SelectField, CheckboxField, DynamicList } from "../../ui/form";
 
@@ -88,8 +89,8 @@ const RestartAndDelaySection: React.FC<TabProps> = ({ data, onChange, inheritedP
 );
 
 export const RuntimeTab: React.FC<TabProps> = ({ data, onChange, inheritedProps = [] }) => (
-  <div className="space-y-3">
+  <Stack spacing={2}>
     <UserAndEntrySection data={data} onChange={onChange} inheritedProps={inheritedProps} />
     <RestartAndDelaySection data={data} onChange={onChange} inheritedProps={inheritedProps} />
-  </div>
+  </Stack>
 );

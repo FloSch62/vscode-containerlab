@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from "react";
 import React from "react";
+import { Stack, Typography } from "@mui/material";
 
 import { BasePanel } from "../ui/editor/BasePanel";
 
@@ -66,14 +67,15 @@ export const FloatingPanel: React.FC<FloatingPanelProps> = ({
 interface PropertyRowProps {
   label: string;
   value: string | ReactNode;
-  className?: string;
 }
 
-export const PropertyRow: React.FC<PropertyRowProps> = ({ label, value, className = "" }) => (
-  <div className={`flex flex-col items-center ${className}`}>
-    <span className="field-label mb-1">{label}</span>
-    <span className="text-sm text-[var(--vscode-foreground)] text-center break-all">
+export const PropertyRow: React.FC<PropertyRowProps> = ({ label, value }) => (
+  <Stack spacing={0.5} alignItems="center">
+    <Typography variant="caption" color="text.secondary">
+      {label}
+    </Typography>
+    <Typography variant="body2" align="center" sx={{ wordBreak: "break-word" }}>
       {value || "N/A"}
-    </span>
-  </div>
+    </Typography>
+  </Stack>
 );

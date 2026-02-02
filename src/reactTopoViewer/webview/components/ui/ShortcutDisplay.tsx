@@ -32,9 +32,7 @@ export const ShortcutDisplay: React.FC<ShortcutDisplayProps> = ({ shortcuts }) =
       {shortcuts.map((shortcut) => (
         <Chip
           key={shortcut.id}
-          label={shortcut.text}
-          size="small"
-          sx={{
+          label={shortcut.text} sx={{
             fontSize: 12,
             backgroundColor: "var(--vscode-editorHoverWidget-background)",
             color: "var(--vscode-editor-foreground)"

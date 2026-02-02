@@ -3,6 +3,8 @@
  * Allows editing group name, level, and visual styles
  */
 import React from "react";
+import { Box, Button, Grid, Stack, Typography } from "@mui/material";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import type { GroupStyleAnnotation } from "../../../../shared/types/topology";
 import type { GroupEditorData } from "../../../hooks/canvas";
@@ -24,22 +26,26 @@ const BasicInfoSection: React.FC<{
   formData: GroupEditorData;
   updateField: Props["updateField"];
 }> = ({ formData, updateField }) => (
-  <div className="flex flex-col gap-3">
-    <h4 className="section-header">Basic Information</h4>
-    <div className="grid grid-cols-2 gap-3">
-      <TextInput
-        label="Group Name"
-        value={formData.name}
-        onChange={(v) => updateField("name", v)}
-        placeholder="e.g., rack1"
-      />
-      <TextInput
-        label="Level"
-        value={formData.level}
-        onChange={(v) => updateField("level", v)}
-        placeholder="e.g., 1"
-      />
-    </div>
+  <Stack spacing={2}>
+    <Typography variant="subtitle2">Basic Information</Typography>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextInput
+          label="Group Name"
+          value={formData.name}
+          onChange={(v) => updateField("name", v)}
+          placeholder="e.g., rack1"
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextInput
+          label="Level"
+          value={formData.level}
+          onChange={(v) => updateField("level", v)}
+          placeholder="e.g., 1"
+        />
+      </Grid>
+    </Grid>
     <SelectInput
       label="Label Position"
       value={formData.style.labelPosition ?? "top-center"}
@@ -52,7 +58,7 @@ const BasicInfoSection: React.FC<{
           .join(" ")
       }))}
     />
-  </div>
+  </Stack>
 );
 
 // Background section
@@ -60,9 +66,9 @@ const BackgroundSection: React.FC<{
   formData: GroupEditorData;
   updateStyle: Props["updateStyle"];
 }> = ({ formData, updateStyle }) => (
-  <div className="flex flex-col gap-3">
-    <h4 className="section-header">Background</h4>
-    <div className="flex items-start gap-4 flex-wrap">
+  <Stack spacing={2}>
+    <Typography variant="subtitle2">Background</Typography>
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
       <ColorSwatch
         label="Color"
         value={formData.style.backgroundColor ?? "#d9d9d9"}
@@ -73,8 +79,8 @@ const BackgroundSection: React.FC<{
         value={formData.style.backgroundOpacity ?? 20}
         onChange={(v) => updateStyle("backgroundOpacity", v)}
       />
-    </div>
-  </div>
+    </Stack>
+  </Stack>
 );
 
 // Border section
@@ -82,9 +88,9 @@ const BorderSection: React.FC<{
   formData: GroupEditorData;
   updateStyle: Props["updateStyle"];
 }> = ({ formData, updateStyle }) => (
-  <div className="flex flex-col gap-3">
-    <h4 className="section-header">Border</h4>
-    <div className="flex items-start gap-4 flex-wrap">
+  <Stack spacing={2}>
+    <Typography variant="subtitle2">Border</Typography>
+    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
       <ColorSwatch
         label="Color"
         value={formData.style.borderColor ?? "#dddddd"}
@@ -110,7 +116,7 @@ const BorderSection: React.FC<{
           { value: "double", label: "Double" }
         ]}
       />
-    </div>
+    </Stack>
     <RangeSlider
       label="Corner Radius"
       value={formData.style.borderRadius ?? 0}
@@ -118,7 +124,7 @@ const BorderSection: React.FC<{
       max={50}
       unit="px"
     />
-  </div>
+  </Stack>
 );
 
 // Text color section
@@ -126,16 +132,16 @@ const TextSection: React.FC<{
   formData: GroupEditorData;
   updateStyle: Props["updateStyle"];
 }> = ({ formData, updateStyle }) => (
-  <div className="flex flex-col gap-3">
-    <h4 className="section-header">Label</h4>
-    <div className="flex items-start gap-4">
+  <Stack spacing={2}>
+    <Typography variant="subtitle2">Label</Typography>
+    <Stack direction="row" spacing={2} alignItems="center">
       <ColorSwatch
         label="Text Color"
         value={formData.style.labelColor ?? formData.style.color ?? "#ebecf0"}
         onChange={(v) => updateStyle("labelColor", v)}
       />
-    </div>
-  </div>
+    </Stack>
+  </Stack>
 );
 
 // Preview section
@@ -144,12 +150,32 @@ const PreviewSection: React.FC<{ formData: GroupEditorData }> = ({ formData }) =
   const bgOpacity = (style.backgroundOpacity ?? 20) / 100;
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className="field-label">Preview</span>
-      <div className="relative p-4 bg-gradient-to-br from-black/30 to-black/10 rounded-sm border border-white/5 min-h-[80px] flex items-center justify-center">
-        <div
-          className="relative w-full h-16 flex items-start justify-center pt-1"
-          style={{
+    <Stack spacing={1}>
+      <Typography variant="caption" color="text.secondary">
+        Preview
+      </Typography>
+      <Box
+        sx={{
+          position: "relative",
+          p: 2,
+          borderRadius: 1,
+          minHeight: 80,
+          border: "1px solid",
+          borderColor: "divider",
+          backgroundColor: "rgba(0,0,0,0.18)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}
+      >
+        <Box
+          sx={{
+            width: "100%",
+            height: 64,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            pt: 0.5,
             backgroundColor: style.backgroundColor ?? "#d9d9d9",
             opacity: bgOpacity,
             borderColor: style.borderColor ?? "#dddddd",
@@ -158,15 +184,15 @@ const PreviewSection: React.FC<{ formData: GroupEditorData }> = ({ formData }) =
             borderRadius: `${style.borderRadius ?? 0}px`
           }}
         >
-          <span
-            className="text-xs font-medium"
-            style={{ color: style.labelColor ?? style.color ?? "#ebecf0" }}
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: 600, color: style.labelColor ?? style.color ?? "#ebecf0" }}
           >
             {formData.name || "Group Name"}
-          </span>
-        </div>
-      </div>
-    </div>
+          </Typography>
+        </Box>
+      </Box>
+    </Stack>
   );
 };
 
@@ -177,21 +203,20 @@ export const GroupFormContent: React.FC<Props> = ({
   updateStyle,
   onDelete
 }) => (
-  <div className="flex flex-col gap-4">
+  <Stack spacing={2}>
     <BasicInfoSection formData={formData} updateField={updateField} />
     <BackgroundSection formData={formData} updateStyle={updateStyle} />
     <BorderSection formData={formData} updateStyle={updateStyle} />
     <TextSection formData={formData} updateStyle={updateStyle} />
     <PreviewSection formData={formData} />
     {onDelete && (
-      <button
-        type="button"
-        className="self-start text-xs text-[var(--vscode-errorForeground)] opacity-60 hover:opacity-100 transition-opacity"
+      <Button color="error"
+        startIcon={<DeleteOutlineIcon fontSize="small" />}
         onClick={onDelete}
+        sx={{ alignSelf: "flex-start", textTransform: "none" }}
       >
-        <i className="fas fa-trash-alt mr-1.5" />
         Delete Group
-      </button>
+      </Button>
     )}
-  </div>
+  </Stack>
 );
